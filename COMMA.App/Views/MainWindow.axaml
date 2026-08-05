@@ -6,8 +6,8 @@
         mc:Ignorable="d"
         x:Class="COMMA.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Width="1600"
-        Height="900"
+        Width="1800"
+        Height="950"
         Title="COMMA Workspace">
 
     <Design.DataContext>
@@ -30,11 +30,12 @@
                     Command="{Binding GeneratePdfCommand}" />
 
             <TextBlock VerticalAlignment="Center"
+                       FontWeight="SemiBold"
                        Text="{Binding LibraryPath}" />
 
         </StackPanel>
 
-        <Grid ColumnDefinitions="300,300,*"
+        <Grid ColumnDefinitions="280,280,450,*"
               ColumnSpacing="15">
 
             <Border Grid.Column="0"
@@ -58,6 +59,97 @@
             </Border>
 
             <Border Grid.Column="2"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    Padding="12">
+
+                <ScrollViewer>
+
+                    <StackPanel Spacing="12">
+
+                        <TextBlock Text="Production Card"
+                                   FontSize="20"
+                                   FontWeight="Bold"/>
+
+                        <Grid ColumnDefinitions="130,*"
+                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+                            <TextBlock Grid.Row="0"
+                                       Text="Order"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="0"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.OrderName}" />
+
+                            <TextBlock Grid.Row="1"
+                                       Text="Code"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="1"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.ProductCode}" />
+
+                            <TextBlock Grid.Row="2"
+                                       Text="Product"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="2"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.ProductName}" />
+
+                            <TextBlock Grid.Row="3"
+                                       Text="Customer"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="3"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.Customer}" />
+
+                            <TextBlock Grid.Row="4"
+                                       Text="Colour"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="4"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.Colour}" />
+
+                            <TextBlock Grid.Row="5"
+                                       Text="Size"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="5"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.Size}" />
+
+                            <TextBlock Grid.Row="6"
+                                       Text="Quantity"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="6"
+                                     Grid.Column="1"
+                                     Text="{Binding ProductionCard.Quantity}" />
+
+                            <TextBlock Grid.Row="7"
+                                       Text="Notes"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Grid.Row="7"
+                                     Grid.Column="1"
+                                     AcceptsReturn="True"
+                                     MinHeight="120"
+                                     TextWrapping="Wrap"
+                                     Text="{Binding ProductionCard.Notes}" />
+
+                        </Grid>
+
+                    </StackPanel>
+
+                </ScrollViewer>
+
+            </Border>
+
+            <Border Grid.Column="3"
                     BorderBrush="Gray"
                     BorderThickness="1"
                     Padding="10">
