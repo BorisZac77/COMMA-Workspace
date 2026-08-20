@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="COMMA.App.Controls.DrawingSection">
+
+    <ContentControl x:Name="DrawingHost"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch"/>
+
+</UserControl>

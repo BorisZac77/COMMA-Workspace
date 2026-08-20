@@ -1,0 +1,269 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:COMMA.App.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="COMMA.App.Views.ProductionEntriesWindow"
+        x:DataType="models:ProductionCard"
+        Width="1180"
+        Height="760"
+        MinWidth="1000"
+        MinHeight="650"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Title="LOGOWANIE / KOLORYSTYKA">
+
+    <Design.DataContext>
+        <models:ProductionCard/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto"
+          Background="#F4F5F7">
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,0,0,1"
+                Padding="24,18">
+
+            <StackPanel Spacing="4">
+
+                <TextBlock Text="LOGOWANIE / KOLORYSTYKA"
+                           FontSize="24"
+                           FontWeight="Bold"/>
+
+                <TextBlock Text="Maksymalnie 4 logowania. Każde logowanie może mieć dowolną liczbę kolorów nici lub kolorów Pantone."
+                           FontSize="12"
+                           Foreground="#6F737A"/>
+
+            </StackPanel>
+
+        </Border>
+
+        <!-- ZAWARTOŚĆ -->
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+
+            <ItemsControl ItemsSource="{Binding ProductionEntries}"
+                          Margin="24">
+
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="16"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:ProductionEntry">
+
+                        <Border Background="White"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+
+                            <Grid RowDefinitions="Auto,Auto"
+                                  RowSpacing="16">
+
+                                <!-- LOGOWANIE -->
+                                <Grid Grid.Row="0"
+                                      ColumnDefinitions="54,2*,1*,Auto"
+                                      ColumnSpacing="12">
+
+                                    <!-- NUMER LOGOWANIA -->
+                                    <Border Grid.Column="0"
+                                            Width="38"
+                                            Height="38"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Background="White"
+                                            BorderBrush="#8D9299"
+                                            BorderThickness="1.5"
+                                            CornerRadius="19">
+
+                                        <TextBlock Text="{Binding Number}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="14"
+                                                   FontWeight="Bold"/>
+
+                                    </Border>
+
+                                    <!-- NAZWA LOGO -->
+                                    <StackPanel Grid.Column="1"
+                                                Spacing="5">
+
+                                        <TextBlock Text="NAZWA LOGO"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="#6F737A"/>
+
+                                        <TextBox Height="42"
+                                                 VerticalContentAlignment="Center"
+                                                 PlaceholderText="np. PLOPSA LOGO"
+                                                 Text="{Binding LogoName}"/>
+
+                                    </StackPanel>
+
+                                    <!-- WYMIAR -->
+                                    <StackPanel Grid.Column="2"
+                                                Spacing="5">
+
+                                        <TextBlock Text="WYMIAR"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="#6F737A"/>
+
+                                        <TextBox Height="42"
+                                                 VerticalContentAlignment="Center"
+                                                 PlaceholderText="np. 8 cm szerokości"
+                                                 Text="{Binding Dimension}"/>
+
+                                    </StackPanel>
+
+                                    <!-- DODAJ KOLOR -->
+                                    <Button Grid.Column="3"
+                                            MinWidth="130"
+                                            Height="42"
+                                            Margin="0,20,0,0"
+                                            Padding="14,0"
+                                            FontWeight="Bold"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            Content="+ DODAJ KOLOR"
+                                            Tag="{Binding}"
+                                            Click="OnAddColourButtonClick"/>
+
+                                </Grid>
+
+                                <!-- KOLORYSTYKA -->
+                                <Border Grid.Row="1"
+                                        Margin="54,0,0,0"
+                                        Background="#FAFAFB"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="14">
+
+                                    <StackPanel Spacing="10">
+
+                                        <TextBlock Text="KOLORYSTYKA — KOLOR / NICI"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"/>
+
+                                        <ItemsControl ItemsSource="{Binding Colours}">
+
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="8"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="models:ProductionColourEntry">
+
+                                                    <Grid ColumnDefinitions="34,*,Auto"
+                                                          ColumnSpacing="10">
+
+                                                        <!-- NUMER KOLORU -->
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Number}"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   FontSize="12"
+                                                                   FontWeight="Bold"/>
+
+                                                        <!-- KOLOR / NICI -->
+                                                        <TextBox Grid.Column="1"
+                                                                 Height="38"
+                                                                 VerticalContentAlignment="Center"
+                                                                 PlaceholderText="np. MARATHON 1050 lub PANTONE 186C"
+                                                                 Text="{Binding Value}"/>
+
+                                                        <!-- USUŃ -->
+                                                        <Button Grid.Column="2"
+                                                                Width="80"
+                                                                Height="38"
+                                                                HorizontalContentAlignment="Center"
+                                                                VerticalContentAlignment="Center"
+                                                                Content="USUŃ"
+                                                                Tag="{Binding}"
+                                                                Click="OnRemoveColourButtonClick"/>
+
+                                                    </Grid>
+
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+
+                                        </ItemsControl>
+
+                                    </StackPanel>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+
+            </ItemsControl>
+
+        </ScrollViewer>
+
+        <!-- DOLNY PASEK -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,1,0,0"
+                Padding="24,14">
+
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                  ColumnSpacing="10">
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="#6F737A"
+                           TextWrapping="Wrap"
+                           Text="Kolory są automatycznie numerowane osobno dla każdego logowania."/>
+
+                <!-- WYCZYŚĆ -->
+                <Button Grid.Column="1"
+                        x:Name="ClearButton"
+                        Width="130"
+                        Height="42"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="WYCZYŚĆ"/>
+
+                <!-- ANULUJ -->
+                <Button Grid.Column="2"
+                        x:Name="CancelButton"
+                        Width="130"
+                        Height="42"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="ANULUJ"/>
+
+                <!-- ZAPISZ -->
+                <Button Grid.Column="3"
+                        x:Name="SaveButton"
+                        Width="150"
+                        Height="42"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        FontWeight="Bold"
+                        Content="ZAPISZ"/>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
+</Window>

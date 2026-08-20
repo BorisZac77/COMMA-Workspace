@@ -1,0 +1,115 @@
+using System;
+using System.IO;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+
+namespace COMMA.App.Controls;
+
+public partial class DrawingBox : UserControl
+{
+    public static readonly StyledProperty<string> TitleProperty =
+        AvaloniaProperty.Register<DrawingBox, string>(
+            nameof(Title),
+            string.Empty);
+
+    public static readonly StyledProperty<string> ImagePathProperty =
+        AvaloniaProperty.Register<DrawingBox, string>(
+            nameof(ImagePath),
+            string.Empty);
+
+    public static readonly StyledProperty<double> ScaleXProperty =
+        AvaloniaProperty.Register<DrawingBox, double>(
+            nameof(ScaleX),
+            1.0);
+
+    public static readonly StyledProperty<double> MaxDrawingWidthProperty =
+        AvaloniaProperty.Register<DrawingBox, double>(
+            nameof(MaxDrawingWidth),
+            double.PositiveInfinity);
+
+    public static readonly StyledProperty<double> MaxDrawingHeightProperty =
+        AvaloniaProperty.Register<DrawingBox, double>(
+            nameof(MaxDrawingHeight),
+            double.PositiveInfinity);
+
+    private Bitmap? drawingBitmap;
+
+    public DrawingBox()
+    {
+        InitializeComponent();
+    }
+
+    public string Title
+    {
+        get => GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
+
+    public string ImagePath
+    {
+        get => GetValue(ImagePathProperty);
+        set => SetValue(ImagePathProperty, value);
+    }
+
+    public double ScaleX
+    {
+        get => GetValue(ScaleXProperty);
+        set => SetValue(ScaleXProperty, value);
+    }
+
+    public double MaxDrawingWidth
+    {
+        get => GetValue(MaxDrawingWidthProperty);
+        set => SetValue(MaxDrawingWidthProperty, value);
+    }
+
+    public double MaxDrawingHeight
+    {
+        get => GetValue(MaxDrawingHeightProperty);
+        set => SetValue(MaxDrawingHeightProperty, value);
+    }
+
+    protected override void OnPropertyChanged(
+        AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == ImagePathProperty)
+            LoadDrawingImage(change.NewValue as string);
+    }
+
+    private void LoadDrawingImage(
+        string? path)
+    {
+        drawingBitmap?.Dispose();
+        drawingBitmap =
+            null;
+
+        if (DrawingImage == null)
+            return;
+
+        DrawingImage.Source =
+            null;
+
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        if (!File.Exists(path))
+            return;
+
+        try
+        {
+            drawingBitmap =
+                new Bitmap(path);
+
+            DrawingImage.Source =
+                drawingBitmap;
+        }
+        catch (Exception)
+        {
+            DrawingImage.Source =
+                null;
+        }
+    }
+}

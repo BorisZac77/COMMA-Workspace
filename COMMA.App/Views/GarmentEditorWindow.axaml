@@ -1,0 +1,209 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="COMMA.App.Views.GarmentEditorWindow"
+        Width="720"
+        Height="780"
+        MinWidth="720"
+        MinHeight="780"
+        MaxWidth="720"
+        MaxHeight="780"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Title="Odzież w zleceniu">
+
+    <Grid RowDefinitions="Auto,*,Auto"
+          Background="#F4F5F7">
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,0,0,1"
+                Padding="24,20">
+
+            <StackPanel Spacing="4">
+
+                <TextBlock Text="ODZIEŻ W ZLECENIU"
+                           FontSize="22"
+                           FontWeight="Bold"/>
+
+                <TextBlock Text="Ustaw wariant produktu oraz wybierz rzuty potrzebne na karcie."
+                           FontSize="12"
+                           Foreground="#6F737A"
+                           TextWrapping="Wrap"/>
+
+            </StackPanel>
+
+        </Border>
+
+        <!-- ZAWARTOŚĆ -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+
+            <StackPanel Margin="24"
+                        Spacing="18">
+
+                <!-- NAZWA -->
+                <StackPanel Spacing="5">
+
+                    <TextBlock Text="NAZWA ODZIEŻY"
+                               FontSize="11"
+                               FontWeight="Bold"/>
+
+                    <TextBox x:Name="GarmentNameTextBox"
+                             MinHeight="40"
+                             IsReadOnly="True"/>
+
+                    <TextBlock Text="Nazwa jest pobierana z wybranego produktu w bibliotece."
+                               FontSize="10"
+                               Foreground="#6F737A"
+                               TextWrapping="Wrap"/>
+
+                </StackPanel>
+
+                <!-- KOLOR -->
+                <StackPanel Spacing="5">
+
+                    <TextBlock Text="KOLOR"
+                               FontSize="11"
+                               FontWeight="Bold"/>
+
+                    <TextBox x:Name="ColourTextBox"
+                             MinHeight="40"
+                             PlaceholderText="Opcjonalnie, np. CZARNY"/>
+
+                </StackPanel>
+
+                <!-- WARIANT -->
+                <StackPanel Spacing="5">
+
+                    <TextBlock Text="WARIANT / OPIS"
+                               FontSize="11"
+                               FontWeight="Bold"/>
+
+                    <TextBox x:Name="VariantTextBox"
+                             MinHeight="40"
+                             PlaceholderText="Opcjonalnie, np. STAFF"/>
+
+                </StackPanel>
+
+                <!-- RZUTY -->
+                <Border Background="White"
+                        BorderBrush="#D8DADF"
+                        BorderThickness="1"
+                        CornerRadius="7"
+                        Padding="16">
+
+                    <StackPanel Spacing="12">
+
+                        <TextBlock Text="RZUTY NA KARCIE"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+
+                        <TextBlock Text="Wybierz tylko rzuty potrzebne dla tej pozycji."
+                                   FontSize="10"
+                                   Foreground="#6F737A"/>
+
+                        <Grid ColumnDefinitions="*,*"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="18"
+                              RowSpacing="12">
+
+                            <CheckBox x:Name="FrontCheckBox"
+                                      Grid.Row="0"
+                                      Grid.Column="0"
+                                      Content="PRZÓD"/>
+
+                            <CheckBox x:Name="BackCheckBox"
+                                      Grid.Row="0"
+                                      Grid.Column="1"
+                                      Content="TYŁ"/>
+
+                            <CheckBox x:Name="RightCheckBox"
+                                      Grid.Row="1"
+                                      Grid.Column="0"
+                                      Content="PRAWY BOK"/>
+
+                            <CheckBox x:Name="LeftCheckBox"
+                                      Grid.Row="1"
+                                      Grid.Column="1"
+                                      Content="LEWY BOK"/>
+
+                        </Grid>
+
+                    </StackPanel>
+
+                </Border>
+
+                <!-- NOWA STRONA -->
+                <Border Background="White"
+                        BorderBrush="#D8DADF"
+                        BorderThickness="1"
+                        CornerRadius="7"
+                        Padding="16">
+
+                    <StackPanel Spacing="7">
+
+                        <CheckBox x:Name="StartNewPageCheckBox"
+                                  Content="ROZPOCZNIJ OD NOWEJ STRONY"
+                                  FontWeight="SemiBold"/>
+
+                        <TextBlock Text="Opcjonalnie wymusza rozpoczęcie tej pozycji od kolejnej strony PDF."
+                                   Margin="24,0,0,0"
+                                   FontSize="10"
+                                   Foreground="#6F737A"
+                                   TextWrapping="Wrap"/>
+
+                    </StackPanel>
+
+                </Border>
+
+            </StackPanel>
+
+        </ScrollViewer>
+
+        <!-- PRZYCISKI -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,1,0,0"
+                Padding="24,16">
+
+            <Grid ColumnDefinitions="*,Auto,Auto"
+                  ColumnSpacing="10">
+
+                <Border Grid.Column="0"/>
+
+                <Button x:Name="CancelButton"
+                        Grid.Column="1"
+                        Width="130"
+                        Height="44"
+                        Background="#F7F8FA"
+                        BorderBrush="#C9CDD3"
+                        BorderThickness="1"
+                        CornerRadius="7"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="ANULUJ"/>
+
+                <Button x:Name="SaveButton"
+                        Grid.Column="2"
+                        Width="170"
+                        Height="44"
+                        CornerRadius="7"
+                        FontSize="12"
+                        FontWeight="Bold"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="DODAJ ODZIEŻ"/>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
+</Window>

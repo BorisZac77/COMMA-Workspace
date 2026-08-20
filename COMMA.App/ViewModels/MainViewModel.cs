@@ -1,13 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using COMMA.App.Models;
 using COMMA.App.Services;
+using COMMA.App.Services.Pdf;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -15,10 +21,41 @@ namespace COMMA.App.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    private const string SettingsFolderName =
+        "COMMA Workspace";
+
+    private const string LibraryPathFileName =
+        "library-path.txt";
+
+    private const string PdfOutputPathFileName =
+        "pdf-output-path.txt";
+
+    private const string DefaultPdfFileName =
+        "Karta_produkcyjna";
+
     private readonly LibraryScanner libraryScanner = new();
 
+    private readonly ProductionCardBuilder productionCardBuilder = new();
+
+    private readonly List<Product> allProducts = new();
+
+    private int pdfStatusVersion;
+
+    private string? loadedPdfPath;
+
     [ObservableProperty]
-    private string libraryPath = "No library selected";
+    private string libraryPath =
+        "Nie wybrano biblioteki";
+
+    [ObservableProperty]
+    private string pdfOutputPath =
+        GetDefaultPdfOutputPath();
+
+    [ObservableProperty]
+    private string pdfStatus = "";
+
+    [ObservableProperty]
+    private string searchText = "";
 
     public ObservableCollection<Product> Products { get; } = new();
 
@@ -33,75 +70,1878 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private Bitmap? selectedImage;
 
-    partial void OnSelectedProductChanged(Product? value)
+    [ObservableProperty]
+    private ProductionCard? productionCard;
+
+    public IAsyncRelayCommand LoadPdfCommand { get; }
+
+    public MainViewModel()
+    {
+        LoadPdfCommand =
+            new AsyncRelayCommand(
+                LoadPdf);
+
+        Garments.CollectionChanged +=
+            (_, _) =>
+            {
+                if (Garments.Count == 0)
+                {
+                    loadedPdfPath =
+                        null;
+                }
+            };
+
+        TryLoadSavedLibrary();
+
+        TryLoadSavedPdfOutputPath();
+    }
+
+    partial void OnSearchTextChanged(
+        string value)
+    {
+        ApplyProductFilter();
+    }
+
+    partial void OnSelectedProductChanged(
+        Product? value)
     {
         Drawings.Clear();
         SelectedDrawing = null;
-        SelectedImage = null;
+
+        DisposeSelectedImage();
+
+        ClearPdfStatus();
 
         if (value == null)
             return;
 
-        foreach (var drawing in DrawingScanner.Scan(value.Folder))
+        var previousCard =
+            ProductionCard;
+
+        var newCard =
+            productionCardBuilder.Build(value);
+
+        if (previousCard != null)
+        {
+            newCard.Customer =
+                previousCard.Customer;
+
+            newCard.OrderName =
+                previousCard.OrderName;
+
+            newCard.ReceivedDate =
+                previousCard.ReceivedDate;
+
+            newCard.DueDate =
+                previousCard.DueDate;
+
+            newCard.ProductionType =
+                previousCard.ProductionType;
+
+            newCard.Notes =
+                previousCard.Notes;
+        }
+
+        ProductionCard =
+            newCard;
+
+        foreach (var drawing in ProductionCard.Drawings)
             Drawings.Add(drawing);
+
+        if (!string.IsNullOrWhiteSpace(value.ImagePath) &&
+            File.Exists(value.ImagePath))
+        {
+            try
+            {
+                SelectedImage =
+                    new Bitmap(value.ImagePath);
+            }
+            catch
+            {
+                SelectedImage = null;
+            }
+        }
     }
 
-    partial void OnSelectedDrawingChanged(DrawingFile? value)
+    partial void OnSelectedDrawingChanged(
+        DrawingFile? value)
     {
-        SelectedImage = null;
+        DisposeSelectedImage();
 
         if (value == null)
             return;
 
-        SelectedImage = new Bitmap(value.FullPath);
+        if (!File.Exists(value.FullPath))
+            return;
+
+        try
+        {
+            SelectedImage =
+                new Bitmap(value.FullPath);
+        }
+        catch
+        {
+            SelectedImage = null;
+        }
     }
 
     [RelayCommand]
     private async Task OpenLibrary()
     {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return;
-
-        var window = desktop.MainWindow;
+        var window =
+            GetMainWindow();
 
         if (window == null)
             return;
 
-        var folders = await window.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select COMMA Library",
-                AllowMultiple = false
-            });
+        var folders =
+            await window.StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title =
+                        "Wybierz bibliotekę COMMA",
+                    AllowMultiple =
+                        false
+                });
 
         if (folders.Count == 0)
             return;
 
-        var path = folders[0].TryGetLocalPath();
+        var path =
+            folders[0].TryGetLocalPath();
 
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        LibraryPath = path;
+        if (!Directory.Exists(path))
+        {
+            SetPdfStatus(
+                "Wybrany folder nie istnieje.");
 
-        Products.Clear();
-        Drawings.Clear();
+            return;
+        }
 
-        SelectedProduct = null;
-        SelectedDrawing = null;
-        SelectedImage = null;
+        LoadLibrary(path);
 
-        foreach (var product in libraryScanner.Scan(path))
-            Products.Add(product);
+        SaveLibraryPath(path);
     }
 
     [RelayCommand]
-    private void GeneratePdf()
+    private async Task SelectPdfOutputFolder()
     {
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        var window =
+            GetMainWindow();
 
-        var outputFile = Path.Combine(desktop, "Test.pdf");
+        if (window == null)
+            return;
 
-        PdfGenerator.Generate(outputFile);
+        var folders =
+            await window.StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title =
+                        "Wybierz folder zapisu PDF",
+                    AllowMultiple =
+                        false
+                });
+
+        if (folders.Count == 0)
+            return;
+
+        var path =
+            folders[0].TryGetLocalPath();
+
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        if (!Directory.Exists(path))
+        {
+            SetPdfStatus(
+                "Wybrany folder nie istnieje.");
+
+            return;
+        }
+
+        PdfOutputPath =
+            path;
+
+        SavePdfOutputPath(
+            path);
+
+        await ShowTemporaryPdfStatus(
+            $"✓ Folder zapisu PDF: {path}",
+            3000);
+    }
+
+    [RelayCommand]
+    private void RefreshLibrary()
+    {
+        if (string.IsNullOrWhiteSpace(LibraryPath) ||
+            LibraryPath == "Nie wybrano biblioteki")
+        {
+            SetPdfStatus(
+                "Najpierw wybierz bibliotekę.");
+
+            return;
+        }
+
+        if (!Directory.Exists(LibraryPath))
+        {
+            SetPdfStatus(
+                "Biblioteka nie istnieje.");
+
+            return;
+        }
+
+        try
+        {
+            var currentProduct =
+                SelectedProduct;
+
+            LoadLibrary(
+                LibraryPath);
+
+            if (currentProduct == null)
+                return;
+
+            var refreshedProduct =
+                Products.FirstOrDefault(product =>
+                    product.Folder ==
+                    currentProduct.Folder);
+
+            if (refreshedProduct != null)
+            {
+                SelectedProduct =
+                    refreshedProduct;
+            }
+
+            SetPdfStatus(
+                "✓ Biblioteka została odświeżona.");
+        }
+        catch (Exception exception)
+        {
+            SetPdfStatus(
+                "Błąd odświeżania biblioteki: " +
+                exception.Message);
+        }
+    }
+
+    private static Window? GetMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime
+            is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return null;
+        }
+
+        return desktop.MainWindow;
+    }
+
+    private void TryLoadSavedLibrary()
+    {
+        var settingsFile =
+            GetLibraryPathFile();
+
+        if (!File.Exists(settingsFile))
+            return;
+
+        try
+        {
+            var savedPath =
+                File.ReadAllText(
+                        settingsFile)
+                    .Trim();
+
+            if (string.IsNullOrWhiteSpace(savedPath))
+                return;
+
+            if (!Directory.Exists(savedPath))
+            {
+                LibraryPath =
+                    "Zapisana biblioteka nie istnieje";
+
+                SetPdfStatus(
+                    "Poprzednia biblioteka została usunięta " +
+                    "lub przeniesiona. Kliknij ZMIEŃ BIBLIOTEKĘ " +
+                    "i wskaż właściwy folder.");
+
+                return;
+            }
+
+            LoadLibrary(
+                savedPath);
+        }
+        catch (Exception exception)
+        {
+            LibraryPath =
+                "Nie udało się wczytać biblioteki";
+
+            SetPdfStatus(
+                "Błąd automatycznego ładowania biblioteki: " +
+                exception.Message);
+        }
+    }
+
+    private void TryLoadSavedPdfOutputPath()
+    {
+        var defaultPath =
+            GetDefaultPdfOutputPath();
+
+        PdfOutputPath =
+            defaultPath;
+
+        var settingsFile =
+            GetPdfOutputPathFile();
+
+        if (!File.Exists(settingsFile))
+            return;
+
+        try
+        {
+            var savedPath =
+                File.ReadAllText(
+                        settingsFile)
+                    .Trim();
+
+            if (string.IsNullOrWhiteSpace(savedPath))
+                return;
+
+            if (!Directory.Exists(savedPath))
+            {
+                PdfOutputPath =
+                    defaultPath;
+
+                return;
+            }
+
+            PdfOutputPath =
+                savedPath;
+        }
+        catch
+        {
+            PdfOutputPath =
+                defaultPath;
+        }
+    }
+
+    private void LoadLibrary(
+        string path)
+    {
+        ClearCurrentSelection();
+
+        allProducts.Clear();
+
+        Products.Clear();
+
+        SearchText = "";
+
+        LibraryPath =
+            path;
+
+        ClearPdfStatus();
+
+        foreach (var product in libraryScanner.Scan(path))
+        {
+            allProducts.Add(
+                product);
+        }
+
+        if (allProducts.Count == 0)
+        {
+            SetPdfStatus(
+                "W wybranym folderze nie znaleziono " +
+                "katalogów z odzieżą.");
+
+            return;
+        }
+
+        ApplyProductFilter();
+    }
+
+    private void ApplyProductFilter()
+    {
+        var previousSelection =
+            SelectedProduct;
+
+        var searchValue =
+            SearchText.Trim();
+
+        var filteredProducts =
+            string.IsNullOrWhiteSpace(searchValue)
+                ? allProducts
+                : allProducts
+                    .Where(product =>
+                        MatchesSearch(
+                            product,
+                            searchValue))
+                    .ToList();
+
+        Products.Clear();
+
+        foreach (var product in filteredProducts)
+        {
+            Products.Add(
+                product);
+        }
+
+        if (Products.Count == 0)
+        {
+            SelectedProduct =
+                null;
+
+            if (string.IsNullOrWhiteSpace(searchValue))
+            {
+                ClearPdfStatus();
+            }
+            else
+            {
+                SetPdfStatus(
+                    $"Nie znaleziono produktów dla: {searchValue}");
+            }
+
+            return;
+        }
+
+        ClearPdfStatus();
+
+        if (previousSelection != null &&
+            Products.Contains(previousSelection))
+        {
+            SelectedProduct =
+                previousSelection;
+
+            return;
+        }
+
+        SelectedProduct =
+            Products[0];
+    }
+
+    private static bool MatchesSearch(
+        Product product,
+        string searchValue)
+    {
+        return ContainsIgnoreCase(
+                   product.Name,
+                   searchValue)
+               || ContainsIgnoreCase(
+                   product.Code,
+                   searchValue)
+               || ContainsIgnoreCase(
+                   product.DisplayName,
+                   searchValue)
+               || ContainsIgnoreCase(
+                   product.DisplayCode,
+                   searchValue);
+    }
+
+    private static bool ContainsIgnoreCase(
+        string? source,
+        string searchValue)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+            return false;
+
+        return source.Contains(
+            searchValue,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ClearCurrentSelection()
+    {
+        SelectedProduct =
+            null;
+
+        SelectedDrawing =
+            null;
+
+        ProductionCard =
+            null;
+
+        Drawings.Clear();
+
+        DisposeSelectedImage();
+    }
+
+    private static void SaveLibraryPath(
+        string path)
+    {
+        try
+        {
+            var settingsFile =
+                GetLibraryPathFile();
+
+            var settingsDirectory =
+                Path.GetDirectoryName(
+                    settingsFile);
+
+            if (!string.IsNullOrWhiteSpace(
+                    settingsDirectory))
+            {
+                Directory.CreateDirectory(
+                    settingsDirectory);
+            }
+
+            File.WriteAllText(
+                settingsFile,
+                path);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void SavePdfOutputPath(
+        string path)
+    {
+        try
+        {
+            var settingsFile =
+                GetPdfOutputPathFile();
+
+            var settingsDirectory =
+                Path.GetDirectoryName(
+                    settingsFile);
+
+            if (!string.IsNullOrWhiteSpace(
+                    settingsDirectory))
+            {
+                Directory.CreateDirectory(
+                    settingsDirectory);
+            }
+
+            File.WriteAllText(
+                settingsFile,
+                path);
+        }
+        catch
+        {
+        }
+    }
+
+    private static string GetLibraryPathFile()
+    {
+        var applicationDataPath =
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.ApplicationData);
+
+        return Path.Combine(
+            applicationDataPath,
+            SettingsFolderName,
+            LibraryPathFileName);
+    }
+
+    private static string GetPdfOutputPathFile()
+    {
+        var applicationDataPath =
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.ApplicationData);
+
+        return Path.Combine(
+            applicationDataPath,
+            SettingsFolderName,
+            PdfOutputPathFileName);
+    }
+
+    private static string GetDefaultPdfOutputPath()
+    {
+        return Environment.GetFolderPath(
+            Environment.SpecialFolder.DesktopDirectory);
+    }
+
+    private string GetEffectivePdfOutputPath()
+    {
+        if (!string.IsNullOrWhiteSpace(
+                PdfOutputPath) &&
+            Directory.Exists(
+                PdfOutputPath))
+        {
+            return PdfOutputPath;
+        }
+
+        var defaultPath =
+            GetDefaultPdfOutputPath();
+
+        PdfOutputPath =
+            defaultPath;
+
+        return defaultPath;
+    }
+
+    private void DisposeSelectedImage()
+    {
+        SelectedImage?.Dispose();
+
+        SelectedImage =
+            null;
+    }
+
+    private async Task LoadPdf()
+    {
+        ClearPdfStatus();
+
+        var window =
+            GetMainWindow();
+
+        if (window == null)
+            return;
+
+        var files =
+            await window.StorageProvider.OpenFilePickerAsync(
+                new FilePickerOpenOptions
+                {
+                    Title =
+                        "Wczytaj kartę produkcyjną PDF",
+                    AllowMultiple =
+                        false,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType(
+                            "Pliki PDF")
+                        {
+                            Patterns =
+                            [
+                                "*.pdf"
+                            ]
+                        }
+                    ]
+                });
+
+        if (files.Count == 0)
+            return;
+
+        var pdfPath =
+            files[0].TryGetLocalPath();
+
+        if (string.IsNullOrWhiteSpace(pdfPath) ||
+            !File.Exists(pdfPath))
+        {
+            SetPdfStatus(
+                "Nie udało się otworzyć wybranego pliku PDF.");
+
+            return;
+        }
+
+        try
+        {
+            var data =
+                CommaPdfDataReader.Read(
+                    pdfPath);
+
+            if (data.FormatVersion >= 3 &&
+                data.Garments.Count > 0)
+            {
+                var restoredGarments =
+                    new List<(
+                        OrderGarmentItem Garment,
+                        Product Product)>();
+
+                var missingProducts =
+                    new List<string>();
+
+                foreach (var garmentData in data.Garments)
+                {
+                    var garmentProduct =
+                        FindProductForPdf(
+                            garmentData.ProductCode,
+                            !string.IsNullOrWhiteSpace(
+                                garmentData.ProductName)
+                                ? garmentData.ProductName
+                                : garmentData.Name);
+
+                    if (garmentProduct == null)
+                    {
+                        var missingName =
+                            !string.IsNullOrWhiteSpace(
+                                garmentData.Name)
+                                ? garmentData.Name
+                                : !string.IsNullOrWhiteSpace(
+                                    garmentData.ProductName)
+                                    ? garmentData.ProductName
+                                    : garmentData.ProductCode;
+
+                        missingProducts.Add(
+                            string.IsNullOrWhiteSpace(
+                                missingName)
+                                ? "Nieznany produkt"
+                                : missingName);
+
+                        continue;
+                    }
+
+                    var garment =
+                        new OrderGarmentItem();
+
+                    garment.LoadProduct(
+                        garmentProduct);
+
+                    if (!string.IsNullOrWhiteSpace(
+                            garmentData.Name))
+                    {
+                        garment.Name =
+                            garmentData.Name;
+                    }
+
+                    garment.Colour =
+                        garmentData.Colour ?? "";
+
+                    garment.Variant =
+                        garmentData.Variant ?? "";
+
+                    garment.ShowFront =
+                        garmentData.ShowFront;
+
+                    garment.ShowBack =
+                        garmentData.ShowBack;
+
+                    garment.ShowRight =
+                        garmentData.ShowRight;
+
+                    garment.ShowLeft =
+                        garmentData.ShowLeft;
+
+                    garment.StartNewPage =
+                        garmentData.StartNewPage;
+
+                    garment.RefreshDrawingSelection();
+
+                    restoredGarments.Add(
+                        (
+                            garment,
+                            garmentProduct
+                        ));
+                }
+
+                if (missingProducts.Count > 0)
+                {
+                    SetPdfStatus(
+                        "Nie znaleziono w aktualnej bibliotece: " +
+                        string.Join(
+                            ", ",
+                            missingProducts));
+
+                    return;
+                }
+
+                if (restoredGarments.Count == 0)
+                {
+                    SetPdfStatus(
+                        "PDF nie zawiera odzieży możliwej do odtworzenia.");
+
+                    return;
+                }
+
+                SearchText =
+                    "";
+
+                SelectedProduct =
+                    restoredGarments[0].Product;
+
+                if (ProductionCard == null)
+                {
+                    SetPdfStatus(
+                        "Nie udało się utworzyć karty dla produktu z PDF.");
+
+                    return;
+                }
+
+                RestoreCardFromPdf(
+                    ProductionCard,
+                    data);
+
+                Garments.Clear();
+
+                foreach (var restored in restoredGarments)
+                {
+                    Garments.Add(
+                        restored.Garment);
+                }
+
+                Garments[0].StartNewPage =
+                    false;
+
+                SelectedGarment =
+                    Garments[0];
+
+                RebuildOrderPages();
+
+                loadedPdfPath =
+                    pdfPath;
+
+                await ShowTemporaryPdfStatus(
+                    $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
+                    4000);
+
+                return;
+            }
+
+            var product =
+                FindProductForPdf(
+                    data.ProductCode,
+                    data.ProductName);
+
+            if (product == null)
+            {
+                SetPdfStatus(
+                    "Nie znaleziono produktu z PDF w aktualnej bibliotece.");
+
+                return;
+            }
+
+            SearchText =
+                "";
+
+            SelectedProduct =
+                product;
+
+            if (ProductionCard == null)
+            {
+                SetPdfStatus(
+                    "Nie udało się utworzyć karty dla produktu z PDF.");
+
+                return;
+            }
+
+            RestoreCardFromPdf(
+                ProductionCard,
+                data);
+
+            loadedPdfPath =
+                pdfPath;
+
+            await ShowTemporaryPdfStatus(
+                $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
+                4000);
+        }
+        catch (Exception exception)
+        {
+            SetPdfStatus(
+                "Nie udało się wczytać danych z PDF: " +
+                exception.Message);
+        }
+    }
+
+    private Product? FindProductForPdf(
+        string? productCode,
+        string? productName)
+    {
+        if (!string.IsNullOrWhiteSpace(productCode))
+        {
+            var byCode =
+                allProducts.FirstOrDefault(product =>
+                    string.Equals(
+                        product.Code?.Trim(),
+                        productCode.Trim(),
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (byCode != null)
+                return byCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(productName))
+        {
+            var byName =
+                allProducts.FirstOrDefault(product =>
+                    string.Equals(
+                        product.Name?.Trim(),
+                        productName.Trim(),
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        product.DisplayName?.Trim(),
+                        productName.Trim(),
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (byName != null)
+                return byName;
+        }
+
+        return null;
+    }
+
+    private static void RestoreCardFromPdf(
+        ProductionCard card,
+        CommaCardData data)
+    {
+        card.OrderName = data.OrderName ?? "";
+        card.Customer = data.Customer ?? "";
+        card.ReceivedDate = data.ReceivedDate ?? "";
+        card.DueDate = data.DueDate ?? "";
+        card.ProductionType = data.ProductionType ?? "";
+        card.Colour = data.Colour ?? "";
+        card.Size = data.Size ?? "";
+        card.Quantity = data.Quantity ?? "";
+        card.Notes = data.Notes ?? "";
+
+        card.ShowFront = data.ShowFront;
+        card.ShowBack = data.ShowBack;
+        card.ShowLeft = data.ShowLeft;
+        card.ShowRight = data.ShowRight;
+
+        for (var index = 0;
+             index < card.ProductionEntries.Count;
+             index++)
+        {
+            var targetEntry =
+                card.ProductionEntries[index];
+
+            var sourceEntry =
+                index < data.ProductionEntries.Count
+                    ? data.ProductionEntries[index]
+                    : null;
+
+            targetEntry.LogoName =
+                sourceEntry?.LogoName ?? "";
+
+            targetEntry.Dimension =
+                sourceEntry?.Dimension ?? "";
+
+            targetEntry.Colours.Clear();
+
+            if (sourceEntry == null)
+                continue;
+
+            foreach (var sourceColour in sourceEntry.Colours)
+            {
+                targetEntry.Colours.Add(
+                    new ProductionColourEntry(
+                        sourceColour.Number)
+                    {
+                        Value =
+                            sourceColour.Value ?? ""
+                    });
+            }
+        }
+    }
+
+    private enum PdfSaveChoice
+    {
+        Cancel = 0,
+        Overwrite = 1,
+        CreateNew = 2
+    }
+
+    [RelayCommand]
+    private async Task GeneratePdf()
+    {
+        ClearPdfStatus();
+
+        if (ProductionCard == null)
+        {
+            SetPdfStatus(
+                "Najpierw wybierz produkt.");
+
+            return;
+        }
+
+        if (Garments.Count == 0)
+        {
+            SetPdfStatus(
+                "Dodaj co najmniej jeden artykuł do zlecenia.");
+
+            return;
+        }
+
+        if (!Garments.Any(garment =>
+                garment.SelectedDrawingCount > 0))
+        {
+            SetPdfStatus(
+                "Wybierz co najmniej jeden rzut odzieży.");
+
+            return;
+        }
+
+        RebuildOrderPages();
+
+        if (OrderPages.Count == 0)
+        {
+            SetPdfStatus(
+                "Nie udało się utworzyć planu stron PDF.");
+
+            return;
+        }
+
+        var defaultOutputDirectory =
+            GetEffectivePdfOutputPath();
+
+        if (!Directory.Exists(defaultOutputDirectory))
+        {
+            SetPdfStatus(
+                "Folder zapisu PDF nie istnieje.");
+
+            return;
+        }
+
+        var outputDirectory =
+            defaultOutputDirectory;
+
+        string pdfFileName;
+        string outputFile;
+
+        var hasLoadedPdf =
+            !string.IsNullOrWhiteSpace(
+                loadedPdfPath) &&
+            File.Exists(
+                loadedPdfPath);
+
+        if (hasLoadedPdf)
+        {
+            var loadedDirectory =
+                Path.GetDirectoryName(
+                    loadedPdfPath!);
+
+            if (!string.IsNullOrWhiteSpace(
+                    loadedDirectory) &&
+                Directory.Exists(
+                    loadedDirectory))
+            {
+                outputDirectory =
+                    loadedDirectory;
+            }
+
+            var existingPdfFileName =
+                Path.GetFileName(
+                    loadedPdfPath!);
+
+            var suggestedPdfFileName =
+                CreateNextPdfFileNameForLoadedFile(
+                    outputDirectory,
+                    ProductionCard.OrderName,
+                    existingPdfFileName);
+
+            var window =
+                GetMainWindow();
+
+            if (window == null)
+                return;
+
+            var saveChoice =
+                await ShowPdfSaveChoiceDialog(
+                    window,
+                    existingPdfFileName,
+                    suggestedPdfFileName);
+
+            if (saveChoice ==
+                PdfSaveChoice.Cancel)
+            {
+                SetPdfStatus(
+                    "Zapisywanie PDF zostało anulowane.");
+
+                return;
+            }
+
+            if (saveChoice ==
+                PdfSaveChoice.Overwrite)
+            {
+                outputFile =
+                    loadedPdfPath!;
+
+                pdfFileName =
+                    Path.GetFileName(
+                        outputFile);
+            }
+            else
+            {
+                pdfFileName =
+                    suggestedPdfFileName;
+
+                outputFile =
+                    Path.Combine(
+                        outputDirectory,
+                        pdfFileName);
+            }
+        }
+        else
+        {
+            var basePdfFileName =
+                CreatePdfFileName(
+                    ProductionCard.OrderName);
+
+            var baseOutputFile =
+                Path.Combine(
+                    outputDirectory,
+                    basePdfFileName);
+
+            pdfFileName =
+                basePdfFileName;
+
+            if (File.Exists(baseOutputFile))
+            {
+                var suggestedPdfFileName =
+                    CreateUniquePdfFileName(
+                        outputDirectory,
+                        ProductionCard.OrderName);
+
+                var window =
+                    GetMainWindow();
+
+                if (window == null)
+                    return;
+
+                var saveChoice =
+                    await ShowPdfSaveChoiceDialog(
+                        window,
+                        basePdfFileName,
+                        suggestedPdfFileName);
+
+                if (saveChoice ==
+                    PdfSaveChoice.Cancel)
+                {
+                    SetPdfStatus(
+                        "Zapisywanie PDF zostało anulowane.");
+
+                    return;
+                }
+
+                pdfFileName =
+                    saveChoice ==
+                    PdfSaveChoice.Overwrite
+                        ? basePdfFileName
+                        : suggestedPdfFileName;
+            }
+
+            outputFile =
+                Path.Combine(
+                    outputDirectory,
+                    pdfFileName);
+        }
+
+        var temporaryPdfFile =
+            Path.Combine(
+                outputDirectory,
+                $".comma-order-{Guid.NewGuid():N}.pdf");
+
+        var temporaryEmbeddedPdfFile =
+            Path.Combine(
+                outputDirectory,
+                $".comma-order-final-{Guid.NewGuid():N}.pdf");
+
+        var errorFile =
+            Path.Combine(
+                outputDirectory,
+                "Test-error.txt");
+
+        try
+        {
+            if (File.Exists(temporaryPdfFile))
+                File.Delete(temporaryPdfFile);
+
+            if (File.Exists(temporaryEmbeddedPdfFile))
+                File.Delete(temporaryEmbeddedPdfFile);
+
+            if (File.Exists(errorFile))
+                File.Delete(errorFile);
+
+            var pages =
+                OrderPages.ToList();
+
+            OrderPdfGenerator.Generate(
+                temporaryPdfFile,
+                ProductionCard,
+                pages);
+
+            if (!File.Exists(temporaryPdfFile))
+            {
+                throw new IOException(
+                    "Tymczasowy plik PDF nie został utworzony.");
+            }
+
+            var temporaryFileInfo =
+                new FileInfo(
+                    temporaryPdfFile);
+
+            if (temporaryFileInfo.Length == 0)
+            {
+                throw new IOException(
+                    "Tymczasowy plik PDF jest pusty.");
+            }
+
+            OrderPdfDataEmbedder.AddEmbeddedData(
+                temporaryPdfFile,
+                temporaryEmbeddedPdfFile,
+                ProductionCard,
+                pages);
+
+            if (!File.Exists(temporaryEmbeddedPdfFile))
+            {
+                throw new IOException(
+                    "Końcowy plik PDF nie został utworzony.");
+            }
+
+            var temporaryEmbeddedFileInfo =
+                new FileInfo(
+                    temporaryEmbeddedPdfFile);
+
+            if (temporaryEmbeddedFileInfo.Length == 0)
+            {
+                throw new IOException(
+                    "Końcowy plik PDF jest pusty.");
+            }
+
+            File.Move(
+                temporaryEmbeddedPdfFile,
+                outputFile,
+                overwrite: true);
+
+            if (!File.Exists(outputFile))
+            {
+                throw new IOException(
+                    "Plik PDF nie został zapisany.");
+            }
+
+            var fileInfo =
+                new FileInfo(
+                    outputFile);
+
+            if (fileInfo.Length == 0)
+            {
+                throw new IOException(
+                    "Zapisany plik PDF jest pusty.");
+            }
+
+            loadedPdfPath =
+                outputFile;
+
+            TryDeleteFile(
+                temporaryPdfFile);
+
+            TryDeleteFile(
+                temporaryEmbeddedPdfFile);
+
+            await ShowTemporaryPdfStatus(
+                $"✓ Karta PDF została wygenerowana: {pdfFileName}",
+                3000);
+        }
+        catch (Exception exception)
+        {
+            TryDeleteFile(
+                temporaryPdfFile);
+
+            TryDeleteFile(
+                temporaryEmbeddedPdfFile);
+
+            var errorText =
+                $"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}" +
+                Environment.NewLine +
+                $"Typ błędu: {exception.GetType().FullName}" +
+                Environment.NewLine +
+                $"Komunikat: {exception.Message}" +
+                Environment.NewLine +
+                Environment.NewLine +
+                exception;
+
+            try
+            {
+                File.WriteAllText(
+                    errorFile,
+                    errorText);
+            }
+            catch
+            {
+            }
+
+            SetPdfStatus(
+                "Nie udało się wygenerować PDF. " +
+                "Szczegóły zapisano w folderze zapisu PDF " +
+                "w pliku Test-error.txt.");
+
+            Console.Error.WriteLine(
+                errorText);
+        }
+    }
+
+    private static async Task<PdfSaveChoice> ShowPdfSaveChoiceDialog(
+        Window owner,
+        string existingPdfFileName,
+        string suggestedPdfFileName)
+    {
+        var dialog =
+            new Window
+            {
+                Width = 620,
+                Height = 310,
+                MinWidth = 620,
+                MinHeight = 310,
+                MaxWidth = 620,
+                MaxHeight = 310,
+                CanResize = false,
+                WindowStartupLocation =
+                    WindowStartupLocation.CenterOwner,
+                Title =
+                    "Karta PDF już istnieje"
+            };
+
+        var mainGrid =
+            new Grid
+            {
+                RowDefinitions =
+                    new RowDefinitions(
+                        "Auto,Auto,*,Auto"),
+                RowSpacing = 14,
+                Margin =
+                    new Thickness(24)
+            };
+
+        var title =
+            new TextBlock
+            {
+                Text =
+                    "KARTA O TEJ NAZWIE JUŻ ISTNIEJE",
+                FontSize = 18,
+                FontWeight =
+                    FontWeight.Bold
+            };
+
+        Grid.SetRow(
+            title,
+            0);
+
+        mainGrid.Children.Add(
+            title);
+
+        var description =
+            new TextBlock
+            {
+                Text =
+                    "Wybierz, czy chcesz nadpisać aktualnie edytowaną kartę, " +
+                    "czy utworzyć nowy plik z kolejnym wolnym numerem.",
+                FontSize = 12,
+                Foreground =
+                    new SolidColorBrush(
+                        Color.Parse(
+                            "#6F737A")),
+                TextWrapping =
+                    TextWrapping.Wrap
+            };
+
+        Grid.SetRow(
+            description,
+            1);
+
+        mainGrid.Children.Add(
+            description);
+
+        var existingLabel =
+            new TextBlock
+            {
+                Text =
+                    "AKTUALNA KARTA",
+                FontSize = 10,
+                FontWeight =
+                    FontWeight.Bold,
+                VerticalAlignment =
+                    VerticalAlignment.Center
+            };
+
+        var existingValue =
+            new TextBlock
+            {
+                Text =
+                    existingPdfFileName,
+                FontSize = 12,
+                FontWeight =
+                    FontWeight.SemiBold,
+                VerticalAlignment =
+                    VerticalAlignment.Center
+            };
+
+        var newLabel =
+            new TextBlock
+            {
+                Text =
+                    "NOWA KARTA",
+                FontSize = 10,
+                FontWeight =
+                    FontWeight.Bold,
+                VerticalAlignment =
+                    VerticalAlignment.Center
+            };
+
+        var newValue =
+            new TextBlock
+            {
+                Text =
+                    suggestedPdfFileName,
+                FontSize = 12,
+                FontWeight =
+                    FontWeight.Bold,
+                Foreground =
+                    new SolidColorBrush(
+                        Color.Parse(
+                            "#0071BC")),
+                VerticalAlignment =
+                    VerticalAlignment.Center
+            };
+
+        var namesGrid =
+            new Grid
+            {
+                RowDefinitions =
+                    new RowDefinitions(
+                        "Auto,Auto"),
+                ColumnDefinitions =
+                    new ColumnDefinitions(
+                        "150,*"),
+                RowSpacing = 9
+            };
+
+        Grid.SetRow(
+            existingLabel,
+            0);
+
+        Grid.SetColumn(
+            existingLabel,
+            0);
+
+        Grid.SetRow(
+            existingValue,
+            0);
+
+        Grid.SetColumn(
+            existingValue,
+            1);
+
+        Grid.SetRow(
+            newLabel,
+            1);
+
+        Grid.SetColumn(
+            newLabel,
+            0);
+
+        Grid.SetRow(
+            newValue,
+            1);
+
+        Grid.SetColumn(
+            newValue,
+            1);
+
+        namesGrid.Children.Add(
+            existingLabel);
+
+        namesGrid.Children.Add(
+            existingValue);
+
+        namesGrid.Children.Add(
+            newLabel);
+
+        namesGrid.Children.Add(
+            newValue);
+
+        var namesPanel =
+            new Border
+            {
+                Background =
+                    new SolidColorBrush(
+                        Color.Parse(
+                            "#F7F8FA")),
+                BorderBrush =
+                    new SolidColorBrush(
+                        Color.Parse(
+                            "#D8DADF")),
+                BorderThickness =
+                    new Thickness(1),
+                CornerRadius =
+                    new CornerRadius(7),
+                Padding =
+                    new Thickness(14),
+                Child =
+                    namesGrid
+            };
+
+        Grid.SetRow(
+            namesPanel,
+            2);
+
+        mainGrid.Children.Add(
+            namesPanel);
+
+        var buttonBackground =
+            new SolidColorBrush(
+                Color.Parse(
+                    "#F7F8FA"));
+
+        var buttonBorder =
+            new SolidColorBrush(
+                Color.Parse(
+                    "#C9CDD3"));
+
+        var buttonForeground =
+            new SolidColorBrush(
+                Color.Parse(
+                    "#3F4348"));
+
+        var buttons =
+            new Grid
+            {
+                ColumnDefinitions =
+                    new ColumnDefinitions(
+                        "*,Auto,Auto,Auto"),
+                ColumnSpacing = 10
+            };
+
+        var cancelButton =
+            new Button
+            {
+                Width = 105,
+                Height = 42,
+                Content =
+                    "ANULUJ",
+                Background =
+                    buttonBackground,
+                BorderBrush =
+                    buttonBorder,
+                BorderThickness =
+                    new Thickness(1),
+                CornerRadius =
+                    new CornerRadius(7),
+                Foreground =
+                    buttonForeground,
+                FontSize = 11,
+                FontWeight =
+                    FontWeight.SemiBold,
+                HorizontalContentAlignment =
+                    HorizontalAlignment.Center,
+                VerticalContentAlignment =
+                    VerticalAlignment.Center
+            };
+
+        Grid.SetColumn(
+            cancelButton,
+            1);
+
+        var overwriteButton =
+            new Button
+            {
+                Width = 175,
+                Height = 42,
+                Content =
+                    "NADPISZ AKTUALNĄ",
+                Background =
+                    buttonBackground,
+                BorderBrush =
+                    buttonBorder,
+                BorderThickness =
+                    new Thickness(1),
+                CornerRadius =
+                    new CornerRadius(7),
+                Foreground =
+                    buttonForeground,
+                FontSize = 11,
+                FontWeight =
+                    FontWeight.SemiBold,
+                HorizontalContentAlignment =
+                    HorizontalAlignment.Center,
+                VerticalContentAlignment =
+                    VerticalAlignment.Center
+            };
+
+        Grid.SetColumn(
+            overwriteButton,
+            2);
+
+        var createNewButton =
+            new Button
+            {
+                Width = 175,
+                Height = 42,
+                Content =
+                    "UTWÓRZ NOWĄ",
+                CornerRadius =
+                    new CornerRadius(7),
+                FontSize = 11,
+                FontWeight =
+                    FontWeight.Bold,
+                HorizontalContentAlignment =
+                    HorizontalAlignment.Center,
+                VerticalContentAlignment =
+                    VerticalAlignment.Center
+            };
+
+        Grid.SetColumn(
+            createNewButton,
+            3);
+
+        cancelButton.Click +=
+            (_, _) =>
+            {
+                dialog.Close(
+                    PdfSaveChoice.Cancel);
+            };
+
+        overwriteButton.Click +=
+            (_, _) =>
+            {
+                dialog.Close(
+                    PdfSaveChoice.Overwrite);
+            };
+
+        createNewButton.Click +=
+            (_, _) =>
+            {
+                dialog.Close(
+                    PdfSaveChoice.CreateNew);
+            };
+
+        buttons.Children.Add(
+            cancelButton);
+
+        buttons.Children.Add(
+            overwriteButton);
+
+        buttons.Children.Add(
+            createNewButton);
+
+        Grid.SetRow(
+            buttons,
+            3);
+
+        mainGrid.Children.Add(
+            buttons);
+
+        dialog.Content =
+            mainGrid;
+
+        return await dialog.ShowDialog<PdfSaveChoice>(
+            owner);
+    }
+
+    private static void TryDeleteFile(
+        string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(
+                    filePath);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static string CreateNextPdfFileNameForLoadedFile(
+        string outputDirectory,
+        string? orderName,
+        string loadedPdfFileName)
+    {
+        var baseFileName =
+            Path.GetFileNameWithoutExtension(
+                CreatePdfFileName(
+                    orderName));
+
+        var loadedFileNameWithoutExtension =
+            Path.GetFileNameWithoutExtension(
+                loadedPdfFileName);
+
+        var number =
+            1;
+
+        var versionPrefix =
+            $"{baseFileName}_";
+
+        if (loadedFileNameWithoutExtension.StartsWith(
+                versionPrefix,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var versionText =
+                loadedFileNameWithoutExtension[
+                    versionPrefix.Length..];
+
+            if (int.TryParse(
+                    versionText,
+                    out var loadedVersion) &&
+                loadedVersion >= 1)
+            {
+                number =
+                    loadedVersion + 1;
+            }
+        }
+
+        while (true)
+        {
+            var candidate =
+                $"{baseFileName}_{number}.pdf";
+
+            var candidatePath =
+                Path.Combine(
+                    outputDirectory,
+                    candidate);
+
+            if (!File.Exists(candidatePath))
+                return candidate;
+
+            number++;
+        }
+    }
+
+    private static string CreateUniquePdfFileName(
+        string outputDirectory,
+        string? orderName)
+    {
+        var baseFileName =
+            string.IsNullOrWhiteSpace(orderName)
+                ? DefaultPdfFileName
+                : orderName.Trim();
+
+        foreach (var invalidCharacter
+                 in Path.GetInvalidFileNameChars())
+        {
+            baseFileName =
+                baseFileName.Replace(
+                    invalidCharacter,
+                    '_');
+        }
+
+        baseFileName =
+            baseFileName
+                .Replace("/", "_")
+                .Replace("\\", "_")
+                .Replace(":", "_")
+                .Replace("*", "_")
+                .Replace("?", "_")
+                .Replace("\"", "_")
+                .Replace("<", "_")
+                .Replace(">", "_")
+                .Replace("|", "_");
+
+        while (baseFileName.Contains("__"))
+        {
+            baseFileName =
+                baseFileName.Replace(
+                    "__",
+                    "_");
+        }
+
+        baseFileName =
+            baseFileName
+                .Trim()
+                .Trim('.');
+
+        if (string.IsNullOrWhiteSpace(baseFileName))
+        {
+            baseFileName =
+                DefaultPdfFileName;
+        }
+
+        var firstCandidate =
+            $"{baseFileName}.pdf";
+
+        var firstPath =
+            Path.Combine(
+                outputDirectory,
+                firstCandidate);
+
+        if (!File.Exists(firstPath))
+            return firstCandidate;
+
+        var number =
+            1;
+
+        while (true)
+        {
+            var candidate =
+                $"{baseFileName}_{number}.pdf";
+
+            var candidatePath =
+                Path.Combine(
+                    outputDirectory,
+                    candidate);
+
+            if (!File.Exists(candidatePath))
+                return candidate;
+
+            number++;
+        }
+    }
+
+    private static string CreatePdfFileName(
+        string? orderName)
+    {
+        var baseFileName =
+            string.IsNullOrWhiteSpace(orderName)
+                ? DefaultPdfFileName
+                : orderName.Trim();
+
+        foreach (var invalidCharacter
+                 in Path.GetInvalidFileNameChars())
+        {
+            baseFileName =
+                baseFileName.Replace(
+                    invalidCharacter,
+                    '_');
+        }
+
+        baseFileName =
+            baseFileName
+                .Replace("/", "_")
+                .Replace("\\", "_")
+                .Replace(":", "_")
+                .Replace("*", "_")
+                .Replace("?", "_")
+                .Replace("\"", "_")
+                .Replace("<", "_")
+                .Replace(">", "_")
+                .Replace("|", "_");
+
+        while (baseFileName.Contains("__"))
+        {
+            baseFileName =
+                baseFileName.Replace(
+                    "__",
+                    "_");
+        }
+
+        baseFileName =
+            baseFileName
+                .Trim()
+                .Trim('.');
+
+        if (string.IsNullOrWhiteSpace(baseFileName))
+        {
+            baseFileName =
+                DefaultPdfFileName;
+        }
+
+        return $"{baseFileName}.pdf";
+    }
+
+    private void SetPdfStatus(
+        string message)
+    {
+        pdfStatusVersion++;
+
+        PdfStatus =
+            message;
+    }
+
+    private void ClearPdfStatus()
+    {
+        pdfStatusVersion++;
+
+        PdfStatus =
+            "";
+    }
+
+    private async Task ShowTemporaryPdfStatus(
+        string message,
+        int durationMilliseconds)
+    {
+        var currentVersion =
+            ++pdfStatusVersion;
+
+        PdfStatus =
+            message;
+
+        await Task.Delay(
+            durationMilliseconds);
+
+        if (currentVersion != pdfStatusVersion)
+            return;
+
+        PdfStatus =
+            "";
     }
 }

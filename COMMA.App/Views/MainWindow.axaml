@@ -1,170 +1,745 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:COMMA.App.ViewModels"
+        xmlns:models="using:COMMA.App.Models"
+        xmlns:layout="using:COMMA.App.Layout"
+        xmlns:controls="using:COMMA.App.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="COMMA.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        x:Name="RootWindow"
         Width="1800"
         Height="950"
-        Title="COMMA Workspace">
+        MinWidth="1350"
+        MinHeight="760"
+        Title="COMMA Workspace 3.0">
 
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <DockPanel Margin="20">
+    <Grid RowDefinitions="72,*,76"
+          Background="#F4F5F7">
 
-        <StackPanel DockPanel.Dock="Top"
-                    Orientation="Horizontal"
-                    Spacing="10"
-                    Margin="0,0,0,20">
+        <!-- GÓRNY PASEK -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,0,0,1"
+                Padding="24,12">
 
-            <Button Width="180"
-                    Content="Open Library"
-                    Command="{Binding OpenLibraryCommand}" />
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  ColumnSpacing="20">
 
-            <Button Width="180"
-                    Content="Generate PDF"
-                    Command="{Binding GeneratePdfCommand}" />
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center"
+                            Spacing="2">
 
-            <TextBlock VerticalAlignment="Center"
-                       FontWeight="SemiBold"
-                       Text="{Binding LibraryPath}" />
+                    <TextBlock Text="COMMA Workspace 3.0"
+                               FontSize="24"
+                               FontWeight="Bold"/>
 
-        </StackPanel>
+                    <TextBlock Text="Karty produkcyjne"
+                               FontSize="12"
+                               Foreground="#6F737A"/>
 
-        <Grid ColumnDefinitions="280,280,450,*"
-              ColumnSpacing="15">
+                </StackPanel>
 
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="#6F737A"
+                           Text="{Binding LibraryPath}"/>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            Spacing="10">
+
+                    <Button Width="180"
+                            Height="40"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="ZMIEŃ BIBLIOTEKĘ"
+                            Command="{Binding OpenLibraryCommand}"/>
+
+                    <Button Width="180"
+                            Height="40"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="ODŚWIEŻ BIBLIOTEKĘ"
+                            Command="{Binding RefreshLibraryCommand}"/>
+
+                    <Button x:Name="NormalizeDrawingsButton"
+                            Width="180"
+                            Height="40"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="NORMALIZUJ RYSUNKI"/>
+
+                </StackPanel>
+
+            </Grid>
+
+        </Border>
+
+        <!-- GŁÓWNA CZĘŚĆ -->
+        <Grid Grid.Row="1"
+              Margin="20"
+              ColumnDefinitions="2.2*,1.15*,1.65*"
+              ColumnSpacing="18">
+
+            <!-- BIBLIOTEKA ODZIEŻY -->
             <Border Grid.Column="0"
-                    BorderBrush="Gray"
+                    Background="White"
+                    BorderBrush="#D8DADF"
                     BorderThickness="1"
-                    Padding="10">
+                    CornerRadius="8"
+                    Padding="18">
 
-                <ListBox ItemsSource="{Binding Products}"
-                         SelectedItem="{Binding SelectedProduct}" />
+                <Grid RowDefinitions="Auto,Auto,Auto,*"
+                      RowSpacing="11">
 
-            </Border>
+                    <TextBlock Grid.Row="0"
+                               Text="WYBIERZ RODZAJ ODZIEŻY"
+                               FontSize="20"
+                               FontWeight="Bold"/>
 
-            <Border Grid.Column="1"
-                    BorderBrush="Gray"
-                    BorderThickness="1"
-                    Padding="10">
+                    <TextBlock Grid.Row="1"
+                               Foreground="#6F737A"
+                               TextWrapping="Wrap"
+                               Text="Wybierz produkt z biblioteki lub wyszukaj go po nazwie."/>
 
-                <ListBox ItemsSource="{Binding Drawings}"
-                         SelectedItem="{Binding SelectedDrawing}" />
+                    <Border Grid.Row="2"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,4">
 
-            </Border>
+                        <Grid ColumnDefinitions="Auto,*"
+                              ColumnSpacing="8">
 
-            <Border Grid.Column="2"
-                    BorderBrush="Gray"
-                    BorderThickness="1"
-                    Padding="12">
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       FontSize="16"
+                                       Foreground="#6F737A"
+                                       Text="⌕"/>
 
-                <ScrollViewer>
-
-                    <StackPanel Spacing="12">
-
-                        <TextBlock Text="Production Card"
-                                   FontSize="20"
-                                   FontWeight="Bold"/>
-
-                        <Grid ColumnDefinitions="130,*"
-                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-
-                            <TextBlock Grid.Row="0"
-                                       Text="Order"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="0"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.OrderName}" />
-
-                            <TextBlock Grid.Row="1"
-                                       Text="Code"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="1"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.ProductCode}" />
-
-                            <TextBlock Grid.Row="2"
-                                       Text="Product"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="2"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.ProductName}" />
-
-                            <TextBlock Grid.Row="3"
-                                       Text="Customer"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="3"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.Customer}" />
-
-                            <TextBlock Grid.Row="4"
-                                       Text="Colour"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="4"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.Colour}" />
-
-                            <TextBlock Grid.Row="5"
-                                       Text="Size"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="5"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.Size}" />
-
-                            <TextBlock Grid.Row="6"
-                                       Text="Quantity"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="6"
-                                     Grid.Column="1"
-                                     Text="{Binding ProductionCard.Quantity}" />
-
-                            <TextBlock Grid.Row="7"
-                                       Text="Notes"
-                                       FontWeight="Bold"/>
-
-                            <TextBox Grid.Row="7"
-                                     Grid.Column="1"
-                                     AcceptsReturn="True"
-                                     MinHeight="120"
-                                     TextWrapping="Wrap"
-                                     Text="{Binding ProductionCard.Notes}" />
+                            <TextBox Grid.Column="1"
+                                     MinHeight="36"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     PlaceholderText="Szukaj rodzaju odzieży..."
+                                     Text="{Binding SearchText}"/>
 
                         </Grid>
 
-                    </StackPanel>
+                    </Border>
 
-                </ScrollViewer>
+                    <ScrollViewer Grid.Row="3"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+
+                        <ListBox ItemsSource="{Binding Products}"
+                                 SelectedItem="{Binding SelectedProduct}"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+
+                            <ListBox.Styles>
+
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding"
+                                            Value="4"/>
+                                    <Setter Property="Margin"
+                                            Value="0,0,10,10"/>
+                                    <Setter Property="Background"
+                                            Value="Transparent"/>
+                                    <Setter Property="BorderBrush"
+                                            Value="Transparent"/>
+                                    <Setter Property="BorderThickness"
+                                            Value="1"/>
+                                    <Setter Property="CornerRadius"
+                                            Value="10"/>
+                                </Style>
+
+                                <Style Selector="ListBoxItem:pointerover">
+                                    <Setter Property="Background"
+                                            Value="#F5F9FC"/>
+                                    <Setter Property="BorderBrush"
+                                            Value="#D9E6F0"/>
+                                </Style>
+
+                                <Style Selector="ListBoxItem:selected">
+                                    <Setter Property="Background"
+                                            Value="#EDF6FD"/>
+                                    <Setter Property="BorderBrush"
+                                            Value="#8EC3EA"/>
+                                    <Setter Property="BorderThickness"
+                                            Value="1"/>
+                                    <Setter Property="CornerRadius"
+                                            Value="10"/>
+                                </Style>
+
+                            </ListBox.Styles>
+
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+
+                                    <WrapPanel Orientation="Horizontal"
+                                               HorizontalAlignment="Left"/>
+
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:Product">
+
+                                    <Border Width="185"
+                                            Height="180"
+                                            Background="White"
+                                            BorderBrush="#BCC2CA"
+                                            BorderThickness="1"
+                                            CornerRadius="8">
+
+                                        <Grid RowDefinitions="130,*">
+
+                                            <Border Grid.Row="0"
+                                                    Margin="7"
+                                                    Background="White"
+                                                    BorderBrush="#E1E3E6"
+                                                    BorderThickness="1"
+                                                    CornerRadius="5"
+                                                    Padding="6">
+
+                                                <Image Source="{Binding FrontThumbnail}"
+                                                       Stretch="Uniform"/>
+
+                                            </Border>
+
+                                            <Border Grid.Row="1"
+                                                    Background="#F4F5F7"
+                                                    BorderBrush="#E1E3E6"
+                                                    BorderThickness="0,1,0,0"
+                                                    CornerRadius="0,0,7,7"
+                                                    Padding="7,5">
+
+                                                <TextBlock HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           TextWrapping="Wrap"
+                                                           MaxLines="2"
+                                                           FontSize="13"
+                                                           FontWeight="Bold"
+                                                           Text="{Binding DisplayName}"/>
+
+                                            </Border>
+
+                                        </Grid>
+
+                                    </Border>
+
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+
+                        </ListBox>
+
+                    </ScrollViewer>
+
+                </Grid>
 
             </Border>
 
-            <Border Grid.Column="3"
-                    BorderBrush="Gray"
+            <!-- DANE ZLECENIA / ODZIEŻ -->
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="#D8DADF"
                     BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14">
+
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
+                      RowSpacing="5">
+
+                    <TextBlock Grid.Row="0"
+                               Text="DANE ZLECENIA"
+                               FontSize="18"
+                               FontWeight="Bold"/>
+
+                    <StackPanel Grid.Row="1"
+                                Spacing="4">
+
+                        <TextBlock Text="KLIENT"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+
+                        <TextBox MinHeight="32"
+                                 PlaceholderText="Nazwa klienta"
+                                 Text="{Binding ProductionCard.Customer}"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2"
+                                Spacing="4">
+
+                        <TextBlock Text="NAZWA ZLECENIA"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+
+                        <TextBox MinHeight="32"
+                                 PlaceholderText="Nazwa zlecenia"
+                                 Text="{Binding ProductionCard.OrderName}"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3"
+                                Spacing="4">
+
+                        <TextBlock Text="TERMIN WYKONANIA"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+
+                        <TextBox MinHeight="32"
+                                 PlaceholderText="10.08.2026"
+                                 Text="{Binding ProductionCard.DueDate}"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4"
+                                Spacing="4">
+
+                        <TextBlock Text="RODZAJ PRODUKCJI"
+                                   FontSize="11"
+                                   FontWeight="Bold"/>
+
+                        <TextBox MinHeight="32"
+                                 PlaceholderText="HAFT/NADRUK"
+                                 Text="{Binding ProductionCard.ProductionType}"/>
+
+                    </StackPanel>
+
+                    <Button Grid.Row="5"
+                            x:Name="ProductionEntriesButton"
+                            Height="34"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Content="LOGOWANIE / KOLORY"/>
+
+                    <!-- ODZIEŻ W ZLECENIU -->
+                    <Border Grid.Row="6"
+                            Background="#F4F5F7"
+                            BorderBrush="#D8DADF"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            Padding="11">
+
+                        <Grid RowDefinitions="Auto,*,Auto,105"
+                              RowSpacing="6">
+
+                            <Grid Grid.Row="0"
+                                  ColumnDefinitions="*,Auto">
+
+                                <TextBlock Grid.Column="0"
+                                           Text="ODZIEŻ W ZLECENIU"
+                                           FontSize="12"
+                                           FontWeight="Bold"/>
+
+                                <TextBlock Grid.Column="1"
+                                           VerticalAlignment="Center"
+                                           FontSize="10"
+                                           Foreground="#6F737A"
+                                           Text="{Binding Garments.Count, StringFormat='Pozycji: {0}'}"/>
+
+                            </Grid>
+
+                            <!-- LISTA ODZIEŻY -->
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding Garments}"
+                                     SelectedItem="{Binding SelectedGarment}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     MinHeight="90">
+
+                                <ListBox.Styles>
+
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding"
+                                                Value="3"/>
+                                        <Setter Property="Margin"
+                                                Value="0,0,0,6"/>
+                                        <Setter Property="Background"
+                                                Value="Transparent"/>
+                                        <Setter Property="BorderBrush"
+                                                Value="Transparent"/>
+                                        <Setter Property="BorderThickness"
+                                                Value="1"/>
+                                        <Setter Property="CornerRadius"
+                                                Value="8"/>
+                                    </Style>
+
+                                    <Style Selector="ListBoxItem:pointerover">
+                                        <Setter Property="Background"
+                                                Value="#F5F9FC"/>
+                                        <Setter Property="BorderBrush"
+                                                Value="#D9E6F0"/>
+                                    </Style>
+
+                                    <Style Selector="ListBoxItem:selected">
+                                        <Setter Property="Background"
+                                                Value="#EDF6FD"/>
+                                        <Setter Property="BorderBrush"
+                                                Value="#8EC3EA"/>
+                                        <Setter Property="BorderThickness"
+                                                Value="1"/>
+                                        <Setter Property="CornerRadius"
+                                                Value="8"/>
+                                    </Style>
+
+                                </ListBox.Styles>
+
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:OrderGarmentItem">
+
+                                        <Border Padding="7,6"
+                                                Background="White"
+                                                BorderBrush="#D8DADF"
+                                                BorderThickness="1"
+                                                CornerRadius="6">
+
+                                            <Grid RowDefinitions="Auto,26"
+                                                  RowSpacing="4">
+
+                                                <Grid Grid.Row="0"
+                                                      ColumnDefinitions="*,Auto"
+                                                      ColumnSpacing="8">
+
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding DisplayName}"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               TextWrapping="Wrap"
+                                                               MaxLines="2"/>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                Orientation="Horizontal"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="4">
+
+                                                        <TextBlock Text="{Binding SelectedDrawingCountText}"
+                                                                   FontSize="8"
+                                                                   Foreground="#6F737A"/>
+
+                                                        <TextBlock Text="• NOWA STRONA"
+                                                                   FontSize="8"
+                                                                   FontWeight="Bold"
+                                                                   IsVisible="{Binding StartNewPage}"/>
+
+                                                    </StackPanel>
+
+                                                </Grid>
+
+                                                <Grid Grid.Row="1"
+                                                      ColumnDefinitions="*,*,Auto,Auto,Auto"
+                                                      ColumnSpacing="4">
+
+                                                    <Button Grid.Column="0"
+                                                            Height="26"
+                                                            Padding="4,0"
+                                                            FontSize="8"
+                                                            HorizontalContentAlignment="Center"
+                                                            VerticalContentAlignment="Center"
+                                                            Content="EDYTUJ"
+                                                            Command="{Binding #RootWindow.DataContext.EditGarmentCommand}"
+                                                            CommandParameter="{Binding}"/>
+
+                                                    <Button Grid.Column="1"
+                                                            Height="26"
+                                                            Padding="4,0"
+                                                            FontSize="8"
+                                                            HorizontalContentAlignment="Center"
+                                                            VerticalContentAlignment="Center"
+                                                            Content="DUPLIKUJ"
+                                                            Command="{Binding #RootWindow.DataContext.DuplicateGarmentCommand}"
+                                                            CommandParameter="{Binding}"/>
+
+                                                    <Button Grid.Column="2"
+                                                            Width="27"
+                                                            Height="26"
+                                                            Padding="0"
+                                                            FontSize="11"
+                                                            HorizontalContentAlignment="Center"
+                                                            VerticalContentAlignment="Center"
+                                                            Content="↑"
+                                                            Command="{Binding #RootWindow.DataContext.MoveGarmentUpCommand}"
+                                                            CommandParameter="{Binding}"/>
+
+                                                    <Button Grid.Column="3"
+                                                            Width="27"
+                                                            Height="26"
+                                                            Padding="0"
+                                                            FontSize="11"
+                                                            HorizontalContentAlignment="Center"
+                                                            VerticalContentAlignment="Center"
+                                                            Content="↓"
+                                                            Command="{Binding #RootWindow.DataContext.MoveGarmentDownCommand}"
+                                                            CommandParameter="{Binding}"/>
+
+                                                    <Button Grid.Column="4"
+                                                            Width="27"
+                                                            Height="26"
+                                                            Padding="0"
+                                                            FontSize="11"
+                                                            HorizontalContentAlignment="Center"
+                                                            VerticalContentAlignment="Center"
+                                                            Content="×"
+                                                            Command="{Binding #RootWindow.DataContext.RemoveGarmentCommand}"
+                                                            CommandParameter="{Binding}"/>
+
+                                                </Grid>
+
+                                            </Grid>
+
+                                        </Border>
+
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+
+                            </ListBox>
+
+                            <!-- DODAJ -->
+                            <Button Grid.Row="2"
+                                    Height="36"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    FontSize="10"
+                                    FontWeight="Bold"
+                                    Content="+ DODAJ ODZIEŻ"
+                                    Command="{Binding AddGarmentCommand}"/>
+
+                            <!-- PLAN STRON -->
+                            <Border Grid.Row="3"
+                                    Margin="0,2,0,0"
+                                    Background="White"
+                                    BorderBrush="#D8DADF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="7">
+
+                                <!--
+                                    WAŻNE:
+                                    Grid zamiast StackPanel powoduje,
+                                    że ScrollViewer dostaje ograniczoną wysokość.
+                                -->
+                                <Grid RowDefinitions="Auto,*"
+                                      RowSpacing="5">
+
+                                    <Grid Grid.Row="0"
+                                          ColumnDefinitions="*,Auto">
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="PLAN STRON"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding OrderPageCountText}"
+                                                   FontSize="9"
+                                                   Foreground="#6F737A"/>
+
+                                    </Grid>
+
+                                    <ScrollViewer Grid.Row="1"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+
+                                        <ItemsControl ItemsSource="{Binding OrderPages}">
+
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="layout:OrderPageLayout">
+
+                                                    <Grid Margin="0,1"
+                                                          ColumnDefinitions="42,*,Auto"
+                                                          ColumnSpacing="6">
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   FontSize="9"
+                                                                   FontWeight="Bold"
+                                                                   Text="{Binding PageNumberText}"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   FontSize="9"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding GarmentNamesText}"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   FontSize="8"
+                                                                   Foreground="#6F737A"
+                                                                   Text="{Binding DrawingCountText}"/>
+
+                                                    </Grid>
+
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+
+                                        </ItemsControl>
+
+                                    </ScrollViewer>
+
+                                </Grid>
+
+                            </Border>
+
+                        </Grid>
+
+                    </Border>
+
+                </Grid>
+
+            </Border>
+
+            <!-- PODGLĄD KARTY -->
+            <Border Grid.Column="2"
+                    Background="White"
+                    BorderBrush="#D8DADF"
+                    BorderThickness="1"
+                    CornerRadius="8"
                     Padding="10">
 
-                <ScrollViewer>
-
-                    <Image Source="{Binding SelectedImage}"
-                           Stretch="Uniform" />
-
-                </ScrollViewer>
+                <controls:ProductionCardPreview/>
 
             </Border>
 
         </Grid>
 
-    </DockPanel>
+        <!-- DOLNY PASEK -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+
+            <Grid ColumnDefinitions="*,Auto,*"
+                  ColumnSpacing="12">
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontWeight="SemiBold"
+                           Foreground="#6F737A"
+                           Text="{Binding PdfStatus}"/>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="10">
+
+                    <Button Width="150"
+                            Height="52"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="WYBIERZ FOLDER"
+                            Command="{Binding SelectPdfOutputFolderCommand}"/>
+
+                    <Button x:Name="ClearOrderDataButton"
+                            Width="150"
+                            Height="52"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="WYCZYŚĆ"/>
+
+                    <Button Width="150"
+                            Height="52"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="WCZYTAJ PDF"
+                            Command="{Binding LoadPdfCommand}"/>
+
+                    <Button Width="400"
+                            Height="52"
+                            CornerRadius="7"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Command="{Binding GeneratePdfCommand}">
+
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="10">
+
+                            <Image Source="/Assets/Icons/pdf.png"
+                                   Width="22"
+                                   Height="22"/>
+
+                            <TextBlock Text="GENERUJ PDF"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Bold"/>
+
+                        </StackPanel>
+
+                    </Button>
+
+                </StackPanel>
+
+                <Border Grid.Column="2"/>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
 
 </Window>

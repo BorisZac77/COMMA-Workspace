@@ -1,0 +1,591 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:COMMA.App.ViewModels"
+             xmlns:models="using:COMMA.App.Models"
+             xmlns:controls="using:COMMA.App.Controls"
+             x:Class="COMMA.App.Controls.ProductionCardPreview"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.Styles>
+
+        <Style Selector="TextBlock.placeholder">
+            <Setter Property="Foreground"
+                    Value="#9A9DA2"/>
+        </Style>
+
+        <Style Selector="TextBlock.orderNamePlaceholder">
+            <Setter Property="FontSize"
+                    Value="13"/>
+        </Style>
+
+        <Style Selector="TextBlock.orderNameValue">
+            <Setter Property="Foreground"
+                    Value="#0071BC"/>
+        </Style>
+
+    </UserControl.Styles>
+
+
+    <Border Background="#E8E9EB"
+            Padding="14">
+
+        <Grid RowDefinitions="*,34">
+
+            <!-- ================================================= -->
+            <!-- PODGLĄD STRONY A4 -->
+            <!-- ================================================= -->
+
+            <Viewbox Grid.Row="0"
+                     Stretch="Uniform">
+
+                <Grid Width="620"
+                      Height="877">
+
+                    <!-- ================================================= -->
+                    <!-- STRONA 1 -->
+                    <!-- ================================================= -->
+
+                    <Border Background="White"
+                            BorderBrush="#111111"
+                            BorderThickness="1"
+                            Padding="6"
+                            IsVisible="{Binding PreviewPage.IsFirstPage}">
+
+                        <Grid RowDefinitions="74,3,18,38,18,98,3,*">
+
+                            <!-- NAGŁÓWEK -->
+                            <Grid Grid.Row="0"
+                                  RowDefinitions="44,30"
+                                  ColumnDefinitions="155,*,*,*">
+
+                                <!-- LOGO -->
+                                <Border Grid.Row="0"
+                                        Grid.RowSpan="2"
+                                        Grid.Column="0"
+                                        BorderBrush="#111111"
+                                        BorderThickness="1"
+                                        Padding="5">
+
+                                    <Image Source="/Assets/Branding/PimpLogoExact.png"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Margin="10,1"/>
+
+                                </Border>
+
+
+                                <!-- NAZWA ZLECENIA -->
+                                <Border Grid.Row="0"
+                                        Grid.Column="1"
+                                        Grid.ColumnSpan="3"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,1,1,1"
+                                        Padding="4">
+
+                                    <Viewbox Stretch="Uniform"
+                                             StretchDirection="DownOnly"
+                                             Margin="8,0">
+
+                                        <TextBlock HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="NoWrap"
+                                                   FontSize="20"
+                                                   FontWeight="Black"
+                                                   Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                   Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                   Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
+                                                   Text="{Binding ProductionCard.PreviewOrderName}"/>
+
+                                    </Viewbox>
+
+                                </Border>
+
+
+                                <!-- KLIENT -->
+                                <Border Grid.Row="1"
+                                        Grid.Column="1"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,0,1,1"
+                                        Padding="2">
+
+                                    <Grid RowDefinitions="10,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="6.5"
+                                                   FontWeight="Bold"
+                                                   Text="KLIENT"/>
+
+                                        <Viewbox Grid.Row="1"
+                                                 Stretch="Uniform"
+                                                 StretchDirection="DownOnly"
+                                                 Margin="5,0">
+
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Classes.placeholder="{Binding ProductionCard.IsCustomerEmpty}"
+                                                       Text="{Binding ProductionCard.PreviewCustomer}"/>
+
+                                        </Viewbox>
+
+                                    </Grid>
+
+                                </Border>
+
+
+                                <!-- TERMIN -->
+                                <Border Grid.Row="1"
+                                        Grid.Column="2"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,0,1,1"
+                                        Padding="2">
+
+                                    <Grid RowDefinitions="10,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="6.5"
+                                                   FontWeight="Bold"
+                                                   Text="TERMIN WYKONANIA"/>
+
+                                        <Viewbox Grid.Row="1"
+                                                 Stretch="Uniform"
+                                                 StretchDirection="DownOnly"
+                                                 Margin="5,0">
+
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Classes.placeholder="{Binding ProductionCard.IsDueDateEmpty}"
+                                                       Text="{Binding ProductionCard.PreviewDueDate}"/>
+
+                                        </Viewbox>
+
+                                    </Grid>
+
+                                </Border>
+
+
+                                <!-- RODZAJ PRODUKCJI -->
+                                <Border Grid.Row="1"
+                                        Grid.Column="3"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,0,1,1"
+                                        Padding="2">
+
+                                    <Grid RowDefinitions="10,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="6.5"
+                                                   FontWeight="Bold"
+                                                   Text="RODZAJ PRODUKCJI"/>
+
+                                        <Viewbox Grid.Row="1"
+                                                 Stretch="Uniform"
+                                                 StretchDirection="DownOnly"
+                                                 Margin="5,0">
+
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Classes.placeholder="{Binding ProductionCard.IsProductionTypeEmpty}"
+                                                       Text="{Binding ProductionCard.PreviewProductionType}"/>
+
+                                        </Viewbox>
+
+                                    </Grid>
+
+                                </Border>
+
+                            </Grid>
+
+
+                            <Border Grid.Row="1"/>
+
+
+                            <!-- LOGOWANIE -->
+                            <Border Grid.Row="2"
+                                    BorderBrush="#111111"
+                                    BorderThickness="1">
+
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FontSize="8"
+                                           FontWeight="Black"
+                                           Text="LOGOWANIE (NAZWA WZORU / WYMIAR)"/>
+
+                            </Border>
+
+
+                            <ItemsControl Grid.Row="3"
+                                          ItemsSource="{Binding ProductionCard.ProductionEntries}">
+
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+
+                                        <UniformGrid Columns="4"
+                                                     Rows="1"/>
+
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+
+                                <ItemsControl.ItemTemplate>
+
+                                    <DataTemplate x:DataType="models:ProductionEntry">
+
+                                        <Border BorderBrush="#111111"
+                                                BorderThickness="1,0,1,1"
+                                                Padding="3">
+
+                                            <Grid IsVisible="{Binding HasContent}"
+                                                  RowDefinitions="17,*"
+                                                  ColumnDefinitions="19,*">
+
+                                                <Border Grid.Row="0"
+                                                        Grid.Column="0"
+                                                        Width="14"
+                                                        Height="14"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Center"
+                                                        BorderBrush="#111111"
+                                                        BorderThickness="0.7"
+                                                        CornerRadius="7">
+
+                                                    <TextBlock HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="7"
+                                                               FontWeight="Bold"
+                                                               Text="{Binding Number}"/>
+
+                                                </Border>
+
+                                                <Viewbox Grid.Row="0"
+                                                         Grid.Column="1"
+                                                         Stretch="Uniform"
+                                                         StretchDirection="DownOnly"
+                                                         HorizontalAlignment="Left">
+
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               TextWrapping="NoWrap"
+                                                               FontSize="10"
+                                                               FontWeight="Black"
+                                                               Text="{Binding LogoName}"/>
+
+                                                </Viewbox>
+
+                                                <Viewbox Grid.Row="1"
+                                                         Grid.Column="1"
+                                                         Stretch="Uniform"
+                                                         StretchDirection="DownOnly"
+                                                         HorizontalAlignment="Left">
+
+                                                    <TextBlock VerticalAlignment="Top"
+                                                               TextWrapping="NoWrap"
+                                                               FontSize="7.5"
+                                                               FontWeight="Bold"
+                                                               Text="{Binding Dimension}"/>
+
+                                                </Viewbox>
+
+                                            </Grid>
+
+                                        </Border>
+
+                                    </DataTemplate>
+
+                                </ItemsControl.ItemTemplate>
+
+                            </ItemsControl>
+
+
+                            <!-- KOLORYSTYKA -->
+                            <Border Grid.Row="4"
+                                    BorderBrush="#111111"
+                                    BorderThickness="1">
+
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FontSize="8"
+                                           FontWeight="Black"
+                                           Text="KOLORYSTYKA (KOLOR / NICI)"/>
+
+                            </Border>
+
+
+                            <ItemsControl Grid.Row="5"
+                                          ItemsSource="{Binding ProductionCard.ProductionEntries}">
+
+                                <ItemsControl.ItemsPanel>
+
+                                    <ItemsPanelTemplate>
+
+                                        <UniformGrid Columns="4"
+                                                     Rows="1"/>
+
+                                    </ItemsPanelTemplate>
+
+                                </ItemsControl.ItemsPanel>
+
+                                <ItemsControl.ItemTemplate>
+
+                                    <DataTemplate x:DataType="models:ProductionEntry">
+
+                                        <Border BorderBrush="#111111"
+                                                BorderThickness="1,0,1,1"
+                                                Padding="5,3">
+
+                                            <ItemsControl ItemsSource="{Binding Colours}"
+                                                          VerticalAlignment="Top">
+
+                                                <ItemsControl.ItemsPanel>
+
+                                                    <ItemsPanelTemplate>
+
+                                                        <StackPanel Spacing="0"/>
+
+                                                    </ItemsPanelTemplate>
+
+                                                </ItemsControl.ItemsPanel>
+
+                                                <ItemsControl.ItemTemplate>
+
+                                                    <DataTemplate x:DataType="models:ProductionColourEntry">
+
+                                                        <Grid Height="11"
+                                                              ColumnDefinitions="20,*">
+
+                                                            <TextBlock Grid.Column="0"
+                                                                       HorizontalAlignment="Left"
+                                                                       VerticalAlignment="Center"
+                                                                       FontSize="7"
+                                                                       FontWeight="Bold"
+                                                                       Text="{Binding Number, StringFormat={}{0}.}"/>
+
+                                                            <Viewbox Grid.Column="1"
+                                                                     Stretch="Uniform"
+                                                                     StretchDirection="DownOnly"
+                                                                     HorizontalAlignment="Left">
+
+                                                                <TextBlock VerticalAlignment="Center"
+                                                                           TextWrapping="NoWrap"
+                                                                           FontSize="7.5"
+                                                                           Text="{Binding Value}"/>
+
+                                                            </Viewbox>
+
+                                                        </Grid>
+
+                                                    </DataTemplate>
+
+                                                </ItemsControl.ItemTemplate>
+
+                                            </ItemsControl>
+
+                                        </Border>
+
+                                    </DataTemplate>
+
+                                </ItemsControl.ItemTemplate>
+
+                            </ItemsControl>
+
+
+                            <Border Grid.Row="6"/>
+
+
+                            <!-- RYSUNKI STRONY 1 -->
+                            <Grid Grid.Row="7">
+
+                                <controls:GarmentPageSection
+                                    Page="{Binding PreviewPage}"/>
+
+                            </Grid>
+
+                        </Grid>
+
+                    </Border>
+
+
+                    <!-- ================================================= -->
+                    <!-- STRONA 2 I KOLEJNE -->
+                    <!-- ================================================= -->
+
+                    <Border Background="White"
+                            BorderBrush="#111111"
+                            BorderThickness="1"
+                            Padding="6"
+                            IsVisible="{Binding !PreviewPage.IsFirstPage}">
+
+                        <Grid RowDefinitions="74,6,*">
+
+                            <!-- UPROSZCZONY NAGŁÓWEK -->
+                            <Grid Grid.Row="0"
+                                  ColumnDefinitions="155,*,90">
+
+                                <!-- LOGO -->
+                                <Border Grid.Column="0"
+                                        BorderBrush="#111111"
+                                        BorderThickness="1"
+                                        Padding="5">
+
+                                    <Image Source="/Assets/Branding/PimpLogoExact.png"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Margin="10,1"/>
+
+                                </Border>
+
+
+                                <!-- NAZWA ZLECENIA -->
+                                <Border Grid.Column="1"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,1,1,1"
+                                        Padding="5">
+
+                                    <Grid RowDefinitions="14,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="7"
+                                                   FontWeight="Bold"
+                                                   Text="NAZWA ZLECENIA"/>
+
+                                        <Viewbox Grid.Row="1"
+                                                 Stretch="Uniform"
+                                                 StretchDirection="DownOnly"
+                                                 Margin="10,2">
+
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="NoWrap"
+                                                       FontSize="19"
+                                                       FontWeight="Black"
+                                                       Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                       Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
+                                                       Text="{Binding ProductionCard.PreviewOrderName}"/>
+
+                                        </Viewbox>
+
+                                    </Grid>
+
+                                </Border>
+
+
+                                <!-- NUMER STRONY -->
+                                <Border Grid.Column="2"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,1,1,1"
+                                        Padding="3">
+
+                                    <Grid RowDefinitions="18,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="7"
+                                                   FontWeight="Bold"
+                                                   Text="STRONA"/>
+
+                                        <TextBlock Grid.Row="1"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   FontSize="15"
+                                                   FontWeight="Black"
+                                                   Text="{Binding PreviewPage.PageNumberText}"/>
+
+                                    </Grid>
+
+                                </Border>
+
+                            </Grid>
+
+
+                            <Border Grid.Row="1"/>
+
+
+                            <!-- DUŻA POWIERZCHNIA NA ODZIEŻ -->
+                            <Grid Grid.Row="2">
+
+                                <controls:GarmentPageSection
+                                    Page="{Binding PreviewPage}"/>
+
+                            </Grid>
+
+                        </Grid>
+
+                    </Border>
+
+                </Grid>
+
+            </Viewbox>
+
+
+            <!-- ================================================= -->
+            <!-- NAWIGACJA STRON PODGLĄDU -->
+            <!-- ================================================= -->
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto,Auto,Auto,*"
+                  ColumnSpacing="10"
+                  VerticalAlignment="Center">
+
+                <Button Grid.Column="1"
+                        Width="34"
+                        Height="26"
+                        Padding="0"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="◀"
+                        Command="{Binding PreviousPreviewPageCommand}"
+                        IsEnabled="{Binding CanGoToPreviousPreviewPage}"/>
+
+                <TextBlock Grid.Column="2"
+                           MinWidth="54"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           FontSize="11"
+                           FontWeight="Bold"
+                           Foreground="#3F4348"
+                           Text="{Binding PreviewPageNumberText}"/>
+
+                <Button Grid.Column="3"
+                        Width="34"
+                        Height="26"
+                        Padding="0"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Content="▶"
+                        Command="{Binding NextPreviewPageCommand}"
+                        IsEnabled="{Binding CanGoToNextPreviewPage}"/>
+
+            </Grid>
+
+        </Grid>
+
+    </Border>
+
+</UserControl>

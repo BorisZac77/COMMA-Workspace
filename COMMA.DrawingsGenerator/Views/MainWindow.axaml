@@ -1,0 +1,644 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:COMMA.DrawingsGenerator.ViewModels"
+        xmlns:models="using:COMMA.Core.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1700"
+        d:DesignHeight="950"
+        x:Class="COMMA.DrawingsGenerator.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="1700"
+        Height="950"
+        MinWidth="1350"
+        MinHeight="760"
+        Title="COMMA Technical Drawings Generator">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="76,*,76"
+          Background="#F4F5F7">
+
+        <!-- GÓRNY PASEK -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,0,0,1"
+                Padding="24,12">
+
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                  ColumnSpacing="14">
+
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center"
+                            Spacing="2">
+
+                    <TextBlock Text="COMMA Technical Drawings Generator"
+                               FontSize="24"
+                               FontWeight="Bold"/>
+
+                    <TextBlock Text="Biblioteka rysunków technicznych odzieży"
+                               FontSize="12"
+                               Foreground="#6F737A"/>
+
+                </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           Margin="24,0,0,0"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="#6F737A"
+                           Text="{Binding LibraryPath}"/>
+
+                <Button Grid.Column="2"
+                        Width="170"
+                        Height="40"
+                        Content="ODŚWIEŻ"
+                        Command="{Binding RefreshLibraryCommand}"/>
+
+                <Button Grid.Column="3"
+                        Width="190"
+                        Height="40"
+                        FontWeight="Bold"
+                        Content="WYBIERZ BIBLIOTEKĘ"
+                        Command="{Binding OpenLibraryCommand}"/>
+
+            </Grid>
+
+        </Border>
+
+        <!-- GŁÓWNA CZĘŚĆ -->
+        <Grid Grid.Row="1"
+              Margin="20"
+              ColumnDefinitions="390,*,*"
+              ColumnSpacing="18">
+
+            <!-- BIBLIOTEKA PRODUKTÓW -->
+            <Border Grid.Column="0"
+                    Background="White"
+                    BorderBrush="#D8DADF"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="18">
+
+                <Grid RowDefinitions="Auto,Auto,Auto,*"
+                      RowSpacing="11">
+
+                    <TextBlock Grid.Row="0"
+                               Text="BIBLIOTEKA ODZIEŻY"
+                               FontSize="20"
+                               FontWeight="Bold"/>
+
+                    <TextBlock Grid.Row="1"
+                               Foreground="#6F737A"
+                               TextWrapping="Wrap"
+                               Text="Wybierz produkt, dla którego chcesz przygotować rysunki techniczne."/>
+
+                    <!-- WYSZUKIWARKA -->
+                    <Border Grid.Row="2"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,4">
+
+                        <Grid ColumnDefinitions="Auto,*"
+                              ColumnSpacing="8">
+
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       FontSize="16"
+                                       Foreground="#6F737A"
+                                       Text="⌕"/>
+
+                            <TextBox Grid.Column="1"
+                                     MinHeight="36"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     PlaceholderText="Szukaj produktu..."
+                                     Text="{Binding SearchText}"/>
+
+                        </Grid>
+
+                    </Border>
+
+                    <!-- LISTA PRODUKTÓW -->
+                    <ListBox Grid.Row="3"
+                             ItemsSource="{Binding Products}"
+                             SelectedItem="{Binding SelectedProduct}"
+                             Background="Transparent"
+                             BorderThickness="0">
+
+                        <ListBox.Styles>
+
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding"
+                                        Value="0"/>
+
+                                <Setter Property="Margin"
+                                        Value="0,0,0,9"/>
+
+                                <Setter Property="Background"
+                                        Value="Transparent"/>
+
+                                <Setter Property="HorizontalContentAlignment"
+                                        Value="Stretch"/>
+
+                                <Setter Property="CornerRadius"
+                                        Value="7"/>
+                            </Style>
+
+                            <Style Selector="ListBoxItem:pointerover">
+                                <Setter Property="Background"
+                                        Value="#EEF2F6"/>
+                            </Style>
+
+                            <Style Selector="ListBoxItem:selected">
+                                <Setter Property="Background"
+                                        Value="#DCE8F5"/>
+                            </Style>
+
+                        </ListBox.Styles>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:Product">
+
+                                <Border Background="White"
+                                        BorderBrush="#C6CAD0"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        Padding="12">
+
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="10">
+
+                                        <StackPanel Grid.Column="0"
+                                                    VerticalAlignment="Center"
+                                                    Spacing="4">
+
+                                            <TextBlock FontSize="14"
+                                                       FontWeight="Bold"
+                                                       TextWrapping="Wrap"
+                                                       MaxLines="2"
+                                                       Text="{Binding DisplayName}"/>
+
+                                            <TextBlock FontSize="11"
+                                                       Foreground="#6F737A"
+                                                       Text="{Binding DisplayCode}"/>
+
+                                        </StackPanel>
+
+                                        <Border Grid.Column="1"
+                                                MinWidth="92"
+                                                VerticalAlignment="Center"
+                                                Background="#F4F5F7"
+                                                CornerRadius="5"
+                                                Padding="8,5">
+
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#6F737A"
+                                                       Text="{Binding DrawingCountText}"/>
+
+                                        </Border>
+
+                                    </Grid>
+
+                                </Border>
+
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+
+                    </ListBox>
+
+                </Grid>
+
+            </Border>
+
+            <!-- ZDJĘCIA PRODUKTU -->
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="#D8DADF"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16">
+
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="12">
+
+                    <TextBlock Grid.Row="0"
+                               Text="ZDJĘCIA PRODUKTU"
+                               FontSize="20"
+                               FontWeight="Bold"/>
+
+                    <Border Grid.Row="1"
+                            Background="#F4F5F7"
+                            BorderBrush="#E1E3E6"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="11">
+
+                        <StackPanel Spacing="3">
+
+                            <TextBlock Text="WYBRANY PRODUKT"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="#6F737A"/>
+
+                            <TextBlock FontSize="16"
+                                       FontWeight="Bold"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding SelectedProduct.DisplayName}"/>
+
+                            <TextBlock FontSize="10"
+                                       Foreground="#7A7E84"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding SelectedProduct.Folder}"/>
+
+                        </StackPanel>
+
+                    </Border>
+
+                    <Grid Grid.Row="2"
+                          RowDefinitions="*,*,*"
+                          RowSpacing="10">
+
+                        <!-- FRONT -->
+                        <Border Grid.Row="0"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="82,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="FRONT"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding FrontPhoto}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                        <!-- BACK -->
+                        <Border Grid.Row="1"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="82,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="BACK"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding BackPhoto}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                        <!-- RIGHT SIDE -->
+                        <Border Grid.Row="2"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="82,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="RIGHT&#x0A;SIDE"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding RightPhoto}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                    </Grid>
+
+                </Grid>
+
+            </Border>
+
+            <!-- RYSUNKI TECHNICZNE -->
+            <Border Grid.Column="2"
+                    Background="White"
+                    BorderBrush="#D8DADF"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16">
+
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="12">
+
+                    <TextBlock Grid.Row="0"
+                               Text="RYSUNKI TECHNICZNE"
+                               FontSize="20"
+                               FontWeight="Bold"/>
+
+                    <Border Grid.Row="1"
+                            Background="#F4F5F7"
+                            BorderBrush="#E1E3E6"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="11">
+
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+
+                            <StackPanel Grid.Column="0"
+                                        Spacing="3">
+
+                                <TextBlock Text="STATUS PRODUKTU"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="#6F737A"/>
+
+                                <TextBlock FontSize="14"
+                                           FontWeight="Bold"
+                                           Text="{Binding ActualDrawingCountText}"/>
+
+                            </StackPanel>
+
+                            <Border Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Background="#E8EAED"
+                                    CornerRadius="5"
+                                    Padding="12,6">
+
+                                <TextBlock FontSize="11"
+                                           FontWeight="Bold"
+                                           Text="{Binding ActualDrawingCount}"/>
+
+                            </Border>
+
+                        </Grid>
+
+                    </Border>
+
+                    <Grid Grid.Row="2"
+                          RowDefinitions="*,*,*"
+                          RowSpacing="10">
+
+                        <!-- FRONT DRAWING -->
+                        <Border Grid.Row="0"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="110,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="FRONT&#x0A;DRAWING"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding FrontTechnicalDrawing}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                        <!-- BACK DRAWING -->
+                        <Border Grid.Row="1"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="110,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="BACK&#x0A;DRAWING"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding BackTechnicalDrawing}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                        <!-- RIGHT DRAWING -->
+                        <Border Grid.Row="2"
+                                Background="#F7F8FA"
+                                BorderBrush="#D8DADF"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10">
+
+                            <Grid ColumnDefinitions="110,*"
+                                  ColumnSpacing="10">
+
+                                <Border Grid.Column="0"
+                                        Background="#ECEEF1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="RIGHT SIDE&#x0A;DRAWING"/>
+
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="White"
+                                        BorderBrush="#E1E3E6"
+                                        BorderThickness="1"
+                                        CornerRadius="5"
+                                        Padding="8">
+
+                                    <Image Source="{Binding RightTechnicalDrawing}"
+                                           Stretch="Uniform"/>
+
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                    </Grid>
+
+                </Grid>
+
+            </Border>
+
+        </Grid>
+
+        <!-- DOLNY PASEK -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#D8DADF"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                  ColumnSpacing="12">
+
+                <TextBlock Grid.Column="0"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontWeight="SemiBold"
+                           Foreground="#6F737A"
+                           Text="{Binding Status}"/>
+
+                <Button Grid.Column="1"
+                        Width="220"
+                        Height="46"
+                        FontSize="13"
+                        FontWeight="Bold"
+                        Content="PRZYGOTUJ DO CHATGPT"
+                        Command="{Binding ExportToChatGptCommand}"/>
+
+                <Button Grid.Column="2"
+                        Width="210"
+                        Height="46"
+                        FontSize="13"
+                        FontWeight="Bold"
+                        Content="IMPORTUJ RYSUNKI"
+                        Command="{Binding ImportDrawingsCommand}"/>
+
+                <Button Grid.Column="3"
+                        Width="210"
+                        Height="46"
+                        FontSize="13"
+                        FontWeight="Bold"
+                        IsEnabled="False"
+                        Content="ZAPISZ DO BIBLIOTEKI"/>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
+</Window>
