@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,11 @@ public static class DrawingSection
                 ? 1.20f
                 : 1f;
 
+        var maximumDrawingHeight =
+            drawingCount >= 3
+                ? PdfStyles.MultiDrawingMaximumHeight
+                : 0f;
+
         column.Item()
             .Height(PdfStyles.DrawingSectionHeight)
             .Column(drawingColumn =>
@@ -48,7 +54,9 @@ public static class DrawingSection
                                 container,
                                 layoutRow,
                                 rowHeight,
-                                imageScale));
+                                imageScale,
+                                maximumDrawingHeight,
+                                drawingCount >= 3));
                 }
             });
     }
@@ -70,7 +78,9 @@ public static class DrawingSection
         IContainer container,
         DrawingLayoutRow layoutRow,
         float rowHeight,
-        float imageScale)
+        float imageScale,
+        float maximumDrawingHeight,
+        bool cropDrawingImage)
     {
         if (layoutRow.Second == null ||
             layoutRow.FirstColumnSpan == 2)
@@ -80,7 +90,9 @@ public static class DrawingSection
                     cell,
                     layoutRow.First,
                     rowHeight,
-                    imageScale));
+                    imageScale,
+                    maximumDrawingHeight,
+                    cropDrawingImage));
 
             return;
         }
@@ -93,7 +105,9 @@ public static class DrawingSection
                         cell,
                         layoutRow.First,
                         rowHeight,
-                        imageScale));
+                        imageScale,
+                        maximumDrawingHeight,
+                        cropDrawingImage));
 
             row.RelativeItem()
                 .Element(cell =>
@@ -101,7 +115,9 @@ public static class DrawingSection
                         cell,
                         layoutRow.Second,
                         rowHeight,
-                        imageScale));
+                        imageScale,
+                        maximumDrawingHeight,
+                        cropDrawingImage));
         });
     }
 
@@ -109,13 +125,27 @@ public static class DrawingSection
         IContainer container,
         DrawingFile drawing,
         float cellHeight,
-        float imageScale)
+        float imageScale,
+        float maximumDrawingHeight,
+        bool cropDrawingImage)
     {
         var imageHeight =
             PdfStyles.GetDrawingImageHeight(cellHeight);
 
         var scaledImageHeight =
             imageHeight * imageScale;
+
+        var imageAreaHeight =
+            maximumDrawingHeight > 0f
+                ? Math.Max(
+                    scaledImageHeight,
+                    PdfStyles.MultiDrawingImageAreaMinimumHeight)
+                : scaledImageHeight;
+
+        var maximumImageHeight =
+            maximumDrawingHeight > 0f
+                ? maximumDrawingHeight
+                : scaledImageHeight * 0.75f;
 
         container
             .Border(PdfStyles.StandardBorderWidth)
@@ -131,24 +161,33 @@ public static class DrawingSection
                     .Bold();
 
                 column.Item()
-                    .Height(scaledImageHeight)
+                    .Height(imageAreaHeight)
                     .Padding(PdfStyles.DrawingImagePadding)
                     .AlignTop()
                     .AlignCenter()
                     .Element(imageContainer =>
                     {
-                        imageContainer
-                            .MaxWidth(
-                                scaledImageHeight * 0.75f)
+                        var imageArea =
+                            imageContainer
                             .MaxHeight(
-                                scaledImageHeight * 0.75f)
+                                maximumImageHeight)
                             .AlignCenter()
-                            .AlignTop()
+                            .AlignTop();
+
+                        if (maximumDrawingHeight <= 0f)
+                        {
+                            imageArea =
+                                imageArea.MaxWidth(
+                                    maximumImageHeight);
+                        }
+
+                        imageArea
                             .Element(img =>
                             {
                                 DrawImage(
                                     img,
-                                    drawing);
+                                    drawing,
+                                    cropDrawingImage);
                             });
                     });
             });
@@ -156,7 +195,8 @@ public static class DrawingSection
 
     private static void DrawImage(
         IContainer container,
-        DrawingFile drawing)
+        DrawingFile drawing,
+        bool cropDrawingImage)
     {
         if (string.IsNullOrWhiteSpace(drawing.FullPath) ||
             !File.Exists(drawing.FullPath))
@@ -172,8 +212,11 @@ public static class DrawingSection
         }
 
         var cleanedImage =
-            PrepareImageForPdf(
-                drawing.FullPath);
+            cropDrawingImage
+                ? DrawingImageCropper.TryCreateCroppedPng(
+                    drawing.FullPath)
+                : PrepareImageForPdf(
+                    drawing.FullPath);
 
         if (cleanedImage.Length == 0)
         {

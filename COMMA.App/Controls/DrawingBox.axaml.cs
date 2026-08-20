@@ -33,6 +33,10 @@ public partial class DrawingBox : UserControl
             nameof(MaxDrawingHeight),
             double.PositiveInfinity);
 
+    public static readonly StyledProperty<byte[]?> CroppedImageDataProperty =
+        AvaloniaProperty.Register<DrawingBox, byte[]?>(
+            nameof(CroppedImageData));
+
     private Bitmap? drawingBitmap;
 
     public DrawingBox()
@@ -70,13 +74,22 @@ public partial class DrawingBox : UserControl
         set => SetValue(MaxDrawingHeightProperty, value);
     }
 
+    public byte[]? CroppedImageData
+    {
+        get => GetValue(CroppedImageDataProperty);
+        set => SetValue(CroppedImageDataProperty, value);
+    }
+
     protected override void OnPropertyChanged(
         AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == ImagePathProperty)
+        if (change.Property == ImagePathProperty && CroppedImageData == null)
             LoadDrawingImage(change.NewValue as string);
+
+        if (change.Property == CroppedImageDataProperty)
+            LoadCroppedImage(change.NewValue as byte[]);
     }
 
     private void LoadDrawingImage(
@@ -110,6 +123,34 @@ public partial class DrawingBox : UserControl
         {
             DrawingImage.Source =
                 null;
+        }
+    }
+
+    private void LoadCroppedImage(byte[]? imageData)
+    {
+        if (imageData == null || imageData.Length == 0)
+        {
+            LoadDrawingImage(ImagePath);
+            return;
+        }
+
+        drawingBitmap?.Dispose();
+        drawingBitmap = null;
+
+        if (DrawingImage == null)
+            return;
+
+        DrawingImage.Source = null;
+
+        try
+        {
+            using var stream = new MemoryStream(imageData, writable: false);
+            drawingBitmap = new Bitmap(stream);
+            DrawingImage.Source = drawingBitmap;
+        }
+        catch (Exception)
+        {
+            LoadDrawingImage(ImagePath);
         }
     }
 }

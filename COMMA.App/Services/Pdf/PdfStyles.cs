@@ -116,6 +116,14 @@ public static class PdfStyles
     public const float DrawingImagePadding = 4f;
     public const float DrawingSafetyReserve = 4f;
 
+    // 70 mm w punktach QuestPDF. Dotyczy wyłącznie układu 3–4 rysunków.
+    public const float MultiDrawingMaximumHeight =
+        70f / 25.4f * 72f;
+
+    public const float MultiDrawingImageAreaMinimumHeight =
+        MultiDrawingMaximumHeight
+        + DrawingImagePadding * 2;
+
     // =========================================================
     // RAMKI
     // =========================================================

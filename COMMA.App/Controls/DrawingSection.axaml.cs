@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using COMMA.App.Layout;
 using COMMA.App.Models;
+using COMMA.App.Services;
 using COMMA.App.Services.Pdf;
 
 namespace COMMA.App.Controls;
@@ -234,10 +235,16 @@ public partial class DrawingSection : UserControl
                     ? 1
                     : 2);
 
-        var maxDrawingSize =
-            CalculatePdfEquivalentDrawingSize(
+        var maxDrawingHeight =
+            CalculatePdfEquivalentDrawingHeight(
                 rows.Count,
                 drawingCount);
+
+        var limitDrawingWidth =
+            drawingCount < 3;
+
+        var cropDrawingImage =
+            drawingCount >= 3;
 
         var grid =
             new Grid
@@ -272,7 +279,9 @@ public partial class DrawingSection : UserControl
             var firstDrawingBox =
                 CreateDrawingBox(
                     layoutRow.First,
-                    maxDrawingSize);
+                    maxDrawingHeight,
+                    limitDrawingWidth,
+                    cropDrawingImage);
 
             Grid.SetRow(
                 firstDrawingBox,
@@ -298,7 +307,9 @@ public partial class DrawingSection : UserControl
             var secondDrawingBox =
                 CreateDrawingBox(
                     layoutRow.Second,
-                    maxDrawingSize);
+                    maxDrawingHeight,
+                    limitDrawingWidth,
+                    cropDrawingImage);
 
             Grid.SetRow(
                 secondDrawingBox,
@@ -316,10 +327,17 @@ public partial class DrawingSection : UserControl
     }
 
 
-    private static double CalculatePdfEquivalentDrawingSize(
+    private static double CalculatePdfEquivalentDrawingHeight(
         int rowCount,
         int drawingCount)
     {
+        if (drawingCount >= 3)
+        {
+            return
+                PdfStyles.MultiDrawingMaximumHeight *
+                PreviewScale;
+        }
+
         var rowHeight =
             PdfStyles.GetDrawingRowHeight(
                 rowCount);
@@ -328,23 +346,14 @@ public partial class DrawingSection : UserControl
             PdfStyles.GetDrawingImageHeight(
                 rowHeight);
 
-        var imageScale =
-            drawingCount >= 3
-                ? 1.20
-                : 1.0;
-
-        var scaledImageHeight =
-            imageHeight *
-            imageScale;
-
         /*
          * PDF DrawingSection.cs:
          *
-         * MaxWidth(scaledImageHeight * 0.75f)
-         * MaxHeight(scaledImageHeight * 0.75f)
+         * MaxWidth(imageHeight * 0.75f)
+         * MaxHeight(imageHeight * 0.75f)
          */
         var pdfMaximumSize =
-            scaledImageHeight *
+            imageHeight *
             0.75;
 
         return
@@ -355,7 +364,9 @@ public partial class DrawingSection : UserControl
 
     private static DrawingBox CreateDrawingBox(
         DrawingFile drawing,
-        double maxDrawingSize)
+        double maxDrawingHeight,
+        bool limitDrawingWidth,
+        bool cropDrawingImage)
     {
         return new DrawingBox
         {
@@ -372,10 +383,18 @@ public partial class DrawingSection : UserControl
                     : 1,
 
             MaxDrawingWidth =
-                maxDrawingSize,
+                limitDrawingWidth
+                    ? maxDrawingHeight
+                    : double.PositiveInfinity,
 
             MaxDrawingHeight =
-                maxDrawingSize
+                maxDrawingHeight,
+
+            CroppedImageData =
+                cropDrawingImage
+                    ? DrawingImageCropper.TryCreateCroppedPng(
+                        drawing.FullPath)
+                    : null
         };
     }
 

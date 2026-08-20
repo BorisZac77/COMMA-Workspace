@@ -876,8 +876,8 @@ public static class OrderPdfGenerator
         int rowCount,
         int drawingCount)
     {
-        var maximumImageSize =
-            GetMaximumImageSize(
+        var maximumImageHeight =
+            GetMaximumImageHeight(
                 rowCount,
                 drawingCount);
 
@@ -914,33 +914,44 @@ public static class OrderPdfGenerator
                     .AlignCenter()
                     .Element(imageArea =>
                     {
-                        imageArea
-                            .MaxWidth(
-                                maximumImageSize)
+                        var drawingArea =
+                            imageArea
                             .MaxHeight(
-                                maximumImageSize)
+                                maximumImageHeight)
                             .AlignTop()
-                            .AlignCenter()
+                            .AlignCenter();
+
+                        if (drawingCount < 3)
+                        {
+                            drawingArea =
+                                drawingArea.MaxWidth(
+                                    maximumImageHeight);
+                        }
+
+                        drawingArea
                             .Element(image =>
                                 DrawImage(
                                     image,
-                                    drawing));
+                                    drawing,
+                                    drawingCount >= 3));
                     });
             });
     }
 
 
     /*
-     * Wielkość maksymalna jest liczona dokładnie
+     * Dla 1–2 rysunków wielkość maksymalna jest liczona dokładnie
      * z tej samej geometrii, której używał PDF 2.0.
      *
-     * Dzięki temu dodatkowe miejsce na stronie 2+
-     * nie powoduje powiększenia rysunku.
+     * Dla 3–4 rysunków obowiązuje wspólny limit 70 mm wysokości.
      */
-    private static float GetMaximumImageSize(
+    private static float GetMaximumImageHeight(
         int rowCount,
         int drawingCount)
     {
+        if (drawingCount >= 3)
+            return PdfStyles.MultiDrawingMaximumHeight;
+
         var referenceRowHeight =
             PdfStyles.GetDrawingRowHeight(
                 rowCount);
@@ -949,24 +960,16 @@ public static class OrderPdfGenerator
             PdfStyles.GetDrawingImageHeight(
                 referenceRowHeight);
 
-        var imageScale =
-            drawingCount >= 3
-                ? 1.20f
-                : 1f;
-
-        var scaledImageHeight =
-            imageHeight *
-            imageScale;
-
         return
-            scaledImageHeight *
+            imageHeight *
             0.75f;
     }
 
 
     private static void DrawImage(
         IContainer container,
-        DrawingFile drawing)
+        DrawingFile drawing,
+        bool cropDrawingImage)
     {
         if (string.IsNullOrWhiteSpace(
                 drawing.FullPath) ||
@@ -985,8 +988,11 @@ public static class OrderPdfGenerator
         }
 
         var cleanedImage =
-            PrepareImageForPdf(
-                drawing.FullPath);
+            cropDrawingImage
+                ? DrawingImageCropper.TryCreateCroppedPng(
+                    drawing.FullPath)
+                : PrepareImageForPdf(
+                    drawing.FullPath);
 
         if (cleanedImage.Length == 0)
         {
