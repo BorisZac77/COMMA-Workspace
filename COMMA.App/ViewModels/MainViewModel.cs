@@ -891,8 +891,35 @@ public partial class MainViewModel : ViewModelBase
 
             if (product == null)
             {
+                SearchText =
+                    "";
+
+                SelectedProduct =
+                    null;
+
+                ProductionCard =
+                    new ProductionCard();
+
+                RestoreLegacyCardFromPdf(
+                    ProductionCard,
+                    data);
+
+                Garments.Clear();
+
+                SelectedGarment =
+                    null;
+
+                RebuildOrderPages();
+
+                loadedPdfPath =
+                    pdfPath;
+
+                loadedOrderName =
+                    data.OrderName ?? "";
+
                 SetPdfStatus(
-                    "Nie znaleziono produktu z PDF w aktualnej bibliotece.");
+                    "Wczytano dane z PDF, ale nie znaleziono produktu " +
+                    $"w aktualnej bibliotece: {data.ProductName}");
 
                 return;
             }
@@ -911,9 +938,49 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            RestoreCardFromPdf(
+            RestoreLegacyCardFromPdf(
                 ProductionCard,
                 data);
+
+            var legacyGarment =
+                new OrderGarmentItem();
+
+            legacyGarment.LoadProduct(
+                product);
+
+            if (!string.IsNullOrWhiteSpace(
+                    data.ProductName))
+            {
+                legacyGarment.Name =
+                    data.ProductName;
+            }
+
+            legacyGarment.Colour =
+                data.Colour ?? "";
+
+            legacyGarment.ShowFront =
+                data.ShowFront;
+
+            legacyGarment.ShowBack =
+                data.ShowBack;
+
+            legacyGarment.ShowRight =
+                data.ShowRight;
+
+            legacyGarment.ShowLeft =
+                data.ShowLeft;
+
+            legacyGarment.RefreshDrawingSelection();
+
+            Garments.Clear();
+
+            Garments.Add(
+                legacyGarment);
+
+            SelectedGarment =
+                legacyGarment;
+
+            RebuildOrderPages();
 
             loadedPdfPath =
                 pdfPath;
@@ -1038,6 +1105,25 @@ public partial class MainViewModel : ViewModelBase
                     });
             }
         }
+    }
+
+    private static void RestoreLegacyCardFromPdf(
+        ProductionCard card,
+        CommaCardData data)
+    {
+        RestoreCardFromPdf(
+            card,
+            data);
+
+        if (!string.IsNullOrWhiteSpace(
+                data.ProductCode))
+        {
+            card.ProductCode =
+                data.ProductCode;
+        }
+
+        card.ProductName =
+            data.ProductName ?? "";
     }
 
     private enum PdfSaveChoice
