@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using COMMA.App.Models;
 
@@ -5,6 +6,10 @@ namespace COMMA.App.Views;
 
 public partial class GarmentEditorWindow : Window
 {
+    private const double DefaultWidth = 720;
+    private const double DefaultHeight = 780;
+    private const double WindowsWorkingAreaMargin = 32;
+
     private readonly OrderGarmentItem garment;
 
     public GarmentEditorWindow()
@@ -19,6 +24,17 @@ public partial class GarmentEditorWindow : Window
         InitializeComponent();
 
         this.garment = garment;
+
+        if (OperatingSystem.IsWindows())
+        {
+            Classes.Add(
+                "windows-compact");
+
+            ApplyWindowsSize();
+
+            Opened +=
+                (_, _) => ApplyWindowsSize();
+        }
 
         GarmentNameTextBox.Text =
             garment.Name;
@@ -101,4 +117,45 @@ public partial class GarmentEditorWindow : Window
 
     public OrderGarmentItem Garment =>
         garment;
+
+
+    private void ApplyWindowsSize()
+    {
+        var screen =
+            Screens.ScreenFromWindow(this)
+            ?? Screens.Primary;
+
+        if (screen == null)
+            return;
+
+        var workingAreaWidth =
+            screen.WorkingArea.Width /
+            screen.Scaling;
+
+        var workingAreaHeight =
+            screen.WorkingArea.Height /
+            screen.Scaling;
+
+        var targetWidth =
+            Math.Min(
+                DefaultWidth,
+                Math.Max(
+                    1,
+                    workingAreaWidth - WindowsWorkingAreaMargin));
+
+        var targetHeight =
+            Math.Min(
+                DefaultHeight,
+                Math.Max(
+                    1,
+                    workingAreaHeight - WindowsWorkingAreaMargin));
+
+        Width = targetWidth;
+        MinWidth = targetWidth;
+        MaxWidth = targetWidth;
+
+        Height = targetHeight;
+        MinHeight = targetHeight;
+        MaxHeight = targetHeight;
+    }
 }

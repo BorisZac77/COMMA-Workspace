@@ -16,6 +16,7 @@ public partial class GarmentPageSection : UserControl
             nameof(Page));
 
     private OrderPageLayout? subscribedPage;
+    private bool isAttachedToVisualTree;
 
     public GarmentPageSection()
     {
@@ -37,23 +38,50 @@ public partial class GarmentPageSection : UserControl
         if (change.Property != PageProperty)
             return;
 
-        SubscribeToPage(
-            change.NewValue as OrderPageLayout);
+        if (isAttachedToVisualTree)
+        {
+            SubscribeToPage(
+                change.NewValue as OrderPageLayout);
+        }
 
         RebuildLayout();
+    }
+
+    protected override void OnAttachedToVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (isAttachedToVisualTree)
+            return;
+
+        isAttachedToVisualTree =
+            true;
+
+        SubscribeToPage(
+            Page);
+    }
+
+    protected override void OnDetachedFromVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        UnsubscribeFromPage();
+
+        isAttachedToVisualTree =
+            false;
+
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void SubscribeToPage(
         OrderPageLayout? page)
     {
-        if (subscribedPage != null)
-        {
-            foreach (var garment in subscribedPage.Garments)
-            {
-                garment.PropertyChanged -=
-                    OnGarmentPropertyChanged;
-            }
-        }
+        if (ReferenceEquals(
+                subscribedPage,
+                page))
+            return;
+
+        UnsubscribeFromPage();
 
         subscribedPage =
             page;
@@ -66,6 +94,21 @@ public partial class GarmentPageSection : UserControl
             garment.PropertyChanged +=
                 OnGarmentPropertyChanged;
         }
+    }
+
+    private void UnsubscribeFromPage()
+    {
+        if (subscribedPage == null)
+            return;
+
+        foreach (var garment in subscribedPage.Garments)
+        {
+            garment.PropertyChanged -=
+                OnGarmentPropertyChanged;
+        }
+
+        subscribedPage =
+            null;
     }
 
     private void OnGarmentPropertyChanged(

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -42,6 +43,8 @@ public partial class MainViewModel : ViewModelBase
     private int pdfStatusVersion;
 
     private string? loadedPdfPath;
+
+    private string? loadedOrderName;
 
     [ObservableProperty]
     private string libraryPath =
@@ -87,6 +90,9 @@ public partial class MainViewModel : ViewModelBase
                 if (Garments.Count == 0)
                 {
                     loadedPdfPath =
+                        null;
+
+                    loadedOrderName =
                         null;
                 }
             };
@@ -868,6 +874,9 @@ public partial class MainViewModel : ViewModelBase
                 loadedPdfPath =
                     pdfPath;
 
+                loadedOrderName =
+                    data.OrderName ?? "";
+
                 await ShowTemporaryPdfStatus(
                     $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
                     4000);
@@ -909,6 +918,9 @@ public partial class MainViewModel : ViewModelBase
             loadedPdfPath =
                 pdfPath;
 
+            loadedOrderName =
+                data.OrderName ?? "";
+
             await ShowTemporaryPdfStatus(
                 $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
                 4000);
@@ -940,15 +952,21 @@ public partial class MainViewModel : ViewModelBase
 
         if (!string.IsNullOrWhiteSpace(productName))
         {
+            var normalizedProductName =
+                NormalizeProductIdentity(
+                    productName);
+
             var byName =
                 allProducts.FirstOrDefault(product =>
                     string.Equals(
-                        product.Name?.Trim(),
-                        productName.Trim(),
+                        NormalizeProductIdentity(
+                            product.Name),
+                        normalizedProductName,
                         StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(
-                        product.DisplayName?.Trim(),
-                        productName.Trim(),
+                        NormalizeProductIdentity(
+                            product.DisplayName),
+                        normalizedProductName,
                         StringComparison.OrdinalIgnoreCase));
 
             if (byName != null)
@@ -956,6 +974,15 @@ public partial class MainViewModel : ViewModelBase
         }
 
         return null;
+    }
+
+    private static string NormalizeProductIdentity(
+        string? value)
+    {
+        return (value ?? "")
+            .Normalize(
+                NormalizationForm.FormC)
+            .Trim();
     }
 
     private static void RestoreCardFromPdf(
@@ -1077,13 +1104,17 @@ public partial class MainViewModel : ViewModelBase
         string pdfFileName;
         string outputFile;
 
-        var hasLoadedPdf =
+        var isSameDocument =
             !string.IsNullOrWhiteSpace(
                 loadedPdfPath) &&
             File.Exists(
-                loadedPdfPath);
+                loadedPdfPath) &&
+            string.Equals(
+                ProductionCard.OrderName?.Trim(),
+                loadedOrderName?.Trim(),
+                StringComparison.OrdinalIgnoreCase);
 
-        if (hasLoadedPdf)
+        if (isSameDocument)
         {
             var loadedDirectory =
                 Path.GetDirectoryName(
@@ -1300,6 +1331,9 @@ public partial class MainViewModel : ViewModelBase
 
             loadedPdfPath =
                 outputFile;
+
+            loadedOrderName =
+                ProductionCard.OrderName;
 
             TryDeleteFile(
                 temporaryPdfFile);

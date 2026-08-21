@@ -142,18 +142,22 @@ public static class CommaPdfDataReader
                     HiddenDataBeginMarker,
                     StringComparison.Ordinal);
 
+            var endIndex =
+                beginIndex >= 0
+                    ? pdfText.IndexOf(
+                        HiddenDataEndMarker,
+                        beginIndex + HiddenDataBeginMarker.Length,
+                        StringComparison.Ordinal)
+                    : pdfText.LastIndexOf(
+                        HiddenDataEndMarker,
+                        StringComparison.Ordinal);
+
             if (beginIndex < 0)
                 return null;
 
             var dataStart =
                 beginIndex +
                 HiddenDataBeginMarker.Length;
-
-            var endIndex =
-                pdfText.IndexOf(
-                    HiddenDataEndMarker,
-                    dataStart,
-                    StringComparison.Ordinal);
 
             if (endIndex < 0 ||
                 endIndex <= dataStart)

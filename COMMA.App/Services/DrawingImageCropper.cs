@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
 using SkiaSharp;
 
 namespace COMMA.App.Services;
@@ -11,8 +14,68 @@ public static class DrawingImageCropper
 {
     private const byte WhiteThreshold = 248;
     private const int SafetyMargin = 4;
+    private const long MaximumCacheBytes = 64L * 1024 * 1024;
+    private const int MaximumCacheEntries = 128;
 
+    private static readonly object CacheLock = new();
+    private static readonly Dictionary<CacheKey, CacheEntry> Cache = new();
+    private static readonly LinkedList<CacheKey> LeastRecentlyUsed = new();
+
+    private static long cachedBytes;
     public static byte[] TryCreateCroppedPng(string filePath)
+    {
+        try
+        {
+            var file = new FileInfo(filePath);
+            var key = new CacheKey(
+                file.FullName,
+                file.LastWriteTimeUtc.Ticks,
+                file.Length);
+
+            CacheEntry entry;
+
+            lock (CacheLock)
+            {
+                if (Cache.TryGetValue(key, out entry!))
+                {
+                    Touch(entry);
+                }
+                else
+                {
+                    var node = LeastRecentlyUsed.AddFirst(key);
+                    entry = new CacheEntry(
+                        new Lazy<byte[]>(
+                            () => CreateCroppedPng(key.FullPath),
+                            LazyThreadSafetyMode.ExecutionAndPublication),
+                        node);
+                    Cache.Add(key, entry);
+                }
+            }
+
+            var result = entry.Value.Value;
+
+            lock (CacheLock)
+            {
+                if (!entry.HasMeasuredSize &&
+                    Cache.TryGetValue(key, out var currentEntry) &&
+                    ReferenceEquals(entry, currentEntry))
+                {
+                    entry.HasMeasuredSize = true;
+                    entry.Size = result.LongLength;
+                    cachedBytes += entry.Size;
+                    TrimCache();
+                }
+            }
+
+            return result;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static byte[] CreateCroppedPng(string filePath)
     {
         try
         {
@@ -37,29 +100,65 @@ public static class DrawingImageCropper
                 SKColorType.Rgba8888,
                 SKAlphaType.Opaque);
 
-            for (var y = 0; y < cropBounds.Height; y++)
+            using (var canvas = new SKCanvas(croppedBitmap))
+            using (var paint = new SKPaint
             {
-                for (var x = 0; x < cropBounds.Width; x++)
-                {
-                    var sourceColor = sourceBitmap.GetPixel(
-                        cropBounds.Left + x,
-                        cropBounds.Top + y);
-
-                    croppedBitmap.SetPixel(
-                        x,
-                        y,
-                        CompositeAgainstWhite(sourceColor));
-                }
+                IsAntialias = false,
+                BlendMode = SKBlendMode.SrcOver
+            })
+            {
+                canvas.Clear(SKColors.White);
+                canvas.DrawBitmap(
+                    sourceBitmap,
+                    new SKRect(
+                        cropBounds.Left,
+                        cropBounds.Top,
+                        cropBounds.Right,
+                        cropBounds.Bottom),
+                    new SKRect(
+                        0,
+                        0,
+                        cropBounds.Width,
+                        cropBounds.Height),
+                    paint);
+                canvas.Flush();
             }
-
             using var image = SKImage.FromBitmap(croppedBitmap);
             using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            var result = data?.ToArray() ?? [];
 
-            return data?.ToArray() ?? [];
+            return result;
         }
         catch
         {
             return [];
+        }
+    }
+
+    private static void Touch(CacheEntry entry)
+    {
+        LeastRecentlyUsed.Remove(entry.Node);
+        LeastRecentlyUsed.AddFirst(entry.Node);
+    }
+
+    private static void TrimCache()
+    {
+        var node = LeastRecentlyUsed.Last;
+
+        while ((cachedBytes > MaximumCacheBytes || Cache.Count > MaximumCacheEntries) &&
+               node != null)
+        {
+            var previous = node.Previous;
+
+            if (Cache.TryGetValue(node.Value, out var entry) &&
+                entry.HasMeasuredSize)
+            {
+                Cache.Remove(node.Value);
+                LeastRecentlyUsed.Remove(node);
+                cachedBytes -= entry.Size;
+            }
+
+            node = previous;
         }
     }
 
@@ -124,5 +223,20 @@ public static class DrawingImageCropper
         var result = colour * alpha + 255 * (255 - alpha);
 
         return (byte)((result + 127) / 255);
+    }
+
+    private readonly record struct CacheKey(
+        string FullPath,
+        long LastWriteTimeUtcTicks,
+        long Length);
+
+    private sealed class CacheEntry(
+        Lazy<byte[]> value,
+        LinkedListNode<CacheKey> node)
+    {
+        public Lazy<byte[]> Value { get; } = value;
+        public LinkedListNode<CacheKey> Node { get; } = node;
+        public long Size { get; set; }
+        public bool HasMeasuredSize { get; set; }
     }
 }

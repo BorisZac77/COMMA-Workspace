@@ -13,22 +13,155 @@
         Width="1800"
         Height="950"
         MinWidth="1350"
-        MinHeight="760"
+        MinHeight="620"
+        Icon="/Assets/Icons/Pimp.ico"
         Title="COMMA Workspace 3.0">
 
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="72,*,76"
-          Background="#F4F5F7">
+    <Window.Styles>
+        <Style Selector="Border#TopBar">
+            <Setter Property="Height" Value="72"/>
+            <Setter Property="Padding" Value="24,12"/>
+        </Style>
+
+        <Style Selector="Border#BottomBar">
+            <Setter Property="Height" Value="76"/>
+            <Setter Property="Padding" Value="20,12"/>
+        </Style>
+
+        <Style Selector="Grid#MainContentGrid">
+            <Setter Property="Margin" Value="20"/>
+        </Style>
+
+        <Style Selector="Border#OrderDataPanel">
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+
+        <Style Selector="Grid#OrderDataGrid">
+            <Setter Property="RowSpacing" Value="5"/>
+        </Style>
+
+        <Style Selector="StackPanel.order-field">
+            <Setter Property="Spacing" Value="4"/>
+        </Style>
+
+        <Style Selector="TextBox.order-field-input">
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+
+        <Style Selector="Button#ProductionEntriesButton">
+            <Setter Property="Height" Value="34"/>
+        </Style>
+
+        <Style Selector="Border#OrderListsPanel">
+            <Setter Property="Padding" Value="11"/>
+        </Style>
+
+        <Style Selector="Grid#OrderListsGrid">
+            <Setter Property="RowSpacing" Value="6"/>
+        </Style>
+
+        <Style Selector="Button#AddGarmentButton">
+            <Setter Property="Height" Value="36"/>
+        </Style>
+
+        <Style Selector="Border#PagePlanPanel">
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="Padding" Value="7"/>
+        </Style>
+
+        <Style Selector="Grid#PagePlanGrid">
+            <Setter Property="RowSpacing" Value="5"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border#TopBar">
+            <Setter Property="Height" Value="60"/>
+            <Setter Property="Padding" Value="24,10"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border#BottomBar">
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="Padding" Value="20,6"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Grid#MainContentGrid">
+            <Setter Property="Margin" Value="20,10"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border#OrderDataPanel">
+            <Setter Property="Padding" Value="14,10"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Grid#OrderDataGrid">
+            <Setter Property="RowSpacing" Value="3"/>
+        </Style>
+
+        <Style Selector="Window.compact-height StackPanel.order-field">
+            <Setter Property="Spacing" Value="2"/>
+        </Style>
+
+        <Style Selector="Window.compact-height TextBox.order-field-input">
+            <Setter Property="MinHeight" Value="28"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Button#ProductionEntriesButton">
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border#OrderListsPanel">
+            <Setter Property="Padding" Value="11,8"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Grid#OrderListsGrid">
+            <Setter Property="RowSpacing" Value="4"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Button#AddGarmentButton">
+            <Setter Property="Height" Value="32"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border#PagePlanPanel">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="7,5"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Grid#PagePlanGrid">
+            <Setter Property="RowSpacing" Value="3"/>
+        </Style>
+
+        <Style Selector="Border.product-library-tile">
+            <Setter Property="Width" Value="168"/>
+            <Setter Property="Height" Value="164"/>
+        </Style>
+
+        <Style Selector="Border.product-library-tile-image">
+            <Setter Property="Height" Value="104"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border.product-library-tile">
+            <Setter Property="Width" Value="146"/>
+            <Setter Property="Height" Value="154"/>
+        </Style>
+
+        <Style Selector="Window.compact-height Border.product-library-tile-image">
+            <Setter Property="Height" Value="94"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid x:Name="RootLayout"
+          RowDefinitions="Auto,*,Auto"
+          Background="#F4F5F7"
+          ClipToBounds="True">
 
         <!-- GÓRNY PASEK -->
-        <Border Grid.Row="0"
+        <Border x:Name="TopBar"
+                Grid.Row="0"
                 Background="White"
                 BorderBrush="#D8DADF"
-                BorderThickness="0,0,0,1"
-                Padding="24,12">
+                BorderThickness="0,0,0,1">
 
             <Grid ColumnDefinitions="Auto,*,Auto"
                   ColumnSpacing="20">
@@ -109,10 +242,11 @@
         </Border>
 
         <!-- GŁÓWNA CZĘŚĆ -->
-        <Grid Grid.Row="1"
-              Margin="20"
+        <Grid x:Name="MainContentGrid"
+              Grid.Row="1"
               ColumnDefinitions="2.2*,1.15*,1.65*"
-              ColumnSpacing="18">
+              ColumnSpacing="18"
+              MinHeight="0">
 
             <!-- BIBLIOTEKA ODZIEŻY -->
             <Border Grid.Column="0"
@@ -120,7 +254,8 @@
                     BorderBrush="#D8DADF"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="18">
+                    Padding="18"
+                    MinHeight="0">
 
                 <Grid RowDefinitions="Auto,Auto,Auto,*"
                       RowSpacing="11">
@@ -177,7 +312,7 @@
                                     <Setter Property="Padding"
                                             Value="4"/>
                                     <Setter Property="Margin"
-                                            Value="0,0,10,10"/>
+                                            Value="0,0,7,10"/>
                                     <Setter Property="Background"
                                             Value="Transparent"/>
                                     <Setter Property="BorderBrush"
@@ -206,6 +341,15 @@
                                             Value="10"/>
                                 </Style>
 
+                                <Style Selector="Window.compact-height ListBoxItem">
+                                    <Setter Property="Padding"
+                                            Value="2"/>
+                                    <Setter Property="Margin"
+                                            Value="0,0,3,10"/>
+                                    <Setter Property="BorderThickness"
+                                            Value="1"/>
+                                </Style>
+
                             </ListBox.Styles>
 
                             <ListBox.ItemsPanel>
@@ -220,16 +364,16 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:Product">
 
-                                    <Border Width="185"
-                                            Height="180"
+                                    <Border Classes="product-library-tile"
                                             Background="White"
                                             BorderBrush="#BCC2CA"
                                             BorderThickness="1"
                                             CornerRadius="8">
 
-                                        <Grid RowDefinitions="130,*">
+                                        <Grid RowDefinitions="Auto,*">
 
                                             <Border Grid.Row="0"
+                                                    Classes="product-library-tile-image"
                                                     Margin="7"
                                                     Background="White"
                                                     BorderBrush="#E1E3E6"
@@ -276,15 +420,16 @@
             </Border>
 
             <!-- DANE ZLECENIA / ODZIEŻ -->
-            <Border Grid.Column="1"
+            <Border x:Name="OrderDataPanel"
+                    Grid.Column="1"
                     Background="White"
                     BorderBrush="#D8DADF"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="14">
+                    MinHeight="0">
 
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
-                      RowSpacing="5">
+                <Grid x:Name="OrderDataGrid"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
 
                     <TextBlock Grid.Row="0"
                                Text="DANE ZLECENIA"
@@ -292,52 +437,56 @@
                                FontWeight="Bold"/>
 
                     <StackPanel Grid.Row="1"
-                                Spacing="4">
+                                Classes="order-field">
 
                         <TextBlock Text="KLIENT"
                                    FontSize="11"
                                    FontWeight="Bold"/>
 
-                        <TextBox MinHeight="32"
+                        <TextBox x:Name="CustomerTextBox"
+                                 Classes="order-field-input"
                                  PlaceholderText="Nazwa klienta"
                                  Text="{Binding ProductionCard.Customer}"/>
 
                     </StackPanel>
 
                     <StackPanel Grid.Row="2"
-                                Spacing="4">
+                                Classes="order-field">
 
                         <TextBlock Text="NAZWA ZLECENIA"
                                    FontSize="11"
                                    FontWeight="Bold"/>
 
-                        <TextBox MinHeight="32"
+                        <TextBox x:Name="OrderNameTextBox"
+                                 Classes="order-field-input"
                                  PlaceholderText="Nazwa zlecenia"
                                  Text="{Binding ProductionCard.OrderName}"/>
 
                     </StackPanel>
 
                     <StackPanel Grid.Row="3"
-                                Spacing="4">
+                                Classes="order-field">
 
                         <TextBlock Text="TERMIN WYKONANIA"
                                    FontSize="11"
                                    FontWeight="Bold"/>
 
-                        <TextBox MinHeight="32"
+                        <TextBox x:Name="DueDateTextBox"
+                                 Classes="order-field-input"
                                  PlaceholderText="10.08.2026"
                                  Text="{Binding ProductionCard.DueDate}"/>
 
                     </StackPanel>
 
                     <StackPanel Grid.Row="4"
-                                Spacing="4">
+                                Classes="order-field">
 
                         <TextBlock Text="RODZAJ PRODUKCJI"
                                    FontSize="11"
                                    FontWeight="Bold"/>
 
-                        <TextBox MinHeight="32"
+                        <TextBox x:Name="ProductionTypeTextBox"
+                                 Classes="order-field-input"
                                  PlaceholderText="HAFT/NADRUK"
                                  Text="{Binding ProductionCard.ProductionType}"/>
 
@@ -345,7 +494,6 @@
 
                     <Button Grid.Row="5"
                             x:Name="ProductionEntriesButton"
-                            Height="34"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
@@ -354,15 +502,24 @@
                             Content="LOGOWANIE / KOLORY"/>
 
                     <!-- ODZIEŻ W ZLECENIU -->
-                    <Border Grid.Row="6"
+                    <Border x:Name="OrderListsPanel"
+                            Grid.Row="6"
                             Background="#F4F5F7"
                             BorderBrush="#D8DADF"
                             BorderThickness="1"
-                            CornerRadius="7"
-                            Padding="11">
+                            CornerRadius="7">
 
-                        <Grid RowDefinitions="Auto,*,Auto,105"
-                              RowSpacing="6">
+                        <Grid x:Name="OrderListsGrid"
+                              MinHeight="0">
+
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="1.7*"
+                                               MinHeight="110"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"
+                                               MinHeight="72"/>
+                            </Grid.RowDefinitions>
 
                             <Grid Grid.Row="0"
                                   ColumnDefinitions="*,Auto">
@@ -381,12 +538,13 @@
                             </Grid>
 
                             <!-- LISTA ODZIEŻY -->
-                            <ListBox Grid.Row="1"
+                            <ListBox x:Name="OrderGarmentsListBox"
+                                     Grid.Row="1"
                                      ItemsSource="{Binding Garments}"
                                      SelectedItem="{Binding SelectedGarment}"
                                      Background="Transparent"
                                      BorderThickness="0"
-                                     MinHeight="90">
+                                     MinHeight="0">
 
                                 <ListBox.Styles>
 
@@ -535,8 +693,8 @@
                             </ListBox>
 
                             <!-- DODAJ -->
-                            <Button Grid.Row="2"
-                                    Height="36"
+                            <Button x:Name="AddGarmentButton"
+                                    Grid.Row="2"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
                                     VerticalContentAlignment="Center"
@@ -546,21 +704,20 @@
                                     Command="{Binding AddGarmentCommand}"/>
 
                             <!-- PLAN STRON -->
-                            <Border Grid.Row="3"
-                                    Margin="0,2,0,0"
+                            <Border x:Name="PagePlanPanel"
+                                    Grid.Row="3"
                                     Background="White"
                                     BorderBrush="#D8DADF"
                                     BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="7">
+                                    CornerRadius="6">
 
                                 <!--
                                     WAŻNE:
                                     Grid zamiast StackPanel powoduje,
                                     że ScrollViewer dostaje ograniczoną wysokość.
                                 -->
-                                <Grid RowDefinitions="Auto,*"
-                                      RowSpacing="5">
+                                <Grid x:Name="PagePlanGrid"
+                                      RowDefinitions="Auto,*">
 
                                     <Grid Grid.Row="0"
                                           ColumnDefinitions="*,Auto">
@@ -577,7 +734,8 @@
 
                                     </Grid>
 
-                                    <ScrollViewer Grid.Row="1"
+                                    <ScrollViewer x:Name="PagePlanScrollViewer"
+                                                  Grid.Row="1"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
 
@@ -632,7 +790,8 @@
                     BorderBrush="#D8DADF"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="10">
+                    Padding="10"
+                    MinHeight="0">
 
                 <controls:ProductionCardPreview/>
 
@@ -641,11 +800,11 @@
         </Grid>
 
         <!-- DOLNY PASEK -->
-        <Border Grid.Row="2"
+        <Border x:Name="BottomBar"
+                Grid.Row="2"
                 Background="White"
                 BorderBrush="#D8DADF"
-                BorderThickness="0,1,0,0"
-                Padding="20,12">
+                BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,*"
                   ColumnSpacing="12">

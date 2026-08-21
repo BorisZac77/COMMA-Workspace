@@ -1,7 +1,9 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using COMMA.App.Services;
@@ -11,9 +13,21 @@ namespace COMMA.App.Views;
 
 public partial class MainWindow : Window
 {
+    private const double CompactHeightThreshold = 820;
+    private const double NormalHeightThreshold = 836;
+
+    private bool _isCompactHeight;
+    private Grid? _compactOrderHeaderGrid;
+    private Grid? _compactPairedOrderFieldsGrid;
+    private Control[]? _orderHeaderControls;
+
+
     public MainWindow()
     {
         InitializeComponent();
+
+        Opened +=
+            OnOpened;
 
         Title =
             $"COMMA Workspace — v{GetApplicationVersion()}";
@@ -26,6 +40,284 @@ public partial class MainWindow : Window
 
         ClearOrderDataButton.Click +=
             OnClearOrderDataButtonClick;
+    }
+
+
+    private void OnOpened(
+        object? sender,
+        EventArgs e)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var screen =
+            Screens.ScreenFromWindow(this)
+            ?? Screens.Primary;
+
+        if (screen == null)
+            return;
+
+        var workingAreaHeight =
+            screen.WorkingArea.Height /
+            screen.Scaling;
+
+        var workingAreaWidth =
+            screen.WorkingArea.Width /
+            screen.Scaling;
+
+        MinWidth = 1200;
+
+        var availableWidth =
+            workingAreaWidth - 16;
+
+        if (Width > availableWidth)
+        {
+            Width =
+                Math.Max(
+                    MinWidth,
+                    availableWidth);
+        }
+
+        var availableHeight =
+            workingAreaHeight - 8;
+
+        if (Height > availableHeight)
+        {
+            Height =
+                Math.Max(
+                    MinHeight,
+                    availableHeight);
+        }
+
+        UpdateHeightMode(
+            ClientSize.Height);
+
+    }
+
+
+    protected override void OnSizeChanged(
+        SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+
+        UpdateHeightMode(
+            e.NewSize.Height);
+
+    }
+
+
+    private void UpdateHeightMode(
+        double clientHeight)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var shouldUseCompactHeight =
+            _isCompactHeight
+                ? clientHeight < NormalHeightThreshold
+                : clientHeight < CompactHeightThreshold;
+
+        if (shouldUseCompactHeight == _isCompactHeight)
+            return;
+
+        _isCompactHeight =
+            shouldUseCompactHeight;
+
+        ApplyOrderColumnHeightMode(
+            _isCompactHeight);
+
+        Classes.Set(
+            "compact-height",
+            _isCompactHeight);
+    }
+
+
+    private void ApplyOrderColumnHeightMode(
+        bool useCompactHeight)
+    {
+        if (useCompactHeight)
+        {
+            _orderHeaderControls =
+                OrderDataGrid.Children
+                    .Where(
+                        child =>
+                            !ReferenceEquals(
+                                child,
+                                OrderListsPanel))
+                    .OrderBy(
+                        Grid.GetRow)
+                    .ToArray();
+
+            _compactOrderHeaderGrid =
+                new Grid
+                {
+                    RowDefinitions =
+                        new RowDefinitions(
+                            "Auto,Auto,Auto,Auto,Auto"),
+
+                    RowSpacing = 3
+                };
+
+            _compactPairedOrderFieldsGrid =
+                new Grid
+                {
+                    ColumnDefinitions =
+                        new ColumnDefinitions(
+                            "*,*"),
+
+                    ColumnSpacing = 8
+                };
+
+            foreach (var control in _orderHeaderControls)
+            {
+                OrderDataGrid.Children.Remove(
+                    control);
+            }
+
+            var dueDateField =
+                _orderHeaderControls[3];
+            var productionTypeField =
+                _orderHeaderControls[4];
+
+            Grid.SetColumn(
+                dueDateField,
+                0);
+            Grid.SetColumn(
+                productionTypeField,
+                1);
+
+            _compactPairedOrderFieldsGrid.Children.Add(
+                dueDateField);
+            _compactPairedOrderFieldsGrid.Children.Add(
+                productionTypeField);
+
+            var compactHeaderControls =
+                new[]
+                {
+                    _orderHeaderControls[0],
+                    _orderHeaderControls[1],
+                    _orderHeaderControls[2],
+                    _compactPairedOrderFieldsGrid,
+                    _orderHeaderControls[5]
+                };
+
+            for (var row = 0; row < compactHeaderControls.Length; row++)
+            {
+                var control =
+                    compactHeaderControls[row];
+
+                Grid.SetRow(
+                    control,
+                    row);
+
+                _compactOrderHeaderGrid.Children.Add(
+                    control);
+            }
+
+            OrderListsGrid.Children.Remove(
+                PagePlanPanel);
+
+            OrderListsGrid.RowDefinitions =
+                new RowDefinitions(
+                    "Auto,*,Auto");
+
+            OrderDataGrid.RowDefinitions =
+                new RowDefinitions(
+                    "Auto,*,96");
+
+            OrderDataGrid.RowDefinitions[1].MinHeight =
+                160;
+
+            Grid.SetRow(
+                _compactOrderHeaderGrid,
+                0);
+
+            Grid.SetRow(
+                OrderListsPanel,
+                1);
+
+            Grid.SetRow(
+                PagePlanPanel,
+                2);
+
+            OrderDataGrid.Children.Add(
+                _compactOrderHeaderGrid);
+
+            OrderDataGrid.Children.Add(
+                PagePlanPanel);
+
+            return;
+        }
+
+        if (_compactOrderHeaderGrid == null ||
+            _compactPairedOrderFieldsGrid == null ||
+            _orderHeaderControls == null)
+        {
+            return;
+        }
+
+        OrderDataGrid.Children.Remove(
+            PagePlanPanel);
+
+        OrderDataGrid.Children.Remove(
+            _compactOrderHeaderGrid);
+
+        _compactPairedOrderFieldsGrid.Children.Remove(
+            _orderHeaderControls[3]);
+        _compactPairedOrderFieldsGrid.Children.Remove(
+            _orderHeaderControls[4]);
+
+        foreach (var (control, row) in
+                 _orderHeaderControls.Select(
+                     (control, row) => (control, row)))
+        {
+            _compactOrderHeaderGrid.Children.Remove(
+                control);
+
+            Grid.SetRow(
+                control,
+                row);
+            Grid.SetColumn(
+                control,
+                0);
+
+            OrderDataGrid.Children.Add(
+                control);
+        }
+
+        OrderListsGrid.RowDefinitions =
+            new RowDefinitions(
+                "Auto,1.7*,Auto,*");
+
+        OrderListsGrid.RowDefinitions[1].MinHeight =
+            110;
+
+        OrderListsGrid.RowDefinitions[3].MinHeight =
+            72;
+
+        Grid.SetRow(
+            PagePlanPanel,
+            3);
+
+        OrderListsGrid.Children.Add(
+            PagePlanPanel);
+
+        OrderDataGrid.RowDefinitions =
+            new RowDefinitions(
+                "Auto,Auto,Auto,Auto,Auto,Auto,*");
+
+        Grid.SetRow(
+            OrderListsPanel,
+            6);
+
+        _compactOrderHeaderGrid =
+            null;
+
+        _compactPairedOrderFieldsGrid =
+            null;
+
+        _orderHeaderControls =
+            null;
     }
 
 

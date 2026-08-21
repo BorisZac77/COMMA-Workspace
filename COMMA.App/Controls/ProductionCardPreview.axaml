@@ -41,17 +41,22 @@
                 <Grid Width="620"
                       Height="877">
 
-                    <!-- ================================================= -->
-                    <!-- STRONA 1 -->
-                    <!-- ================================================= -->
-
                     <Border Background="White"
                             BorderBrush="#111111"
                             BorderThickness="1"
-                            Padding="6"
-                            IsVisible="{Binding PreviewPage.IsFirstPage}">
+                            Padding="6">
 
-                        <Grid RowDefinitions="74,3,18,38,18,98,3,*">
+                        <Grid RowDefinitions="Auto,*">
+
+                            <!-- ================================================= -->
+                            <!-- PREAMBUŁA STRONY 1 -->
+                            <!-- ================================================= -->
+
+                            <Grid Grid.Row="0"
+                                  RowDefinitions="74,3,18,38,18,98,3"
+                                  IsVisible="{Binding PreviewPage.IsFirstPage,
+                                                      TargetNullValue=True,
+                                                      FallbackValue=True}">
 
                             <!-- NAGŁÓWEK -->
                             <Grid Grid.Row="0"
@@ -405,33 +410,20 @@
                             </ItemsControl>
 
 
-                            <Border Grid.Row="6"/>
-
-
-                            <!-- RYSUNKI STRONY 1 -->
-                            <Grid Grid.Row="7">
-
-                                <controls:GarmentPageSection
-                                    Page="{Binding PreviewPage}"/>
+                                <Border Grid.Row="6"/>
 
                             </Grid>
 
-                        </Grid>
 
-                    </Border>
+                            <!-- ================================================= -->
+                            <!-- PREAMBUŁA STRON 2 I KOLEJNYCH -->
+                            <!-- ================================================= -->
 
-
-                    <!-- ================================================= -->
-                    <!-- STRONA 2 I KOLEJNE -->
-                    <!-- ================================================= -->
-
-                    <Border Background="White"
-                            BorderBrush="#111111"
-                            BorderThickness="1"
-                            Padding="6"
-                            IsVisible="{Binding !PreviewPage.IsFirstPage}">
-
-                        <Grid RowDefinitions="74,6,*">
+                            <Grid Grid.Row="0"
+                                  RowDefinitions="74,6"
+                                  IsVisible="{Binding !PreviewPage.IsFirstPage,
+                                                      TargetNullValue=False,
+                                                      FallbackValue=False}">
 
                             <!-- UPROSZCZONY NAGŁÓWEK -->
                             <Grid Grid.Row="0"
@@ -519,11 +511,13 @@
                             </Grid>
 
 
-                            <Border Grid.Row="1"/>
+                                <Border Grid.Row="1"/>
+
+                            </Grid>
 
 
-                            <!-- DUŻA POWIERZCHNIA NA ODZIEŻ -->
-                            <Grid Grid.Row="2">
+                            <!-- WSPÓLNA POWIERZCHNIA NA ODZIEŻ -->
+                            <Grid Grid.Row="1">
 
                                 <controls:GarmentPageSection
                                     Page="{Binding PreviewPage}"/>

@@ -36,7 +36,7 @@ public partial class DrawingSection : UserControl
 
     private ProductionCard? subscribedCard;
     private OrderGarmentItem? subscribedGarment;
-
+    private bool isAttachedToVisualTree;
 
     public DrawingSection()
     {
@@ -66,8 +66,11 @@ public partial class DrawingSection : UserControl
 
         if (change.Property == ProductionCardProperty)
         {
-            SubscribeToProductionCard(
-                change.NewValue as ProductionCard);
+            if (isAttachedToVisualTree)
+            {
+                SubscribeToProductionCard(
+                    change.NewValue as ProductionCard);
+            }
 
             RebuildLayout();
             return;
@@ -75,22 +78,58 @@ public partial class DrawingSection : UserControl
 
         if (change.Property == GarmentProperty)
         {
-            SubscribeToGarment(
-                change.NewValue as OrderGarmentItem);
+            if (isAttachedToVisualTree)
+            {
+                SubscribeToGarment(
+                    change.NewValue as OrderGarmentItem);
+            }
 
             RebuildLayout();
         }
     }
 
 
+    protected override void OnAttachedToVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (isAttachedToVisualTree)
+            return;
+
+        isAttachedToVisualTree =
+            true;
+
+        SubscribeToProductionCard(
+            ProductionCard);
+
+        SubscribeToGarment(
+            Garment);
+    }
+
+
+    protected override void OnDetachedFromVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        UnsubscribeFromProductionCard();
+        UnsubscribeFromGarment();
+
+        isAttachedToVisualTree =
+            false;
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
+
     private void SubscribeToProductionCard(
         ProductionCard? card)
     {
-        if (subscribedCard != null)
-        {
-            subscribedCard.PropertyChanged -=
-                OnProductionCardPropertyChanged;
-        }
+        if (ReferenceEquals(
+                subscribedCard,
+                card))
+            return;
+
+        UnsubscribeFromProductionCard();
 
         subscribedCard =
             card;
@@ -103,14 +142,28 @@ public partial class DrawingSection : UserControl
     }
 
 
+    private void UnsubscribeFromProductionCard()
+    {
+        if (subscribedCard == null)
+            return;
+
+        subscribedCard.PropertyChanged -=
+            OnProductionCardPropertyChanged;
+
+        subscribedCard =
+            null;
+    }
+
+
     private void SubscribeToGarment(
         OrderGarmentItem? garment)
     {
-        if (subscribedGarment != null)
-        {
-            subscribedGarment.PropertyChanged -=
-                OnGarmentPropertyChanged;
-        }
+        if (ReferenceEquals(
+                subscribedGarment,
+                garment))
+            return;
+
+        UnsubscribeFromGarment();
 
         subscribedGarment =
             garment;
@@ -120,6 +173,19 @@ public partial class DrawingSection : UserControl
             subscribedGarment.PropertyChanged +=
                 OnGarmentPropertyChanged;
         }
+    }
+
+
+    private void UnsubscribeFromGarment()
+    {
+        if (subscribedGarment == null)
+            return;
+
+        subscribedGarment.PropertyChanged -=
+            OnGarmentPropertyChanged;
+
+        subscribedGarment =
+            null;
     }
 
 

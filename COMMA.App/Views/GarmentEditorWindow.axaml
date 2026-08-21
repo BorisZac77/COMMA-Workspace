@@ -11,15 +11,67 @@
         WindowStartupLocation="CenterOwner"
         Title="Odzież w zleceniu">
 
+    <Window.Styles>
+        <Style Selector="Border#HeaderPanel">
+            <Setter Property="Padding" Value="24,20"/>
+        </Style>
+
+        <Style Selector="StackPanel#FormPanel">
+            <Setter Property="Margin" Value="24"/>
+            <Setter Property="Spacing" Value="18"/>
+        </Style>
+
+        <Style Selector="TextBox.form-field">
+            <Setter Property="MinHeight" Value="40"/>
+        </Style>
+
+        <Style Selector="Border.form-section">
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+
+        <Style Selector="Border#FooterPanel">
+            <Setter Property="Padding" Value="24,16"/>
+        </Style>
+
+        <Style Selector="Button.footer-button">
+            <Setter Property="Height" Value="44"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact Border#HeaderPanel">
+            <Setter Property="Padding" Value="18,14"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact StackPanel#FormPanel">
+            <Setter Property="Margin" Value="18"/>
+            <Setter Property="Spacing" Value="12"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact TextBox.form-field">
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact Border.form-section">
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact Border#FooterPanel">
+            <Setter Property="Padding" Value="18,12"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact Button.footer-button">
+            <Setter Property="Height" Value="40"/>
+        </Style>
+    </Window.Styles>
+
     <Grid RowDefinitions="Auto,*,Auto"
           Background="#F4F5F7">
 
         <!-- NAGŁÓWEK -->
-        <Border Grid.Row="0"
+        <Border x:Name="HeaderPanel"
+                Grid.Row="0"
                 Background="White"
                 BorderBrush="#D8DADF"
-                BorderThickness="0,0,0,1"
-                Padding="24,20">
+                BorderThickness="0,0,0,1">
 
             <StackPanel Spacing="4">
 
@@ -41,8 +93,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
 
-            <StackPanel Margin="24"
-                        Spacing="18">
+            <StackPanel x:Name="FormPanel">
 
                 <!-- NAZWA -->
                 <StackPanel Spacing="5">
@@ -52,7 +103,7 @@
                                FontWeight="Bold"/>
 
                     <TextBox x:Name="GarmentNameTextBox"
-                             MinHeight="40"
+                             Classes="form-field"
                              IsReadOnly="True"/>
 
                     <TextBlock Text="Nazwa jest pobierana z wybranego produktu w bibliotece."
@@ -70,7 +121,7 @@
                                FontWeight="Bold"/>
 
                     <TextBox x:Name="ColourTextBox"
-                             MinHeight="40"
+                             Classes="form-field"
                              PlaceholderText="Opcjonalnie, np. CZARNY"/>
 
                 </StackPanel>
@@ -83,17 +134,17 @@
                                FontWeight="Bold"/>
 
                     <TextBox x:Name="VariantTextBox"
-                             MinHeight="40"
+                             Classes="form-field"
                              PlaceholderText="Opcjonalnie, np. STAFF"/>
 
                 </StackPanel>
 
                 <!-- RZUTY -->
-                <Border Background="White"
+                <Border Classes="form-section"
+                        Background="White"
                         BorderBrush="#D8DADF"
                         BorderThickness="1"
-                        CornerRadius="7"
-                        Padding="16">
+                        CornerRadius="7">
 
                     <StackPanel Spacing="12">
 
@@ -137,11 +188,11 @@
                 </Border>
 
                 <!-- NOWA STRONA -->
-                <Border Background="White"
+                <Border Classes="form-section"
+                        Background="White"
                         BorderBrush="#D8DADF"
                         BorderThickness="1"
-                        CornerRadius="7"
-                        Padding="16">
+                        CornerRadius="7">
 
                     <StackPanel Spacing="7">
 
@@ -164,11 +215,11 @@
         </ScrollViewer>
 
         <!-- PRZYCISKI -->
-        <Border Grid.Row="2"
+        <Border x:Name="FooterPanel"
+                Grid.Row="2"
                 Background="White"
                 BorderBrush="#D8DADF"
-                BorderThickness="0,1,0,0"
-                Padding="24,16">
+                BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto"
                   ColumnSpacing="10">
@@ -176,9 +227,9 @@
                 <Border Grid.Column="0"/>
 
                 <Button x:Name="CancelButton"
+                        Classes="footer-button"
                         Grid.Column="1"
                         Width="130"
-                        Height="44"
                         Background="#F7F8FA"
                         BorderBrush="#C9CDD3"
                         BorderThickness="1"
@@ -190,9 +241,9 @@
                         Content="ANULUJ"/>
 
                 <Button x:Name="SaveButton"
+                        Classes="footer-button"
                         Grid.Column="2"
                         Width="170"
-                        Height="44"
                         CornerRadius="7"
                         FontSize="12"
                         FontWeight="Bold"

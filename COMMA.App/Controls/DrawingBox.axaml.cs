@@ -39,6 +39,8 @@ public partial class DrawingBox : UserControl
 
     private Bitmap? drawingBitmap;
 
+    private bool isAttachedToVisualTree;
+
     public DrawingBox()
     {
         InitializeComponent();
@@ -85,6 +87,9 @@ public partial class DrawingBox : UserControl
     {
         base.OnPropertyChanged(change);
 
+        if (!isAttachedToVisualTree)
+            return;
+
         if (change.Property == ImagePathProperty && CroppedImageData == null)
             LoadDrawingImage(change.NewValue as string);
 
@@ -92,12 +97,44 @@ public partial class DrawingBox : UserControl
             LoadCroppedImage(change.NewValue as byte[]);
     }
 
+    protected override void OnAttachedToVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (isAttachedToVisualTree)
+            return;
+
+        isAttachedToVisualTree =
+            true;
+
+        if (CroppedImageData is { Length: > 0 } imageData)
+        {
+            LoadCroppedImage(
+                imageData);
+        }
+        else
+        {
+            LoadDrawingImage(
+                ImagePath);
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(
+        VisualTreeAttachmentEventArgs e)
+    {
+        isAttachedToVisualTree =
+            false;
+
+        DisposeDrawingBitmap();
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
     private void LoadDrawingImage(
         string? path)
     {
-        drawingBitmap?.Dispose();
-        drawingBitmap =
-            null;
+        DisposeDrawingBitmap();
 
         if (DrawingImage == null)
             return;
@@ -134,8 +171,7 @@ public partial class DrawingBox : UserControl
             return;
         }
 
-        drawingBitmap?.Dispose();
-        drawingBitmap = null;
+        DisposeDrawingBitmap();
 
         if (DrawingImage == null)
             return;
@@ -152,5 +188,21 @@ public partial class DrawingBox : UserControl
         {
             LoadDrawingImage(ImagePath);
         }
+    }
+
+    private void DisposeDrawingBitmap()
+    {
+        if (drawingBitmap == null)
+            return;
+
+        if (DrawingImage != null)
+        {
+            DrawingImage.Source =
+                null;
+        }
+
+        drawingBitmap.Dispose();
+        drawingBitmap =
+            null;
     }
 }
