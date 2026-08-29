@@ -943,34 +943,9 @@ public partial class MainViewModel : ViewModelBase
                 data);
 
             var legacyGarment =
-                new OrderGarmentItem();
-
-            legacyGarment.LoadProduct(
-                product);
-
-            if (!string.IsNullOrWhiteSpace(
-                    data.ProductName))
-            {
-                legacyGarment.Name =
-                    data.ProductName;
-            }
-
-            legacyGarment.Colour =
-                data.Colour ?? "";
-
-            legacyGarment.ShowFront =
-                data.ShowFront;
-
-            legacyGarment.ShowBack =
-                data.ShowBack;
-
-            legacyGarment.ShowRight =
-                data.ShowRight;
-
-            legacyGarment.ShowLeft =
-                data.ShowLeft;
-
-            legacyGarment.RefreshDrawingSelection();
+                CreateLegacyGarment(
+                    product,
+                    data);
 
             Garments.Clear();
 
@@ -1126,6 +1101,43 @@ public partial class MainViewModel : ViewModelBase
             data.ProductName ?? "";
     }
 
+    private static OrderGarmentItem CreateLegacyGarment(
+        Product product,
+        CommaCardData data)
+    {
+        var garment =
+            new OrderGarmentItem();
+
+        garment.LoadProduct(
+            product);
+
+        if (!string.IsNullOrWhiteSpace(
+                data.ProductName))
+        {
+            garment.Name =
+                data.ProductName;
+        }
+
+        garment.Colour =
+            data.Colour ?? "";
+
+        garment.ShowFront =
+            data.ShowFront;
+
+        garment.ShowBack =
+            data.ShowBack;
+
+        garment.ShowRight =
+            data.ShowRight;
+
+        garment.ShowLeft =
+            data.ShowLeft;
+
+        garment.RefreshDrawingSelection();
+
+        return garment;
+    }
+
     private enum PdfSaveChoice
     {
         Cancel = 0,
@@ -1191,14 +1203,10 @@ public partial class MainViewModel : ViewModelBase
         string outputFile;
 
         var isSameDocument =
-            !string.IsNullOrWhiteSpace(
-                loadedPdfPath) &&
-            File.Exists(
-                loadedPdfPath) &&
-            string.Equals(
-                ProductionCard.OrderName?.Trim(),
-                loadedOrderName?.Trim(),
-                StringComparison.OrdinalIgnoreCase);
+            IsSameDocument(
+                loadedPdfPath,
+                ProductionCard.OrderName,
+                loadedOrderName);
 
         if (isSameDocument)
         {
@@ -1840,6 +1848,22 @@ public partial class MainViewModel : ViewModelBase
         catch
         {
         }
+    }
+
+    private static bool IsSameDocument(
+        string? loadedPdfPath,
+        string? currentOrderName,
+        string? loadedOrderName)
+    {
+        return
+            !string.IsNullOrWhiteSpace(
+                loadedPdfPath) &&
+            File.Exists(
+                loadedPdfPath) &&
+            string.Equals(
+                currentOrderName?.Trim(),
+                loadedOrderName?.Trim(),
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private static string CreateNextPdfFileNameForLoadedFile(

@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "COMMA.DrawingsGenerator", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "COMMA.Core", "COMMA.Core\COMMA.Core.csproj", "{15D73AE7-89E0-4DB7-9CE7-8A88DC84BF8C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "COMMA.App.Tests", "COMMA.App.Tests\COMMA.App.Tests.csproj", "{F5C0E9B8-0D65-4C62-A975-3D80F8E24D1F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{15D73AE7-89E0-4DB7-9CE7-8A88DC84BF8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{15D73AE7-89E0-4DB7-9CE7-8A88DC84BF8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{15D73AE7-89E0-4DB7-9CE7-8A88DC84BF8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5C0E9B8-0D65-4C62-A975-3D80F8E24D1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5C0E9B8-0D65-4C62-A975-3D80F8E24D1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5C0E9B8-0D65-4C62-A975-3D80F8E24D1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5C0E9B8-0D65-4C62-A975-3D80F8E24D1F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
