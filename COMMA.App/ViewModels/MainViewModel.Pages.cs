@@ -103,11 +103,16 @@ public partial class MainViewModel
         productionCard.OrderName =
             string.Empty;
 
+        productionCard.OrderNumber =
+            string.Empty;
+
         productionCard.DueDate =
             string.Empty;
 
         productionCard.ProductionType =
             string.Empty;
+
+        productionCard.Attachments.Clear();
 
         Garments.Clear();
 

@@ -1,4 +1,5 @@
 using System.Reflection;
+using COMMA.App.Models;
 using COMMA.App.ViewModels;
 using COMMA.App.Tests.TestSupport;
 
@@ -58,6 +59,58 @@ public sealed class PdfFileNamingTests
             "BINNEN BOUWERS");
 
         Assert.False(isSameDocument);
+    }
+
+    [Fact]
+    public void OrderNumber_DoesNotAffectPdfFileName()
+    {
+        var firstCard = new ProductionCard
+        {
+            OrderNumber = "ZL-001",
+            OrderName = "BINNEN BOUWERS"
+        };
+        var secondCard = new ProductionCard
+        {
+            OrderNumber = "ZL-999",
+            OrderName = "BINNEN BOUWERS"
+        };
+
+        var firstName = InvokePrivateStatic<string>(
+            "CreatePdfFileName",
+            firstCard.OrderName);
+        var secondName = InvokePrivateStatic<string>(
+            "CreatePdfFileName",
+            secondCard.OrderName);
+
+        Assert.Equal(firstName, secondName);
+        Assert.Equal("BINNEN BOUWERS.pdf", firstName);
+    }
+
+    [Fact]
+    public void OrderNumber_DoesNotAffectSameDocumentIdentity()
+    {
+        using var directory = new TemporaryDirectory();
+        var pdfPath = directory.GetPath("existing.pdf");
+        File.WriteAllBytes(pdfPath, "%PDF"u8.ToArray());
+
+        var loadedCard = new ProductionCard
+        {
+            OrderNumber = "OLD-001",
+            OrderName = "BINNEN BOUWERS"
+        };
+        var currentCard = new ProductionCard
+        {
+            OrderNumber = "NEW-999",
+            OrderName = "BINNEN BOUWERS"
+        };
+
+        var isSameDocument = InvokePrivateStatic<bool>(
+            "IsSameDocument",
+            pdfPath,
+            currentCard.OrderName,
+            loadedCard.OrderName);
+
+        Assert.True(isSameDocument);
     }
 
     private static TResult InvokePrivateStatic<TResult>(

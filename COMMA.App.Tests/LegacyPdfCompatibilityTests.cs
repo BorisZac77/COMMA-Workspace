@@ -27,6 +27,8 @@ public sealed class LegacyPdfCompatibilityTests
         Assert.True(data.ShowBack);
         Assert.False(data.ShowLeft);
         Assert.False(data.ShowRight);
+        Assert.Equal("", data.OrderNumber);
+        Assert.Empty(data.Attachments);
 
         Assert.Equal(2, data.ProductionEntries.Count);
         Assert.Equal("DE BINNEN", data.ProductionEntries[0].LogoName);
@@ -71,6 +73,10 @@ public sealed class LegacyPdfCompatibilityTests
         Assert.True(garment.ShowBack);
         Assert.False(garment.ShowLeft);
         Assert.False(garment.ShowRight);
+        Assert.Equal("", garment.ViewDescriptions.Front);
+        Assert.Equal("", garment.ViewDescriptions.Back);
+        Assert.Equal("", garment.ViewDescriptions.Right);
+        Assert.Equal("", garment.ViewDescriptions.Left);
         Assert.Single(pages);
     }
 
@@ -144,7 +150,7 @@ public sealed class LegacyPdfCompatibilityTests
 
     private static OrderGarmentItem InvokeCreateLegacyGarment(
         Product product,
-        CommaCardData data)
+        CommaOrderData data)
     {
         var method = typeof(MainViewModel).GetMethod(
             "CreateLegacyGarment",

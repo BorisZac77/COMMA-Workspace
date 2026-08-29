@@ -36,6 +36,11 @@ public sealed class CommaPdfV3Tests
             root.GetProperty("Format").GetString());
         Assert.Equal(3, root.GetProperty("FormatVersion").GetInt32());
         Assert.Equal("3.0.0", root.GetProperty("ApplicationVersion").GetString());
+        Assert.False(root.TryGetProperty("OrderNumber", out _));
+        Assert.False(root.TryGetProperty("Attachments", out _));
+        Assert.False(
+            root.GetProperty("Garments")[0]
+                .TryGetProperty("ViewDescriptions", out _));
     }
 
     [Fact]
@@ -49,6 +54,8 @@ public sealed class CommaPdfV3Tests
         Assert.Equal("Binnen Bouwers", data.Customer);
         Assert.Equal("31.08.2026", data.DueDate);
         Assert.Equal("HAFT", data.ProductionType);
+        Assert.Equal("", data.OrderNumber);
+        Assert.Empty(data.Attachments);
 
         var garment = Assert.Single(data.Garments);
         Assert.Equal("ROUND-001", garment.ProductCode);
@@ -61,6 +68,10 @@ public sealed class CommaPdfV3Tests
         Assert.False(garment.ShowLeft);
         Assert.False(garment.ShowRight);
         Assert.True(garment.StartNewPage);
+        Assert.Equal("", garment.ViewDescriptions.Front);
+        Assert.Equal("", garment.ViewDescriptions.Back);
+        Assert.Equal("", garment.ViewDescriptions.Right);
+        Assert.Equal("", garment.ViewDescriptions.Left);
 
         Assert.Equal(4, data.ProductionEntries.Count);
         Assert.Equal("DE BINNEN", data.ProductionEntries[0].LogoName);

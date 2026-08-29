@@ -8,6 +8,7 @@ namespace COMMA.App.Models;
 public class ProductionCard : ObservableObject
 {
     private string orderName = "";
+    private string orderNumber = "";
     private string customer = "";
     private string receivedDate = "";
     private string dueDate = "";
@@ -39,6 +40,14 @@ public class ProductionCard : ObservableObject
         };
 
         Garments = new ObservableCollection<OrderGarmentItem>();
+
+        Attachments = new ObservableCollection<OrderAttachmentMetadata>();
+    }
+
+    public string OrderNumber
+    {
+        get => orderNumber;
+        set => SetProperty(ref orderNumber, value);
     }
 
     public string OrderName
@@ -249,6 +258,8 @@ public class ProductionCard : ObservableObject
     public ObservableCollection<ProductionEntry> ProductionEntries { get; }
 
     public ObservableCollection<OrderGarmentItem> Garments { get; }
+
+    public ObservableCollection<OrderAttachmentMetadata> Attachments { get; }
 
     public List<DrawingFile> Drawings { get; } = new();
 

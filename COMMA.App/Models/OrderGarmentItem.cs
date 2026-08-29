@@ -19,6 +19,10 @@ public class OrderGarmentItem : ObservableObject
     private bool startNewPage;
 
 
+    public GarmentViewDescriptions ViewDescriptions { get; } =
+        new();
+
+
     public string ProductCode
     {
         get => productCode;
@@ -279,6 +283,18 @@ public class OrderGarmentItem : ObservableObject
 
         duplicate.Drawings.AddRange(
             Drawings);
+
+        duplicate.ViewDescriptions.Front =
+            ViewDescriptions.Front;
+
+        duplicate.ViewDescriptions.Back =
+            ViewDescriptions.Back;
+
+        duplicate.ViewDescriptions.Right =
+            ViewDescriptions.Right;
+
+        duplicate.ViewDescriptions.Left =
+            ViewDescriptions.Left;
 
         duplicate.NotifyDrawingSelectionChanged();
 

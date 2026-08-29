@@ -129,6 +129,9 @@ public partial class MainViewModel : ViewModelBase
 
         if (previousCard != null)
         {
+            newCard.OrderNumber =
+                previousCard.OrderNumber;
+
             newCard.Customer =
                 previousCard.Customer;
 
@@ -146,6 +149,22 @@ public partial class MainViewModel : ViewModelBase
 
             newCard.Notes =
                 previousCard.Notes;
+
+            foreach (var attachment in previousCard.Attachments)
+            {
+                newCard.Attachments.Add(
+                    new OrderAttachmentMetadata
+                    {
+                        Id = attachment.Id,
+                        Name = attachment.Name,
+                        MimeType = attachment.MimeType,
+                        Extension = attachment.Extension,
+                        Order = attachment.Order,
+                        Length = attachment.Length,
+                        Sha256 = attachment.Sha256,
+                        BlobEntry = attachment.BlobEntry
+                    });
+            }
         }
 
         ProductionCard =
@@ -734,7 +753,7 @@ public partial class MainViewModel : ViewModelBase
                 CommaPdfDataReader.Read(
                     pdfPath);
 
-            if (data.FormatVersion >= 3 &&
+            if (data.FormatVersion is 3 or 4 &&
                 data.Garments.Count > 0)
             {
                 var restoredGarments =
@@ -808,6 +827,18 @@ public partial class MainViewModel : ViewModelBase
 
                     garment.StartNewPage =
                         garmentData.StartNewPage;
+
+                    garment.ViewDescriptions.Front =
+                        garmentData.ViewDescriptions.Front;
+
+                    garment.ViewDescriptions.Back =
+                        garmentData.ViewDescriptions.Back;
+
+                    garment.ViewDescriptions.Right =
+                        garmentData.ViewDescriptions.Right;
+
+                    garment.ViewDescriptions.Left =
+                        garmentData.ViewDescriptions.Left;
 
                     garment.RefreshDrawingSelection();
 
@@ -1029,8 +1060,9 @@ public partial class MainViewModel : ViewModelBase
 
     private static void RestoreCardFromPdf(
         ProductionCard card,
-        CommaCardData data)
+        CommaOrderData data)
     {
+        card.OrderNumber = data.OrderNumber ?? "";
         card.OrderName = data.OrderName ?? "";
         card.Customer = data.Customer ?? "";
         card.ReceivedDate = data.ReceivedDate ?? "";
@@ -1045,6 +1077,24 @@ public partial class MainViewModel : ViewModelBase
         card.ShowBack = data.ShowBack;
         card.ShowLeft = data.ShowLeft;
         card.ShowRight = data.ShowRight;
+
+        card.Attachments.Clear();
+
+        foreach (var sourceAttachment in data.Attachments)
+        {
+            card.Attachments.Add(
+                new OrderAttachmentMetadata
+                {
+                    Id = sourceAttachment.Id,
+                    Name = sourceAttachment.Name ?? "",
+                    MimeType = sourceAttachment.MimeType ?? "",
+                    Extension = sourceAttachment.Extension ?? "",
+                    Order = sourceAttachment.Order,
+                    Length = sourceAttachment.Length,
+                    Sha256 = sourceAttachment.Sha256 ?? "",
+                    BlobEntry = sourceAttachment.BlobEntry ?? ""
+                });
+        }
 
         for (var index = 0;
              index < card.ProductionEntries.Count;
@@ -1084,7 +1134,7 @@ public partial class MainViewModel : ViewModelBase
 
     private static void RestoreLegacyCardFromPdf(
         ProductionCard card,
-        CommaCardData data)
+        CommaOrderData data)
     {
         RestoreCardFromPdf(
             card,
@@ -1103,7 +1153,7 @@ public partial class MainViewModel : ViewModelBase
 
     private static OrderGarmentItem CreateLegacyGarment(
         Product product,
-        CommaCardData data)
+        CommaOrderData data)
     {
         var garment =
             new OrderGarmentItem();
@@ -1380,11 +1430,11 @@ public partial class MainViewModel : ViewModelBase
                     "Tymczasowy plik PDF jest pusty.");
             }
 
-            OrderPdfDataEmbedder.AddEmbeddedData(
+            OrderPdfV4DataEmbedder.AddEmbeddedData(
                 temporaryPdfFile,
                 temporaryEmbeddedPdfFile,
                 ProductionCard,
-                pages);
+                Garments.ToList());
 
             if (!File.Exists(temporaryEmbeddedPdfFile))
             {
