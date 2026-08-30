@@ -1,8 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using Avalonia.Media.Imaging;
 using COMMA.App.Layout;
 using COMMA.App.Models;
+using COMMA.App.Services.Attachments;
 using CommunityToolkit.Mvvm.Input;
 
 namespace COMMA.App.ViewModels;
@@ -10,6 +16,15 @@ namespace COMMA.App.ViewModels;
 public partial class MainViewModel
 {
     private int previewPageIndex;
+
+    private readonly List<AttachmentPreviewPage> attachmentPreviewPages =
+        new();
+
+    private Bitmap? previewAttachmentImage;
+
+    private double previewAttachmentPageWidth = 620d;
+
+    private double previewAttachmentPageHeight = 877d;
 
 
     public ObservableCollection<OrderPageLayout> OrderPages { get; } =
@@ -52,6 +67,31 @@ public partial class MainViewModel
     }
 
 
+    public Bitmap? PreviewAttachmentImage =>
+        previewAttachmentImage;
+
+
+    public double PreviewAttachmentPageWidth =>
+        previewAttachmentPageWidth;
+
+
+    public double PreviewAttachmentPageHeight =>
+        previewAttachmentPageHeight;
+
+
+    public bool IsProductionCardPreviewPage =>
+        PreviewPageIndex < OrderPages.Count;
+
+
+    public bool IsAttachmentPreviewPage =>
+        PreviewPageIndex >= OrderPages.Count &&
+        PreviewPageIndex < PreviewPhysicalPageCount;
+
+
+    public int PreviewPhysicalPageCount =>
+        OrderPages.Count + attachmentPreviewPages.Count;
+
+
     public int OrderPageCount =>
         OrderPages.Count;
 
@@ -72,24 +112,24 @@ public partial class MainViewModel
     {
         get
         {
-            if (OrderPages.Count == 0)
+            if (PreviewPhysicalPageCount == 0)
                 return "";
 
             return
-                $"{PreviewPageIndex + 1} / {OrderPages.Count}";
+                $"{PreviewPageIndex + 1} / {PreviewPhysicalPageCount}";
         }
     }
 
 
     public bool CanGoToPreviousPreviewPage =>
-        OrderPages.Count > 0 &&
+        PreviewPhysicalPageCount > 0 &&
         PreviewPageIndex > 0;
 
 
     public bool CanGoToNextPreviewPage =>
-        OrderPages.Count > 0 &&
+        PreviewPhysicalPageCount > 0 &&
         PreviewPageIndex <
-        OrderPages.Count - 1;
+        PreviewPhysicalPageCount - 1;
 
 
     public void ClearCurrentOrder()
@@ -112,7 +152,8 @@ public partial class MainViewModel
         productionCard.ProductionType =
             string.Empty;
 
-        productionCard.Attachments.Clear();
+        AttachmentManager.Clear(
+            productionCard.Attachments);
 
         Garments.Clear();
 
@@ -233,10 +274,12 @@ public partial class MainViewModel
                 0;
         }
         else if (previewPageIndex >=
-                 OrderPages.Count)
+                 PreviewPhysicalPageCount)
         {
             previewPageIndex =
-                OrderPages.Count - 1;
+                Math.Max(
+                    0,
+                    PreviewPhysicalPageCount - 1);
         }
         else if (previewPageIndex < 0)
         {
@@ -254,13 +297,116 @@ public partial class MainViewModel
     }
 
 
+    private void RebuildAttachmentPreviewPages()
+    {
+        attachmentPreviewPages.Clear();
+
+        if (ProductionCard is { } card)
+        {
+            foreach (var attachment in card.Attachments
+                         .OrderBy(item => item.Order))
+            {
+                var pageCount = string.Equals(
+                    attachment.Extension,
+                    ".pdf",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? attachment.PdfPageCount ?? 0
+                    : 1;
+
+                for (var pageIndex = 0;
+                     pageIndex < pageCount;
+                     pageIndex++)
+                {
+                    attachmentPreviewPages.Add(
+                        new AttachmentPreviewPage(
+                            attachment,
+                            pageIndex));
+                }
+            }
+        }
+
+        if (previewPageIndex >= PreviewPhysicalPageCount)
+        {
+            previewPageIndex = Math.Max(
+                0,
+                PreviewPhysicalPageCount - 1);
+        }
+
+        NotifyPreviewPageChanged();
+    }
+
+
+    private void UpdatePreviewAttachmentImage()
+    {
+        previewAttachmentImage?.Dispose();
+        previewAttachmentImage = null;
+        previewAttachmentPageWidth = 620d;
+        previewAttachmentPageHeight = 877d;
+
+        var attachmentIndex =
+            PreviewPageIndex - OrderPages.Count;
+
+        if (attachmentIndex < 0 ||
+            attachmentIndex >= attachmentPreviewPages.Count)
+        {
+            return;
+        }
+
+        var descriptor =
+            attachmentPreviewPages[attachmentIndex];
+
+        try
+        {
+            using var content =
+                AttachmentManager.ContentStore.OpenRead(
+                    descriptor.Attachment.Id);
+            var rendered =
+                OrderAttachmentPreviewRenderer.Render(
+                    content,
+                    descriptor.Attachment.Extension,
+                    descriptor.PageIndex);
+
+            using var imageStream = new MemoryStream(
+                rendered.PngBytes,
+                writable: false);
+            previewAttachmentImage = new Bitmap(imageStream);
+            previewAttachmentPageWidth = rendered.Width;
+            previewAttachmentPageHeight = rendered.Height;
+        }
+        catch
+        {
+            previewAttachmentImage = null;
+        }
+    }
+
+
     private void NotifyPreviewPageChanged()
     {
+        UpdatePreviewAttachmentImage();
+
         OnPropertyChanged(
             nameof(PreviewPageIndex));
 
         OnPropertyChanged(
             nameof(PreviewPage));
+
+        OnPropertyChanged(
+            nameof(PreviewAttachmentImage));
+
+        OnPropertyChanged(
+            nameof(PreviewAttachmentPageWidth));
+
+        OnPropertyChanged(
+            nameof(PreviewAttachmentPageHeight));
+
+        OnPropertyChanged(
+            nameof(IsProductionCardPreviewPage));
+
+        OnPropertyChanged(
+            nameof(IsAttachmentPreviewPage));
+
+        OnPropertyChanged(
+            nameof(PreviewPhysicalPageCount));
 
         OnPropertyChanged(
             nameof(PreviewPageNumberText));
@@ -271,4 +417,9 @@ public partial class MainViewModel
         OnPropertyChanged(
             nameof(CanGoToNextPreviewPage));
     }
+
+
+    private sealed record AttachmentPreviewPage(
+        OrderAttachmentMetadata Attachment,
+        int PageIndex);
 }

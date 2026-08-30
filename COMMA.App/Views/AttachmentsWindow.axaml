@@ -1,0 +1,105 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:COMMA.App.Models"
+        x:Class="COMMA.App.Views.AttachmentsWindow"
+        x:DataType="models:ProductionCard"
+        Title="Załączniki do zlecenia"
+        Width="760"
+        Height="520"
+        MinWidth="680"
+        MinHeight="420"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="22"
+          RowDefinitions="Auto,*,Auto"
+          RowSpacing="16">
+
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,Auto,Auto,Auto,Auto"
+              ColumnSpacing="8">
+
+            <TextBlock Grid.Column="0"
+                       VerticalAlignment="Center"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Text="ZAŁĄCZNIKI DO ZLECENIA"/>
+
+            <Button Grid.Column="1"
+                    x:Name="AddButton"
+                    MinWidth="92"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="DODAJ"/>
+
+            <Button Grid.Column="2"
+                    x:Name="RemoveButton"
+                    MinWidth="92"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="USUŃ"/>
+
+            <Button Grid.Column="3"
+                    x:Name="MoveUpButton"
+                    Width="52"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="↑"/>
+
+            <Button Grid.Column="4"
+                    x:Name="MoveDownButton"
+                    Width="52"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="↓"/>
+        </Grid>
+
+        <Border Grid.Row="1"
+                BorderBrush="#D8DADF"
+                BorderThickness="1"
+                CornerRadius="7"
+                Background="#F7F8FA">
+
+            <ListBox x:Name="AttachmentsList"
+                     ItemsSource="{Binding Attachments}"
+                     Margin="8">
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:OrderAttachmentMetadata">
+                        <Grid ColumnDefinitions="3*,90,110,80"
+                              ColumnSpacing="12"
+                              Margin="8,7">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding Name}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding DisplayType}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding DisplaySize}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding PageCountText}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Row="2"
+              ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Foreground="#6F737A"
+                       Text="PDF, JPG, JPEG lub PNG"/>
+            <Button Grid.Column="1"
+                    x:Name="CloseButton"
+                    MinWidth="110"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="ZAMKNIJ"/>
+        </Grid>
+    </Grid>
+</Window>

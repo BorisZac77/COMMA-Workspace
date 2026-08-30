@@ -63,6 +63,10 @@ public static class PdfStyles
     public const float HeaderLogoWidth = 145f;
     public const float HeaderCellPadding = 6f;
     public const float HeaderOrderNamePadding = 5f;
+    public const float HeaderPageNumberWidth = 88f;
+    public const float FirstPageHeaderOrderNumberWidth = 101.5f;
+    public const float FirstPageHeaderPageNumberWidth = 68f;
+    public const string OrderNameColor = "#0071BC";
 
     // =========================================================
     // DANE ZLECENIA — SEKCJA 1
@@ -115,6 +119,14 @@ public static class PdfStyles
     public const float DrawingCellPadding = 4f;
     public const float DrawingImagePadding = 4f;
     public const float DrawingSafetyReserve = 4f;
+
+    public const float DrawingDescriptionTopGap = 2f;
+
+    public const float MultiDrawingDescriptionTopGap = 8f;
+
+    public const float DrawingDescriptionHorizontalPadding = 6f;
+
+    public const float DrawingDescriptionLineHeight = 1.1f;
 
     // 70 mm w punktach QuestPDF. Dotyczy wyłącznie układu 3–4 rysunków.
     public const float MultiDrawingMaximumHeight =
@@ -177,6 +189,12 @@ public static class PdfStyles
 
     public const float AvailableContentHeight =
         PageHeight
+        - PageMargin * 2
+        - OuterBorderWidth * 2
+        - PagePadding * 2;
+
+    public const float AvailableContentWidth =
+        PageWidth
         - PageMargin * 2
         - OuterBorderWidth * 2
         - PagePadding * 2;

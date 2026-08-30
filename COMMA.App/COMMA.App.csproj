@@ -7,10 +7,10 @@
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <ApplicationIcon>Assets/Icons/Pimp.ico</ApplicationIcon>
 
-        <Version>3.0.0</Version>
-        <AssemblyVersion>3.0.0.0</AssemblyVersion>
-        <FileVersion>3.0.0.0</FileVersion>
-        <InformationalVersion>3.0.0</InformationalVersion>
+        <Version>4.0.0</Version>
+        <AssemblyVersion>4.0.0.0</AssemblyVersion>
+        <FileVersion>4.0.0.0</FileVersion>
+        <InformationalVersion>4.0.0</InformationalVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -64,6 +64,9 @@
 
         <PackageReference Include="PDFsharp"
                           Version="6.2.4" />
+
+        <PackageReference Include="PDFtoImage"
+                          Version="5.2.1" />
     </ItemGroup>
 
     <ItemGroup>

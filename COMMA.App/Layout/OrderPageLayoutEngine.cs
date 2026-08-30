@@ -24,92 +24,66 @@ public static class OrderPageLayoutEngine
         OrderPageLayout? currentPage =
             null;
 
-        foreach (var garment in items)
+        for (var garmentIndex = 0;
+             garmentIndex < items.Count;
+             garmentIndex++)
         {
-            var drawingCount =
-                garment.SelectedDrawingCount;
+            var garment = items[garmentIndex];
+            var drawings =
+                DrawingLayoutEngine.GetSelectedDrawings(garment);
+            var drawingIndex = 0;
 
-            /*
-             * 3 lub 4 rzuty:
-             * zawsze osobna strona.
-             */
-            if (drawingCount >= 3)
+            if (garment.StartNewPage &&
+                currentPage?.DrawingCount > 0)
             {
-                currentPage =
-                    null;
-
-                var page =
-                    new OrderPageLayout();
-
-                page.Garments.Add(
-                    garment);
-
-                pages.Add(
-                    page);
-
-                continue;
+                currentPage = null;
             }
 
-            /*
-             * Ręcznie wymuszona nowa strona.
-             */
-            if (garment.StartNewPage)
+            while (drawingIndex < drawings.Count)
             {
-                currentPage =
-                    new OrderPageLayout();
+                if (currentPage == null)
+                {
+                    currentPage = new OrderPageLayout();
+                    pages.Add(currentPage);
+                }
 
-                currentPage.Garments.Add(
-                    garment);
+                var pageCapacity =
+                    ReferenceEquals(currentPage, pages[0])
+                        ? 2
+                        : 4;
+                var availableSlots =
+                    pageCapacity - currentPage.DrawingCount;
 
-                pages.Add(
-                    currentPage);
+                /*
+                 * Zachowujemy specjalny układ pierwszej strony: kolejnej
+                 * pozycji nie dzielimy tylko po to, aby wypełnić jej
+                 * pojedyncze wolne miejsce. Od strony 2 wolne miejsca są
+                 * wykorzystywane globalnie przez następne pozycje.
+                 */
+                if (ReferenceEquals(currentPage, pages[0]) &&
+                    garmentIndex > 0 &&
+                    drawings.Count - drawingIndex > availableSlots)
+                {
+                    currentPage = null;
+                    continue;
+                }
 
-                continue;
+                var drawingsToTake =
+                    Math.Min(
+                        availableSlots,
+                        drawings.Count - drawingIndex);
+
+                currentPage.AddPlacement(
+                    garment,
+                    drawings
+                        .Skip(drawingIndex)
+                        .Take(drawingsToTake));
+
+                drawingIndex += drawingsToTake;
+
+                if (currentPage.DrawingCount == pageCapacity)
+                    currentPage = null;
             }
-
-            /*
-             * Nie ma jeszcze strony,
-             * do której można coś dołożyć.
-             */
-            if (currentPage == null)
-            {
-                currentPage =
-                    new OrderPageLayout();
-
-                currentPage.Garments.Add(
-                    garment);
-
-                pages.Add(
-                    currentPage);
-
-                continue;
-            }
-
-            /*
-             * Maksymalnie 4 rzuty łącznie
-             * na jednej stronie.
-             */
-            if (currentPage.DrawingCount +
-                drawingCount <= 4)
-            {
-                currentPage.Garments.Add(
-                    garment);
-
-                continue;
-            }
-
-            /*
-             * Brak miejsca:
-             * zaczynamy kolejną stronę.
-             */
-            currentPage =
-                new OrderPageLayout();
-
-            currentPage.Garments.Add(
-                garment);
-
-            pages.Add(
-                currentPage);
         }
 
         ApplyPageNumbers(
@@ -145,8 +119,31 @@ public static class OrderPageLayoutEngine
 
 public sealed class OrderPageLayout
 {
-    public List<OrderGarmentItem> Garments { get; } =
-        new();
+    private readonly List<OrderPageGarmentPlacement> placements = new();
+
+    public IReadOnlyList<OrderPageGarmentPlacement> Placements => placements;
+
+    public IReadOnlyList<OrderGarmentItem> Garments =>
+        placements
+            .Select(placement => placement.Garment)
+            .Distinct()
+            .ToList();
+
+    internal void AddPlacement(
+        OrderGarmentItem garment,
+        IEnumerable<DrawingFile> drawings)
+    {
+        var selected = drawings.ToList();
+
+        if (selected.Count == 0)
+            return;
+
+        placements.Add(
+            new OrderPageGarmentPlacement(
+                this,
+                garment,
+                selected));
+    }
 
 
     public int PageNumber { get; internal set; }
@@ -161,26 +158,24 @@ public sealed class OrderPageLayout
 
     public string PageNumberText =>
         TotalPages > 0
-            ? $"{PageNumber} / {TotalPages}"
+            ? $"{PageNumber}/{TotalPages}"
             : "";
 
 
     public int DrawingCount =>
-        Garments.Sum(
-            garment =>
-                garment.SelectedDrawingCount);
+        Placements.Sum(placement => placement.DrawingCount);
 
 
     public int GarmentCount =>
-        Garments.Count;
+        Placements.Count;
 
 
     public string GarmentNamesText =>
         string.Join(
             " + ",
-            Garments
-                .Select(garment =>
-                    garment.DisplayName)
+            Placements
+                .Select(placement => placement.Garment.DisplayName)
+                .Distinct()
                 .Where(name =>
                     !string.IsNullOrWhiteSpace(name)));
 
@@ -211,4 +206,57 @@ public sealed class OrderPageLayout
                 $"{PageNumberText} — {GarmentNamesText}";
         }
     }
+}
+
+public sealed class OrderPageGarmentPlacement
+{
+    public OrderPageGarmentPlacement(
+        OrderPageLayout page,
+        OrderGarmentItem garment,
+        IReadOnlyList<DrawingFile> drawings)
+    {
+        Page = page ?? throw new ArgumentNullException(nameof(page));
+        Garment = garment ?? throw new ArgumentNullException(nameof(garment));
+        Drawings = drawings ?? throw new ArgumentNullException(nameof(drawings));
+        Views = drawings
+            .Select(drawing => new OrderPageDrawingPlacement(this, drawing))
+            .ToList();
+    }
+
+    public OrderPageLayout Page { get; }
+
+    public OrderGarmentItem Garment { get; }
+
+    public IReadOnlyList<DrawingFile> Drawings { get; }
+
+    public IReadOnlyList<OrderPageDrawingPlacement> Views { get; }
+
+    public int DrawingCount => Drawings.Count;
+}
+
+public sealed class OrderPageDrawingPlacement
+{
+    internal OrderPageDrawingPlacement(
+        OrderPageGarmentPlacement garmentPlacement,
+        DrawingFile drawing)
+    {
+        GarmentPlacement = garmentPlacement;
+        Drawing = drawing;
+    }
+
+    public OrderPageGarmentPlacement GarmentPlacement { get; }
+
+    public OrderGarmentItem Garment => GarmentPlacement.Garment;
+
+    public DrawingFile Drawing { get; }
+
+    public int PageNumber => GarmentPlacement.Page.PageNumber;
+
+    public bool IsFirstPage => GarmentPlacement.Page.IsFirstPage;
+
+    public DescriptionTargetGeometry Geometry =>
+        GarmentViewDescriptionLayout.GetTargetGeometry(
+            GarmentPlacement.Page,
+            GarmentPlacement,
+            Drawing);
 }

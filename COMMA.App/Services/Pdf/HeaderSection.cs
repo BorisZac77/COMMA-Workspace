@@ -9,7 +9,8 @@ public static class HeaderSection
 {
     public static void Build(
         ColumnDescriptor column,
-        ProductionCard card)
+        ProductionCard card,
+        string pageNumberText)
     {
         column.Item()
             .Height(PdfStyles.HeaderHeight)
@@ -27,9 +28,10 @@ public static class HeaderSection
 
                 BuildLogoCell(table);
 
-                BuildOrderNameCell(
+                BuildOrderIdentityCell(
                     table,
-                    card);
+                    card,
+                    pageNumberText);
 
                 BuildInformationCell(
                     table,
@@ -80,25 +82,94 @@ public static class HeaderSection
             });
     }
 
-    private static void BuildOrderNameCell(
+    private static void BuildOrderIdentityCell(
         TableDescriptor table,
-        ProductionCard card)
+        ProductionCard card,
+        string pageNumberText)
     {
+        var orderNumber =
+            Safe(card.OrderNumber);
+
         var orderName =
             Safe(card.OrderName);
 
         table.Cell()
             .ColumnSpan(3)
             .Height(PdfStyles.HeaderTopRowHeight)
-            .Border(PdfStyles.StandardBorderWidth)
-            .Padding(PdfStyles.HeaderOrderNamePadding)
+            .Row(row =>
+            {
+                row.ConstantItem(
+                        PdfStyles.FirstPageHeaderOrderNumberWidth)
+                    .Border(PdfStyles.StandardBorderWidth)
+                    .Padding(1)
+                    .Column(column =>
+                    {
+                        BuildHeaderLabel(
+                            column,
+                            "NUMER ZLECENIA");
+
+                        column.Item()
+                            .AlignCenter()
+                            .AlignMiddle()
+                            .Text(orderNumber)
+                            .FontSize(10)
+                            .FontColor(
+                                PdfStyles.OrderNameColor)
+                            .Bold();
+                    });
+
+                row.RelativeItem()
+                    .Border(PdfStyles.StandardBorderWidth)
+                    .Padding(1)
+                    .Column(column =>
+                    {
+                        BuildHeaderLabel(
+                            column,
+                            "NAZWA ZLECENIA");
+
+                        column.Item()
+                            .AlignCenter()
+                            .AlignMiddle()
+                            .Text(orderName)
+                            .FontSize(
+                                GetOrderNameFontSize(orderName))
+                            .FontColor(
+                                PdfStyles.OrderNameColor)
+                            .ExtraBold();
+                    });
+
+                row.ConstantItem(
+                        PdfStyles.FirstPageHeaderPageNumberWidth)
+                    .Border(PdfStyles.StandardBorderWidth)
+                    .Padding(1)
+                    .Column(column =>
+                    {
+                        BuildHeaderLabel(
+                            column,
+                            "STRONA");
+
+                        column.Item()
+                            .AlignCenter()
+                            .AlignMiddle()
+                            .Text(pageNumberText)
+                            .FontSize(13)
+                            .ExtraBold();
+                    });
+            });
+    }
+
+    private static void BuildHeaderLabel(
+        ColumnDescriptor column,
+        string label)
+    {
+        column.Item()
+            .Height(9)
             .AlignCenter()
             .AlignMiddle()
-            .Text(orderName)
+            .Text(label)
             .FontSize(
-                GetOrderNameFontSize(orderName))
-            .FontColor("#0071BC")
-            .ExtraBold();
+                PdfStyles.HeaderOrderLabelFontSize)
+            .Bold();
     }
 
     private static void BuildInformationCell(
@@ -137,15 +208,15 @@ public static class HeaderSection
             value.Length;
 
         if (length <= 15)
-            return 20f;
-
-        if (length <= 25)
-            return 17f;
-
-        if (length <= 35)
             return 14f;
 
-        return 12f;
+        if (length <= 25)
+            return 12f;
+
+        if (length <= 40)
+            return 10f;
+
+        return 9f;
     }
 
     private static string Safe(

@@ -15,7 +15,7 @@
         MinWidth="1350"
         MinHeight="620"
         Icon="/Assets/Icons/Pimp.ico"
-        Title="COMMA Workspace 3.0">
+        Title="COMMA Workspace — v4.0.0">
 
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -170,7 +170,7 @@
                             VerticalAlignment="Center"
                             Spacing="2">
 
-                    <TextBlock Text="COMMA Workspace 3.0"
+                    <TextBlock Text="COMMA Workspace 4.0"
                                FontSize="24"
                                FontWeight="Bold"/>
 
@@ -431,12 +431,14 @@
                 <Grid x:Name="OrderDataGrid"
                       RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
 
-                    <TextBlock Grid.Row="0"
+                    <TextBlock x:Name="OrderDataTitle"
+                               Grid.Row="0"
                                Text="DANE ZLECENIA"
                                FontSize="18"
                                FontWeight="Bold"/>
 
-                    <StackPanel Grid.Row="1"
+                    <StackPanel x:Name="CustomerField"
+                                Grid.Row="1"
                                 Classes="order-field">
 
                         <TextBlock Text="KLIENT"
@@ -450,21 +452,43 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2"
-                                Classes="order-field">
+                    <Grid x:Name="OrderIdentityFields"
+                          Grid.Row="2"
+                          ColumnDefinitions="2*,3*"
+                          ColumnSpacing="8">
 
-                        <TextBlock Text="NAZWA ZLECENIA"
-                                   FontSize="11"
-                                   FontWeight="Bold"/>
+                        <StackPanel Grid.Column="0"
+                                    Classes="order-field">
 
-                        <TextBox x:Name="OrderNameTextBox"
-                                 Classes="order-field-input"
-                                 PlaceholderText="Nazwa zlecenia"
-                                 Text="{Binding ProductionCard.OrderName}"/>
+                            <TextBlock Text="NUMER ZLECENIA"
+                                       FontSize="11"
+                                       FontWeight="Bold"/>
 
-                    </StackPanel>
+                            <TextBox x:Name="OrderNumberTextBox"
+                                     Classes="order-field-input"
+                                     PlaceholderText="Numer"
+                                     Text="{Binding ProductionCard.OrderNumber}"/>
 
-                    <StackPanel Grid.Row="3"
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Classes="order-field">
+
+                            <TextBlock Text="NAZWA ZLECENIA"
+                                       FontSize="11"
+                                       FontWeight="Bold"/>
+
+                            <TextBox x:Name="OrderNameTextBox"
+                                     Classes="order-field-input"
+                                     PlaceholderText="Nazwa zlecenia"
+                                     Text="{Binding ProductionCard.OrderName}"/>
+
+                        </StackPanel>
+
+                    </Grid>
+
+                    <StackPanel x:Name="DueDateField"
+                                Grid.Row="3"
                                 Classes="order-field">
 
                         <TextBlock Text="TERMIN WYKONANIA"
@@ -478,7 +502,8 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4"
+                    <StackPanel x:Name="ProductionTypeField"
+                                Grid.Row="4"
                                 Classes="order-field">
 
                         <TextBlock Text="RODZAJ PRODUKCJI"
@@ -890,6 +915,21 @@
                         </StackPanel>
 
                     </Button>
+
+                    <Button x:Name="AttachmentsButton"
+                            Width="150"
+                            Height="52"
+                            Padding="14,0"
+                            Background="#F7F8FA"
+                            BorderBrush="#C9CDD3"
+                            BorderThickness="1"
+                            CornerRadius="7"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="#3F4348"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Content="{Binding AttachmentsButtonText}"/>
 
                 </StackPanel>
 

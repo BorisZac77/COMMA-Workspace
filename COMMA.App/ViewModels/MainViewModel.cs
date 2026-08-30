@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,15 +13,17 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using COMMA.App.Layout;
 using COMMA.App.Models;
 using COMMA.App.Services;
+using COMMA.App.Services.Attachments;
 using COMMA.App.Services.Pdf;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace COMMA.App.ViewModels;
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private const string SettingsFolderName =
         "COMMA Workspace";
@@ -40,11 +43,15 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly List<Product> allProducts = new();
 
+    public OrderAttachmentManager AttachmentManager { get; } = new();
+
     private int pdfStatusVersion;
 
     private string? loadedPdfPath;
 
     private string? loadedOrderName;
+
+    private bool pdfOutputFolderSelectedSincePdfLoad;
 
     [ObservableProperty]
     private string libraryPath =
@@ -63,6 +70,9 @@ public partial class MainViewModel : ViewModelBase
     public ObservableCollection<Product> Products { get; } = new();
 
     public ObservableCollection<DrawingFile> Drawings { get; } = new();
+
+    public string AttachmentsButtonText =>
+        $"ZAŁĄCZNIKI ({ProductionCard?.Attachments.Count ?? 0})";
 
     [ObservableProperty]
     private Product? selectedProduct;
@@ -94,12 +104,61 @@ public partial class MainViewModel : ViewModelBase
 
                     loadedOrderName =
                         null;
+
+                    pdfOutputFolderSelectedSincePdfLoad =
+                        false;
                 }
             };
 
         TryLoadSavedLibrary();
 
         TryLoadSavedPdfOutputPath();
+    }
+
+    partial void OnProductionCardChanging(
+        ProductionCard? value)
+    {
+        if (ProductionCard != null)
+        {
+            ProductionCard.Attachments.CollectionChanged -=
+                OnAttachmentsCollectionChanged;
+        }
+    }
+
+    partial void OnProductionCardChanged(
+        ProductionCard? value)
+    {
+        if (value != null)
+        {
+            value.Attachments.CollectionChanged +=
+                OnAttachmentsCollectionChanged;
+        }
+
+        OnPropertyChanged(nameof(AttachmentsButtonText));
+        RebuildAttachmentPreviewPages();
+    }
+
+    private void OnAttachmentsCollectionChanged(
+        object? sender,
+        NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(AttachmentsButtonText));
+        RebuildAttachmentPreviewPages();
+    }
+
+    private void AdoptLoadedAttachmentContents(CommaOrderData data)
+    {
+        AttachmentManager.ReplaceContentStore(
+            data.DetachAttachmentContentStore());
+        RebuildAttachmentPreviewPages();
+    }
+
+    public void Dispose()
+    {
+        AttachmentManager.Dispose();
+        previewAttachmentImage?.Dispose();
+        previewAttachmentImage = null;
+        DisposeSelectedImage();
     }
 
     partial void OnSearchTextChanged(
@@ -162,7 +221,8 @@ public partial class MainViewModel : ViewModelBase
                         Order = attachment.Order,
                         Length = attachment.Length,
                         Sha256 = attachment.Sha256,
-                        BlobEntry = attachment.BlobEntry
+                        BlobEntry = attachment.BlobEntry,
+                        PdfPageCount = attachment.PdfPageCount
                     });
             }
         }
@@ -260,6 +320,10 @@ public partial class MainViewModel : ViewModelBase
         if (window == null)
             return;
 
+        var suggestedStartLocation =
+            await window.StorageProvider.TryGetFolderFromPathAsync(
+                GetEffectivePdfOutputPath());
+
         var folders =
             await window.StorageProvider.OpenFolderPickerAsync(
                 new FolderPickerOpenOptions
@@ -267,7 +331,9 @@ public partial class MainViewModel : ViewModelBase
                     Title =
                         "Wybierz folder zapisu PDF",
                     AllowMultiple =
-                        false
+                        false,
+                    SuggestedStartLocation =
+                        suggestedStartLocation
                 });
 
         if (folders.Count == 0)
@@ -287,8 +353,11 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        PdfOutputPath =
-            path;
+        if (!TryApplyPdfOutputFolderSelection(
+                path))
+        {
+            return;
+        }
 
         SavePdfOutputPath(
             path);
@@ -296,6 +365,24 @@ public partial class MainViewModel : ViewModelBase
         await ShowTemporaryPdfStatus(
             $"✓ Folder zapisu PDF: {path}",
             3000);
+    }
+
+    private bool TryApplyPdfOutputFolderSelection(
+        string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) ||
+            !Directory.Exists(path))
+        {
+            return false;
+        }
+
+        PdfOutputPath =
+            path;
+
+        pdfOutputFolderSelectedSincePdfLoad =
+            true;
+
+        return true;
     }
 
     [RelayCommand]
@@ -749,7 +836,7 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
-            var data =
+            using var data =
                 CommaPdfDataReader.Read(
                     pdfPath);
 
@@ -902,11 +989,11 @@ public partial class MainViewModel : ViewModelBase
 
                 RebuildOrderPages();
 
-                loadedPdfPath =
-                    pdfPath;
+                SetLoadedPdfIdentity(
+                    pdfPath,
+                    data.OrderName);
 
-                loadedOrderName =
-                    data.OrderName ?? "";
+                AdoptLoadedAttachmentContents(data);
 
                 await ShowTemporaryPdfStatus(
                     $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
@@ -942,11 +1029,11 @@ public partial class MainViewModel : ViewModelBase
 
                 RebuildOrderPages();
 
-                loadedPdfPath =
-                    pdfPath;
+                SetLoadedPdfIdentity(
+                    pdfPath,
+                    data.OrderName);
 
-                loadedOrderName =
-                    data.OrderName ?? "";
+                AdoptLoadedAttachmentContents(data);
 
                 SetPdfStatus(
                     "Wczytano dane z PDF, ale nie znaleziono produktu " +
@@ -988,11 +1075,11 @@ public partial class MainViewModel : ViewModelBase
 
             RebuildOrderPages();
 
-            loadedPdfPath =
-                pdfPath;
+            SetLoadedPdfIdentity(
+                pdfPath,
+                data.OrderName);
 
-            loadedOrderName =
-                data.OrderName ?? "";
+            AdoptLoadedAttachmentContents(data);
 
             await ShowTemporaryPdfStatus(
                 $"✓ Wczytano kartę z PDF: {Path.GetFileName(pdfPath)}",
@@ -1092,7 +1179,8 @@ public partial class MainViewModel : ViewModelBase
                     Order = sourceAttachment.Order,
                     Length = sourceAttachment.Length,
                     Sha256 = sourceAttachment.Sha256 ?? "",
-                    BlobEntry = sourceAttachment.BlobEntry ?? ""
+                    BlobEntry = sourceAttachment.BlobEntry ?? "",
+                    PdfPageCount = sourceAttachment.PdfPageCount
                 });
         }
 
@@ -1235,6 +1323,24 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
+        if (TryGetNonFittingViewDescription(
+                out var garmentName,
+                out var viewName))
+        {
+            var window =
+                GetMainWindow();
+
+            if (window != null)
+            {
+                await ShowDescriptionTooLongDialog(
+                    window,
+                    garmentName,
+                    viewName);
+            }
+
+            return;
+        }
+
         var defaultOutputDirectory =
             GetEffectivePdfOutputPath();
 
@@ -1246,43 +1352,31 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var outputDirectory =
-            defaultOutputDirectory;
-
-        string pdfFileName;
-        string outputFile;
-
         var isSameDocument =
             IsSameDocument(
                 loadedPdfPath,
                 ProductionCard.OrderName,
                 loadedOrderName);
 
-        if (isSameDocument)
+        var savePlan =
+            CreatePdfSavePlan(
+                defaultOutputDirectory,
+                ProductionCard.OrderName,
+                loadedPdfPath,
+                isSameDocument,
+                pdfOutputFolderSelectedSincePdfLoad);
+
+        var outputDirectory =
+            savePlan.OutputDirectory;
+
+        var pdfFileName =
+            savePlan.ExistingPdfFileName;
+
+        var outputFile =
+            savePlan.OverwriteOutputFile;
+
+        if (savePlan.HasConflict)
         {
-            var loadedDirectory =
-                Path.GetDirectoryName(
-                    loadedPdfPath!);
-
-            if (!string.IsNullOrWhiteSpace(
-                    loadedDirectory) &&
-                Directory.Exists(
-                    loadedDirectory))
-            {
-                outputDirectory =
-                    loadedDirectory;
-            }
-
-            var existingPdfFileName =
-                Path.GetFileName(
-                    loadedPdfPath!);
-
-            var suggestedPdfFileName =
-                CreateNextPdfFileNameForLoadedFile(
-                    outputDirectory,
-                    ProductionCard.OrderName,
-                    existingPdfFileName);
-
             var window =
                 GetMainWindow();
 
@@ -1292,8 +1386,8 @@ public partial class MainViewModel : ViewModelBase
             var saveChoice =
                 await ShowPdfSaveChoiceDialog(
                     window,
-                    existingPdfFileName,
-                    suggestedPdfFileName);
+                    savePlan.ExistingPdfFileName,
+                    savePlan.SuggestedPdfFileName);
 
             if (saveChoice ==
                 PdfSaveChoice.Cancel)
@@ -1308,7 +1402,7 @@ public partial class MainViewModel : ViewModelBase
                 PdfSaveChoice.Overwrite)
             {
                 outputFile =
-                    loadedPdfPath!;
+                    savePlan.OverwriteOutputFile;
 
                 pdfFileName =
                     Path.GetFileName(
@@ -1317,67 +1411,11 @@ public partial class MainViewModel : ViewModelBase
             else
             {
                 pdfFileName =
-                    suggestedPdfFileName;
+                    savePlan.SuggestedPdfFileName;
 
                 outputFile =
-                    Path.Combine(
-                        outputDirectory,
-                        pdfFileName);
+                    savePlan.CreateNewOutputFile;
             }
-        }
-        else
-        {
-            var basePdfFileName =
-                CreatePdfFileName(
-                    ProductionCard.OrderName);
-
-            var baseOutputFile =
-                Path.Combine(
-                    outputDirectory,
-                    basePdfFileName);
-
-            pdfFileName =
-                basePdfFileName;
-
-            if (File.Exists(baseOutputFile))
-            {
-                var suggestedPdfFileName =
-                    CreateUniquePdfFileName(
-                        outputDirectory,
-                        ProductionCard.OrderName);
-
-                var window =
-                    GetMainWindow();
-
-                if (window == null)
-                    return;
-
-                var saveChoice =
-                    await ShowPdfSaveChoiceDialog(
-                        window,
-                        basePdfFileName,
-                        suggestedPdfFileName);
-
-                if (saveChoice ==
-                    PdfSaveChoice.Cancel)
-                {
-                    SetPdfStatus(
-                        "Zapisywanie PDF zostało anulowane.");
-
-                    return;
-                }
-
-                pdfFileName =
-                    saveChoice ==
-                    PdfSaveChoice.Overwrite
-                        ? basePdfFileName
-                        : suggestedPdfFileName;
-            }
-
-            outputFile =
-                Path.Combine(
-                    outputDirectory,
-                    pdfFileName);
         }
 
         var temporaryPdfFile =
@@ -1389,6 +1427,11 @@ public partial class MainViewModel : ViewModelBase
             Path.Combine(
                 outputDirectory,
                 $".comma-order-final-{Guid.NewGuid():N}.pdf");
+
+        var temporaryComposedPdfFile =
+            Path.Combine(
+                outputDirectory,
+                $".comma-order-with-attachments-{Guid.NewGuid():N}.pdf");
 
         var errorFile =
             Path.Combine(
@@ -1402,6 +1445,9 @@ public partial class MainViewModel : ViewModelBase
 
             if (File.Exists(temporaryEmbeddedPdfFile))
                 File.Delete(temporaryEmbeddedPdfFile);
+
+            if (File.Exists(temporaryComposedPdfFile))
+                File.Delete(temporaryComposedPdfFile);
 
             if (File.Exists(errorFile))
                 File.Delete(errorFile);
@@ -1430,11 +1476,18 @@ public partial class MainViewModel : ViewModelBase
                     "Tymczasowy plik PDF jest pusty.");
             }
 
-            OrderPdfV4DataEmbedder.AddEmbeddedData(
+            OrderAttachmentPdfComposer.Compose(
                 temporaryPdfFile,
+                temporaryComposedPdfFile,
+                ProductionCard.Attachments,
+                AttachmentManager.ContentStore);
+
+            OrderPdfV4DataEmbedder.AddEmbeddedData(
+                temporaryComposedPdfFile,
                 temporaryEmbeddedPdfFile,
                 ProductionCard,
-                Garments.ToList());
+                Garments.ToList(),
+                AttachmentManager.ContentStore);
 
             if (!File.Exists(temporaryEmbeddedPdfFile))
             {
@@ -1473,14 +1526,15 @@ public partial class MainViewModel : ViewModelBase
                     "Zapisany plik PDF jest pusty.");
             }
 
-            loadedPdfPath =
-                outputFile;
-
-            loadedOrderName =
-                ProductionCard.OrderName;
+            SetLoadedPdfIdentity(
+                outputFile,
+                ProductionCard.OrderName);
 
             TryDeleteFile(
                 temporaryPdfFile);
+
+            TryDeleteFile(
+                temporaryComposedPdfFile);
 
             TryDeleteFile(
                 temporaryEmbeddedPdfFile);
@@ -1493,6 +1547,9 @@ public partial class MainViewModel : ViewModelBase
         {
             TryDeleteFile(
                 temporaryPdfFile);
+
+            TryDeleteFile(
+                temporaryComposedPdfFile);
 
             TryDeleteFile(
                 temporaryEmbeddedPdfFile);
@@ -1526,6 +1583,96 @@ public partial class MainViewModel : ViewModelBase
                 errorText);
         }
     }
+
+    private bool TryGetNonFittingViewDescription(
+        out string garmentName,
+        out string viewName)
+    {
+        var pages =
+            OrderPageLayoutEngine.BuildPages(
+                Garments);
+
+        foreach (var page in pages)
+        {
+            foreach (var placement in page.Placements)
+            {
+                var garment = placement.Garment;
+
+                foreach (var view in placement.Views)
+                {
+                    var drawing = view.Drawing;
+                    var geometry = view.Geometry;
+                    var text = GarmentViewDescriptionLayout.GetDescription(
+                        garment,
+                        drawing);
+
+                    if (GarmentViewDescriptionLayout.FitsEditorTargets(
+                            text,
+                            geometry))
+                    {
+                        continue;
+                    }
+
+                    garmentName = garment.Name;
+                    viewName = DrawingLayoutEngine.GetViewName(drawing);
+
+                    return true;
+                }
+            }
+        }
+
+        garmentName = "";
+        viewName = "";
+
+        return false;
+    }
+
+
+    private static async Task ShowDescriptionTooLongDialog(
+        Window owner,
+        string garmentName,
+        string viewName)
+    {
+        var dialog = new Window
+        {
+            Width = 500,
+            Height = 200,
+            CanResize = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner,
+            Title = "Opisy rzutów"
+        };
+        var message = new TextBlock
+        {
+            Text =
+                $"Skróć opis {viewName} dla pozycji „{garmentName}”, " +
+                "aby mieścił się w dostępnej przestrzeni pod rysunkiem.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 13
+        };
+        var closeButton = new Button
+        {
+            Content = "OK",
+            Width = 90,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        var content = new Grid
+        {
+            Margin = new Thickness(24),
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            RowSpacing = 18
+        };
+
+        Grid.SetRow(message, 0);
+        Grid.SetRow(closeButton, 1);
+        content.Children.Add(message);
+        content.Children.Add(closeButton);
+        dialog.Content = content;
+        closeButton.Click += (_, _) => dialog.Close();
+
+        await dialog.ShowDialog(owner);
+    }
+
 
     private static async Task<PdfSaveChoice> ShowPdfSaveChoiceDialog(
         Window owner,
@@ -1898,6 +2045,102 @@ public partial class MainViewModel : ViewModelBase
         catch
         {
         }
+    }
+
+    private void SetLoadedPdfIdentity(
+        string pdfPath,
+        string? orderName)
+    {
+        loadedPdfPath =
+            pdfPath;
+
+        loadedOrderName =
+            orderName ?? "";
+
+        pdfOutputFolderSelectedSincePdfLoad =
+            false;
+    }
+
+    private sealed record PdfSavePlan(
+        string OutputDirectory,
+        bool HasConflict,
+        string ExistingPdfFileName,
+        string SuggestedPdfFileName,
+        string OverwriteOutputFile,
+        string CreateNewOutputFile);
+
+    private static PdfSavePlan CreatePdfSavePlan(
+        string selectedOutputDirectory,
+        string? orderName,
+        string? loadedPdfPath,
+        bool isSameDocument,
+        bool outputFolderSelectedSincePdfLoad)
+    {
+        if (isSameDocument &&
+            !outputFolderSelectedSincePdfLoad)
+        {
+            var loadedDirectory =
+                Path.GetDirectoryName(
+                    loadedPdfPath!);
+
+            var outputDirectory =
+                !string.IsNullOrWhiteSpace(
+                    loadedDirectory) &&
+                Directory.Exists(
+                    loadedDirectory)
+                    ? loadedDirectory
+                    : selectedOutputDirectory;
+
+            var existingPdfFileName =
+                Path.GetFileName(
+                    loadedPdfPath!);
+
+            var loadedSuggestedPdfFileName =
+                CreateNextPdfFileNameForLoadedFile(
+                    outputDirectory,
+                    orderName,
+                    existingPdfFileName);
+
+            return new PdfSavePlan(
+                outputDirectory,
+                HasConflict: true,
+                existingPdfFileName,
+                loadedSuggestedPdfFileName,
+                loadedPdfPath!,
+                Path.Combine(
+                    outputDirectory,
+                    loadedSuggestedPdfFileName));
+        }
+
+        var basePdfFileName =
+            CreatePdfFileName(
+                orderName);
+
+        var baseOutputFile =
+            Path.Combine(
+                selectedOutputDirectory,
+                basePdfFileName);
+
+        var hasConflict =
+            File.Exists(
+                baseOutputFile);
+
+        var suggestedPdfFileName =
+            hasConflict
+                ? CreateUniquePdfFileName(
+                    selectedOutputDirectory,
+                    orderName)
+                : basePdfFileName;
+
+        return new PdfSavePlan(
+            selectedOutputDirectory,
+            hasConflict,
+            basePdfFileName,
+            suggestedPdfFileName,
+            baseOutputFile,
+            Path.Combine(
+                selectedOutputDirectory,
+                suggestedPdfFileName));
     }
 
     private static bool IsSameDocument(

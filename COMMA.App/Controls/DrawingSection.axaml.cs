@@ -33,6 +33,21 @@ public partial class DrawingSection : UserControl
         AvaloniaProperty.Register<DrawingSection, OrderGarmentItem?>(
             nameof(Garment));
 
+    public static readonly StyledProperty<DescriptionTargetGeometry>
+        DescriptionGeometryProperty =
+        AvaloniaProperty.Register<DrawingSection, DescriptionTargetGeometry>(
+            nameof(DescriptionGeometry),
+            GarmentViewDescriptionLayout.GetReferenceGeometry(
+                DescriptionLayoutTarget.FirstPageTwoViews));
+
+    public static readonly StyledProperty<OrderPageGarmentPlacement?> PlacementProperty =
+        AvaloniaProperty.Register<DrawingSection, OrderPageGarmentPlacement?>(
+            nameof(Placement));
+
+    public static readonly StyledProperty<OrderPageLayout?> PageProperty =
+        AvaloniaProperty.Register<DrawingSection, OrderPageLayout?>(
+            nameof(Page));
+
 
     private ProductionCard? subscribedCard;
     private OrderGarmentItem? subscribedGarment;
@@ -56,6 +71,25 @@ public partial class DrawingSection : UserControl
     {
         get => GetValue(GarmentProperty);
         set => SetValue(GarmentProperty, value);
+    }
+
+
+    public DescriptionTargetGeometry DescriptionGeometry
+    {
+        get => GetValue(DescriptionGeometryProperty);
+        set => SetValue(DescriptionGeometryProperty, value);
+    }
+
+    public OrderPageGarmentPlacement? Placement
+    {
+        get => GetValue(PlacementProperty);
+        set => SetValue(PlacementProperty, value);
+    }
+
+    public OrderPageLayout? Page
+    {
+        get => GetValue(PageProperty);
+        set => SetValue(PageProperty, value);
     }
 
 
@@ -85,7 +119,13 @@ public partial class DrawingSection : UserControl
             }
 
             RebuildLayout();
+            return;
         }
+
+        if (change.Property == DescriptionGeometryProperty ||
+            change.Property == PlacementProperty ||
+            change.Property == PageProperty)
+            RebuildLayout();
     }
 
 
@@ -172,6 +212,9 @@ public partial class DrawingSection : UserControl
         {
             subscribedGarment.PropertyChanged +=
                 OnGarmentPropertyChanged;
+
+            subscribedGarment.ViewDescriptions.PropertyChanged +=
+                OnGarmentViewDescriptionPropertyChanged;
         }
     }
 
@@ -183,6 +226,9 @@ public partial class DrawingSection : UserControl
 
         subscribedGarment.PropertyChanged -=
             OnGarmentPropertyChanged;
+
+        subscribedGarment.ViewDescriptions.PropertyChanged -=
+            OnGarmentViewDescriptionPropertyChanged;
 
         subscribedGarment =
             null;
@@ -219,6 +265,14 @@ public partial class DrawingSection : UserControl
     }
 
 
+    private void OnGarmentViewDescriptionPropertyChanged(
+        object? sender,
+        PropertyChangedEventArgs e)
+    {
+        RebuildLayout();
+    }
+
+
     private void RebuildLayout()
     {
         if (DrawingHost == null)
@@ -226,7 +280,11 @@ public partial class DrawingSection : UserControl
 
         IReadOnlyList<DrawingLayoutRow> rows;
 
-        if (Garment != null)
+        if (Placement != null)
+        {
+            rows = DrawingLayoutEngine.GetRows(Placement.Drawings);
+        }
+        else if (Garment != null)
         {
             rows =
                 DrawingLayoutEngine.GetRows(
@@ -256,7 +314,8 @@ public partial class DrawingSection : UserControl
 
         DrawingHost.Content =
             BuildRowsLayout(
-                rows);
+                rows,
+                Garment);
     }
 
 
@@ -293,7 +352,8 @@ public partial class DrawingSection : UserControl
 
 
     private Control BuildRowsLayout(
-        IReadOnlyList<DrawingLayoutRow> rows)
+        IReadOnlyList<DrawingLayoutRow> rows,
+        OrderGarmentItem? garment)
     {
         var drawingCount =
             rows.Sum(row =>
@@ -345,9 +405,11 @@ public partial class DrawingSection : UserControl
             var firstDrawingBox =
                 CreateDrawingBox(
                     layoutRow.First,
+                    garment,
                     maxDrawingHeight,
                     limitDrawingWidth,
-                    cropDrawingImage);
+                    cropDrawingImage,
+                    GetDescriptionGeometry(layoutRow.First));
 
             Grid.SetRow(
                 firstDrawingBox,
@@ -373,9 +435,11 @@ public partial class DrawingSection : UserControl
             var secondDrawingBox =
                 CreateDrawingBox(
                     layoutRow.Second,
+                    garment,
                     maxDrawingHeight,
                     limitDrawingWidth,
-                    cropDrawingImage);
+                    cropDrawingImage,
+                    GetDescriptionGeometry(layoutRow.Second));
 
             Grid.SetRow(
                 secondDrawingBox,
@@ -390,6 +454,17 @@ public partial class DrawingSection : UserControl
         }
 
         return grid;
+    }
+
+    private DescriptionTargetGeometry GetDescriptionGeometry(
+        DrawingFile drawing)
+    {
+        return Page != null && Placement != null
+            ? GarmentViewDescriptionLayout.GetTargetGeometry(
+                Page,
+                Placement,
+                drawing)
+            : DescriptionGeometry;
     }
 
 
@@ -430,15 +505,39 @@ public partial class DrawingSection : UserControl
 
     private static DrawingBox CreateDrawingBox(
         DrawingFile drawing,
+        OrderGarmentItem? garment,
         double maxDrawingHeight,
         bool limitDrawingWidth,
-        bool cropDrawingImage)
+        bool cropDrawingImage,
+        DescriptionTargetGeometry descriptionGeometry)
     {
+        var description =
+            garment == null
+                ? ""
+                : GarmentViewDescriptionLayout.GetDescription(
+                    garment,
+                    drawing);
+
         return new DrawingBox
         {
             Title =
                 GetDrawingTitle(
                     drawing),
+
+            Description =
+                description,
+
+            DescriptionFontSize =
+                GarmentViewDescriptionLayout.PreviewLargeFontSize,
+
+            DescriptionGeometry =
+                descriptionGeometry,
+
+            DescriptionTopMargin =
+                cropDrawingImage
+                    ? GarmentViewDescriptionLayout
+                        .MultiDrawingPreviewDescriptionTopMargin
+                    : 1,
 
             ImagePath =
                 drawing.FullPath,

@@ -65,7 +65,7 @@ public static class DrawingLayoutEngine
     }
 
 
-    private static DrawingLayout GetLayout(
+    public static DrawingLayout GetLayout(
         IReadOnlyList<DrawingFile> drawings)
     {
         return drawings.Count switch
@@ -79,7 +79,7 @@ public static class DrawingLayoutEngine
     }
 
 
-    private static IReadOnlyList<DrawingLayoutRow> GetRows(
+    public static IReadOnlyList<DrawingLayoutRow> GetRows(
         IReadOnlyList<DrawingFile> drawings)
     {
         return drawings.Count switch
@@ -183,6 +183,22 @@ public static class DrawingLayoutEngine
             return 3;
 
         return 100;
+    }
+
+    public static string GetViewName(DrawingFile drawing)
+    {
+        ArgumentNullException.ThrowIfNull(drawing);
+
+        if (drawing.IsFront)
+            return "FRONT";
+        if (drawing.IsBack)
+            return "BACK";
+        if (drawing.IsRight)
+            return "RIGHT";
+        if (drawing.IsLeft)
+            return "LEFT";
+
+        return "RZUT";
     }
 }
 

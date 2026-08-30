@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -30,7 +29,7 @@ public partial class MainWindow : Window
             OnOpened;
 
         Title =
-            $"COMMA Workspace — v{GetApplicationVersion()}";
+            "COMMA Workspace — v4.0.0";
 
         NormalizeDrawingsButton.Click +=
             OnNormalizeDrawingsButtonClick;
@@ -40,6 +39,16 @@ public partial class MainWindow : Window
 
         ClearOrderDataButton.Click +=
             OnClearOrderDataButtonClick;
+
+        AttachmentsButton.Click +=
+            OnAttachmentsButtonClick;
+
+        Closed +=
+            (_, _) =>
+            {
+                if (DataContext is IDisposable disposable)
+                    disposable.Dispose();
+            };
     }
 
 
@@ -174,32 +183,26 @@ public partial class MainWindow : Window
                     control);
             }
 
-            var dueDateField =
-                _orderHeaderControls[3];
-            var productionTypeField =
-                _orderHeaderControls[4];
-
             Grid.SetColumn(
-                dueDateField,
+                DueDateField,
                 0);
             Grid.SetColumn(
-                productionTypeField,
+                ProductionTypeField,
                 1);
 
             _compactPairedOrderFieldsGrid.Children.Add(
-                dueDateField);
+                DueDateField);
             _compactPairedOrderFieldsGrid.Children.Add(
-                productionTypeField);
+                ProductionTypeField);
 
-            var compactHeaderControls =
-                new[]
-                {
-                    _orderHeaderControls[0],
-                    _orderHeaderControls[1],
-                    _orderHeaderControls[2],
+            Control[] compactHeaderControls =
+                [
+                    OrderDataTitle,
+                    CustomerField,
+                    OrderIdentityFields,
                     _compactPairedOrderFieldsGrid,
-                    _orderHeaderControls[5]
-                };
+                    ProductionEntriesButton
+                ];
 
             for (var row = 0; row < compactHeaderControls.Length; row++)
             {
@@ -263,9 +266,9 @@ public partial class MainWindow : Window
             _compactOrderHeaderGrid);
 
         _compactPairedOrderFieldsGrid.Children.Remove(
-            _orderHeaderControls[3]);
+            DueDateField);
         _compactPairedOrderFieldsGrid.Children.Remove(
-            _orderHeaderControls[4]);
+            ProductionTypeField);
 
         foreach (var (control, row) in
                  _orderHeaderControls.Select(
@@ -321,47 +324,6 @@ public partial class MainWindow : Window
     }
 
 
-    private static string GetApplicationVersion()
-    {
-        var assembly =
-            Assembly.GetExecutingAssembly();
-
-        var informationalVersion =
-            assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion;
-
-        if (!string.IsNullOrWhiteSpace(
-                informationalVersion))
-        {
-            var plusIndex =
-                informationalVersion.IndexOf(
-                    '+');
-
-            if (plusIndex >= 0)
-            {
-                informationalVersion =
-                    informationalVersion[..plusIndex];
-            }
-
-            return informationalVersion;
-        }
-
-        var version =
-            assembly
-                .GetName()
-                .Version;
-
-        if (version == null)
-            return "0.0.0";
-
-        return
-            $"{version.Major}." +
-            $"{version.Minor}." +
-            $"{version.Build}";
-    }
-
-
     private void OnClearOrderDataButtonClick(
         object? sender,
         RoutedEventArgs e)
@@ -389,6 +351,24 @@ public partial class MainWindow : Window
 
         await dialog.ShowDialog<bool>(
             this);
+    }
+
+
+    private async void OnAttachmentsButtonClick(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel ||
+            viewModel.ProductionCard is not { } productionCard)
+        {
+            return;
+        }
+
+        var dialog = new AttachmentsWindow(
+            productionCard,
+            viewModel.AttachmentManager);
+
+        await dialog.ShowDialog(this);
     }
 
 

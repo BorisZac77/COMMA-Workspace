@@ -25,6 +25,12 @@
             <Setter Property="MinHeight" Value="40"/>
         </Style>
 
+        <Style Selector="TextBox.view-description-field">
+            <Setter Property="MinHeight" Value="64"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
         <Style Selector="Border.form-section">
             <Setter Property="Padding" Value="16"/>
         </Style>
@@ -48,6 +54,10 @@
 
         <Style Selector="Window.windows-compact TextBox.form-field">
             <Setter Property="MinHeight" Value="36"/>
+        </Style>
+
+        <Style Selector="Window.windows-compact TextBox.view-description-field">
+            <Setter Property="MinHeight" Value="58"/>
         </Style>
 
         <Style Selector="Window.windows-compact Border.form-section">
@@ -161,25 +171,73 @@
                               ColumnSpacing="18"
                               RowSpacing="12">
 
-                            <CheckBox x:Name="FrontCheckBox"
-                                      Grid.Row="0"
-                                      Grid.Column="0"
-                                      Content="PRZÓD"/>
+                            <StackPanel Grid.Row="0"
+                                        Grid.Column="0"
+                                        Spacing="5">
 
-                            <CheckBox x:Name="BackCheckBox"
-                                      Grid.Row="0"
-                                      Grid.Column="1"
-                                      Content="TYŁ"/>
+                                <CheckBox x:Name="FrontCheckBox"
+                                          Content="PRZÓD"/>
 
-                            <CheckBox x:Name="RightCheckBox"
-                                      Grid.Row="1"
-                                      Grid.Column="0"
-                                      Content="PRAWY BOK"/>
+                                <TextBlock Text="OPIS RZUTU - FRONT"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"/>
 
-                            <CheckBox x:Name="LeftCheckBox"
-                                      Grid.Row="1"
-                                      Grid.Column="1"
-                                      Content="LEWY BOK"/>
+                                <TextBox x:Name="FrontDescriptionTextBox"
+                                         Classes="view-description-field"
+                                         PlaceholderText="Opcjonalny opis rzutu FRONT"/>
+
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0"
+                                        Grid.Column="1"
+                                        Spacing="5">
+
+                                <CheckBox x:Name="BackCheckBox"
+                                          Content="TYŁ"/>
+
+                                <TextBlock Text="OPIS RZUTU - BACK"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"/>
+
+                                <TextBox x:Name="BackDescriptionTextBox"
+                                         Classes="view-description-field"
+                                         PlaceholderText="Opcjonalny opis rzutu BACK"/>
+
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="0"
+                                        Spacing="5">
+
+                                <CheckBox x:Name="RightCheckBox"
+                                          Content="PRAWY BOK"/>
+
+                                <TextBlock Text="OPIS RZUTU - RIGHT"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"/>
+
+                                <TextBox x:Name="RightDescriptionTextBox"
+                                         Classes="view-description-field"
+                                         PlaceholderText="Opcjonalny opis rzutu RIGHT"/>
+
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="1"
+                                        Spacing="5">
+
+                                <CheckBox x:Name="LeftCheckBox"
+                                          Content="LEWY BOK"/>
+
+                                <TextBlock Text="OPIS RZUTU - LEFT"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"/>
+
+                                <TextBox x:Name="LeftDescriptionTextBox"
+                                         Classes="view-description-field"
+                                         PlaceholderText="Opcjonalny opis rzutu LEFT"/>
+
+                            </StackPanel>
 
                         </Grid>
 

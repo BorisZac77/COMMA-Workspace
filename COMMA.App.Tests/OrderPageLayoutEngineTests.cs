@@ -10,19 +10,20 @@ public sealed class OrderPageLayoutEngineTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
-    public void SingleGarment_UsesOnePageWithAllSelectedDrawings(
+    public void SingleGarment_FirstPageNeverContainsMoreThanTwoDrawings(
         int drawingCount)
     {
         var garment = OrderTestData.CreateGarment(drawingCount);
 
         var pages = OrderPageLayoutEngine.BuildPages([garment]);
 
-        var page = Assert.Single(pages);
-        Assert.Same(garment, Assert.Single(page.Garments));
-        Assert.Equal(drawingCount, page.DrawingCount);
-        Assert.Equal(1, page.PageNumber);
-        Assert.Equal(1, page.TotalPages);
-        Assert.Equal("1 / 1", page.PageNumberText);
+        Assert.Equal(drawingCount > 2 ? 2 : 1, pages.Count);
+        Assert.InRange(pages[0].DrawingCount, 1, 2);
+        Assert.All(pages, page => Assert.Same(garment, Assert.Single(page.Garments)));
+        Assert.Equal(drawingCount, pages.Sum(page => page.DrawingCount));
+        Assert.Equal(
+            garment.SelectedDrawings,
+            pages.SelectMany(page => page.Placements.SelectMany(placement => placement.Drawings)));
     }
 
     [Fact]
@@ -35,14 +36,15 @@ public sealed class OrderPageLayoutEngineTests
         var pages = OrderPageLayoutEngine.BuildPages(
             [first, second, third]);
 
-        var page = Assert.Single(pages);
-        Assert.Equal(3, page.GarmentCount);
-        Assert.Equal(4, page.DrawingCount);
-        Assert.Equal([first, second, third], page.Garments);
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(1, pages[0].DrawingCount);
+        Assert.Equal(3, pages[1].DrawingCount);
+        Assert.Equal([first], pages[0].Garments);
+        Assert.Equal([second, third], pages[1].Garments);
     }
 
     [Fact]
-    public void GarmentWithThreeDrawings_AlwaysUsesASeparatePage()
+    public void GarmentBoundary_OnContinuationPage_DoesNotLeaveUnusedSlots()
     {
         var first = OrderTestData.CreateGarment(1, "First");
         var large = OrderTestData.CreateGarment(3, "Large");
@@ -51,10 +53,69 @@ public sealed class OrderPageLayoutEngineTests
         var pages = OrderPageLayoutEngine.BuildPages(
             [first, large, last]);
 
-        Assert.Equal(3, pages.Count);
+        Assert.Equal(2, pages.Count);
         Assert.Same(first, Assert.Single(pages[0].Garments));
-        Assert.Same(large, Assert.Single(pages[1].Garments));
-        Assert.Same(last, Assert.Single(pages[2].Garments));
+        Assert.Equal([large, last], pages[1].Garments);
+        Assert.Equal(4, pages[1].DrawingCount);
+    }
+
+    [Fact]
+    public void ThreeThenTwoDrawings_ArePackedIntoExactlyTwoProductionPages()
+    {
+        var first = OrderTestData.CreateGarment(3, "First");
+        var second = OrderTestData.CreateGarment(2, "Second");
+
+        var pages = OrderPageLayoutEngine.BuildPages([first, second]);
+
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(2, pages[0].DrawingCount);
+        Assert.Equal(3, pages[1].DrawingCount);
+        Assert.Same(first, Assert.Single(pages[0].Garments));
+        Assert.Equal([first, second], pages[1].Garments);
+        Assert.Equal(1, pages[1].Placements[0].DrawingCount);
+        Assert.Equal(2, pages[1].Placements[1].DrawingCount);
+        Assert.Same(first, pages[1].Placements[0].Garment);
+        Assert.Same(second, pages[1].Placements[1].Garment);
+        Assert.Equal(
+            first.SelectedDrawings,
+            pages
+                .SelectMany(page => page.Placements)
+                .Where(placement => ReferenceEquals(placement.Garment, first))
+                .SelectMany(placement => placement.Drawings));
+        Assert.Equal(
+            second.SelectedDrawings,
+            pages[1].Placements[1].Drawings);
+    }
+
+    [Fact]
+    public void GarmentTransitions_OnContinuationPages_UseAvailableSlotsInOrder()
+    {
+        var variants = new[]
+        {
+            (FirstCount: 3, SecondCount: 1, PageCounts: new[] { 2, 2 }),
+            (FirstCount: 3, SecondCount: 3, PageCounts: new[] { 2, 4 }),
+            (FirstCount: 4, SecondCount: 2, PageCounts: new[] { 2, 4 }),
+            (FirstCount: 4, SecondCount: 3, PageCounts: new[] { 2, 4, 1 })
+        };
+
+        foreach (var variant in variants)
+        {
+            var first = OrderTestData.CreateGarment(variant.FirstCount, "First");
+            var second = OrderTestData.CreateGarment(variant.SecondCount, "Second");
+
+            var pages = OrderPageLayoutEngine.BuildPages([first, second]);
+
+            Assert.Equal(
+                variant.PageCounts,
+                pages.Select(page => page.DrawingCount));
+            Assert.Equal(
+                Enumerable.Repeat(first, variant.FirstCount)
+                    .Concat(Enumerable.Repeat(second, variant.SecondCount)),
+                pages
+                    .SelectMany(page => page.Placements)
+                    .SelectMany(placement =>
+                        placement.Drawings.Select(_ => placement.Garment)));
+        }
     }
 
     [Fact]
@@ -91,7 +152,80 @@ public sealed class OrderPageLayoutEngineTests
         {
             Assert.Equal(index + 1, pages[index].PageNumber);
             Assert.Equal(3, pages[index].TotalPages);
-            Assert.Equal($"{index + 1} / 3", pages[index].PageNumberText);
+            Assert.Equal($"{index + 1}/3", pages[index].PageNumberText);
         }
+    }
+
+    [Fact]
+    public void FirstAndSecondPage_UseOneOfTwoAndTwoOfTwoNumbering()
+    {
+        var pages = OrderPageLayoutEngine.BuildPages(
+        [
+            OrderTestData.CreateGarment(3, "First"),
+            OrderTestData.CreateGarment(3, "Second")
+        ]);
+
+        Assert.Equal(2, pages.Count);
+        Assert.True(pages[0].IsFirstPage);
+        Assert.Equal("1/2", pages[0].PageNumberText);
+        Assert.Equal("2/2", pages[1].PageNumberText);
+    }
+
+    [Fact]
+    public void AttachmentMetadata_DoesNotIncreaseProductionCardPageTotal()
+    {
+        var card = new COMMA.App.Models.ProductionCard();
+        card.Garments.Add(OrderTestData.CreateGarment(3, "First"));
+        card.Garments.Add(OrderTestData.CreateGarment(3, "Second"));
+        card.Attachments.Add(new COMMA.App.Models.OrderAttachmentMetadata
+        {
+            Name = "future-attachment.pdf"
+        });
+
+        var pages = OrderPageLayoutEngine.BuildPages(card.Garments);
+
+        Assert.Equal(2, pages.Count);
+        Assert.All(pages, page => Assert.Equal(2, page.TotalPages));
+    }
+
+    [Fact]
+    public void Czcionka4_ThreeFourViewGarments_CreateExpectedFourPagePlan()
+    {
+        var first = OrderTestData.CreateGarment(4, "First");
+        var second = OrderTestData.CreateGarment(4, "Second");
+        var third = OrderTestData.CreateGarment(4, "Third");
+
+        var pages = OrderPageLayoutEngine.BuildPages([first, second, third]);
+
+        Assert.Equal(4, pages.Count);
+        Assert.Equal(["FRONT", "BACK"], pages[0].Placements[0].Drawings.Select(DrawingLayoutEngine.GetViewName));
+        Assert.Equal(["RIGHT", "LEFT"], pages[1].Placements[0].Drawings.Select(DrawingLayoutEngine.GetViewName));
+        Assert.Equal([first, second], pages[1].Garments);
+        Assert.Equal([second, third], pages[2].Garments);
+        Assert.Same(third, Assert.Single(pages[3].Garments));
+        Assert.Equal([2, 4, 4, 2], pages.Select(page => page.DrawingCount));
+        Assert.Equal(
+            ["FRONT", "BACK", "RIGHT", "LEFT"],
+            pages
+                .SelectMany(page => page.Placements)
+                .Where(placement => ReferenceEquals(placement.Garment, first))
+                .SelectMany(placement => placement.Drawings)
+                .Select(DrawingLayoutEngine.GetViewName));
+        Assert.Equal(
+            ["FRONT", "BACK", "RIGHT", "LEFT"],
+            pages
+                .SelectMany(page => page.Placements)
+                .Where(placement => ReferenceEquals(placement.Garment, second))
+                .SelectMany(placement => placement.Drawings)
+                .Select(DrawingLayoutEngine.GetViewName));
+        Assert.Equal(
+            ["FRONT", "BACK", "RIGHT", "LEFT"],
+            pages
+                .SelectMany(page => page.Placements)
+                .Where(placement => ReferenceEquals(placement.Garment, third))
+                .SelectMany(placement => placement.Drawings)
+                .Select(DrawingLayoutEngine.GetViewName));
+        Assert.All(pages, page => Assert.InRange(page.DrawingCount, 1, page.IsFirstPage ? 2 : 4));
+        Assert.Equal(["1/4", "2/4", "3/4", "4/4"], pages.Select(page => page.PageNumberText));
     }
 }

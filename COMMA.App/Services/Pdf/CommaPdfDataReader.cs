@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using COMMA.App.Services.Attachments;
 using UglyToad.PdfPig;
 
 namespace COMMA.App.Services.Pdf;
@@ -42,6 +44,11 @@ public static class CommaPdfDataReader
                 "Nie znaleziono pliku PDF.",
                 pdfPath);
         }
+
+        var packageData = TryReadV4Package(pdfPath);
+
+        if (packageData != null)
+            return packageData;
 
         var hiddenData = TryReadMarkedData(
             pdfPath,
@@ -114,6 +121,273 @@ public static class CommaPdfDataReader
 
         throw new InvalidOperationException(
             "PDF zawiera dane, ale nie znaleziono poprawnej karty COMMA Workspace.");
+    }
+
+
+    private static CommaOrderData? TryReadV4Package(
+        string pdfPath)
+    {
+        byte[]? packageBytes;
+
+        try
+        {
+            using var document = PdfDocument.Open(pdfPath);
+
+            if (!document.Advanced.TryGetEmbeddedFiles(
+                    out var embeddedFiles) ||
+                embeddedFiles.Count == 0)
+            {
+                return null;
+            }
+
+            var package = embeddedFiles.FirstOrDefault(file =>
+                string.Equals(
+                    file.Name,
+                    OrderPdfV4DataEmbedder.EmbeddedPackageFileName,
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    file.Name,
+                    OrderPdfV4DataEmbedder.EmbeddedPackageKey,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (package == null)
+                return null;
+
+            packageBytes = package.Bytes.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+
+        try
+        {
+            using var packageStream = new MemoryStream(
+                packageBytes,
+                writable: false);
+
+            using var archive = new ZipArchive(
+                packageStream,
+                ZipArchiveMode.Read,
+                leaveOpen: false);
+
+            var manifestEntries = archive.Entries.Where(entry =>
+                string.Equals(
+                    entry.FullName,
+                    OrderPdfV4DataEmbedder.ManifestEntryName,
+                    StringComparison.Ordinal)).ToList();
+
+            if (manifestEntries.Count != 1)
+            {
+                throw new InvalidDataException(
+                    "Pakiet COMMA Workspace v4 musi zawierać dokładnie jeden manifest.json.");
+            }
+
+            var manifestEntry = manifestEntries[0];
+            using var manifestStream = manifestEntry.Open();
+            using var manifestBytes = new MemoryStream();
+            manifestStream.CopyTo(manifestBytes);
+
+            var data = ReadV4Data(manifestBytes.ToArray());
+            data.AttachmentContentStore = ReadAttachmentContents(
+                archive,
+                data.Attachments);
+            return data;
+        }
+        catch (NotSupportedException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidDataException(
+                "Pakiet COMMA Workspace v4 jest niepoprawny.",
+                exception);
+        }
+    }
+
+    private static OrderAttachmentContentStore ReadAttachmentContents(
+        ZipArchive archive,
+        IReadOnlyList<CommaOrderAttachmentData> attachments)
+    {
+        if (attachments.Count > OrderAttachmentLimits.MaximumAttachmentCount)
+        {
+            throw new InvalidDataException(
+                "Pakiet przekracza limit 25 załączników.");
+        }
+
+        var normalizedOrders = attachments
+            .Select(item => item.Order)
+            .OrderBy(order => order)
+            .ToArray();
+
+        if (!normalizedOrders.SequenceEqual(
+                Enumerable.Range(0, attachments.Count)))
+        {
+            throw new InvalidDataException(
+                "Manifest zawiera niepoprawną kolejność załączników.");
+        }
+
+        var duplicateEntry = archive.Entries
+            .GroupBy(entry => entry.FullName, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateEntry != null)
+        {
+            throw new InvalidDataException(
+                $"Pakiet zawiera zduplikowany wpis ZIP: {duplicateEntry.Key}.");
+        }
+
+        foreach (var entry in archive.Entries)
+        {
+            if (!IsSafeZipEntryName(entry.FullName))
+            {
+                throw new InvalidDataException(
+                    "Pakiet zawiera niebezpieczną ścieżkę ZIP.");
+            }
+        }
+
+        var store = new OrderAttachmentContentStore();
+        long totalLength = 0;
+        var totalPdfPages = 0;
+        var referencedEntries = new HashSet<string>(StringComparer.Ordinal)
+        {
+            OrderPdfV4DataEmbedder.ManifestEntryName
+        };
+        var attachmentIds = new HashSet<Guid>();
+
+        try
+        {
+            foreach (var attachment in attachments.OrderBy(item => item.Order))
+            {
+                if (attachment.Id == Guid.Empty ||
+                    !attachmentIds.Add(attachment.Id))
+                {
+                    throw new InvalidDataException(
+                        "Manifest zawiera niepoprawny lub zduplikowany identyfikator załącznika.");
+                }
+
+                var expectedBlobEntry = OrderAttachmentValidator.CreateBlobEntry(
+                    attachment.Id,
+                    attachment.Extension);
+
+                if (!string.Equals(
+                        attachment.BlobEntry,
+                        expectedBlobEntry,
+                        StringComparison.Ordinal) ||
+                    !referencedEntries.Add(expectedBlobEntry))
+                {
+                    throw new InvalidDataException(
+                        "Manifest zawiera niebezpieczną lub zduplikowaną ścieżkę BlobEntry.");
+                }
+
+                var entry = archive.GetEntry(expectedBlobEntry);
+                if (entry == null)
+                {
+                    throw new InvalidDataException(
+                        $"W pakiecie brakuje zawartości załącznika „{attachment.Name}”.");
+                }
+
+                if (entry.Length > OrderAttachmentLimits.MaximumFileBytes ||
+                    attachment.Length > OrderAttachmentLimits.MaximumFileBytes)
+                {
+                    throw new InvalidDataException(
+                        $"Załącznik „{attachment.Name}” przekracza limit 50 MB.");
+                }
+
+                totalLength += entry.Length;
+                if (totalLength > OrderAttachmentLimits.MaximumTotalBytes)
+                {
+                    throw new InvalidDataException(
+                        "Łączny rozmiar załączników przekracza limit 200 MB.");
+                }
+
+                using var entryStream = entry.Open();
+                var stored = store.ImportStream(
+                    attachment.Id,
+                    entryStream,
+                    attachment.Extension);
+
+                if (stored.Length != attachment.Length ||
+                    !string.Equals(
+                        stored.Sha256,
+                        attachment.Sha256,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Zawartość załącznika „{attachment.Name}” nie zgadza się z manifestem.");
+                }
+
+                using var storedStream = store.OpenRead(attachment.Id);
+                var validated = OrderAttachmentValidator.Validate(
+                    attachment.Name,
+                    storedStream);
+
+                if (!string.Equals(
+                        validated.MimeType,
+                        attachment.MimeType,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(
+                        validated.Extension,
+                        attachment.Extension,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Typ załącznika „{attachment.Name}” nie zgadza się z manifestem.");
+                }
+
+                if (attachment.PdfPageCount is { } declaredPages &&
+                    declaredPages != validated.PdfPageCount)
+                {
+                    throw new InvalidDataException(
+                        $"Liczba stron załącznika „{attachment.Name}” nie zgadza się z manifestem.");
+                }
+
+                attachment.PdfPageCount = validated.PdfPageCount;
+                totalPdfPages += validated.PdfPageCount ?? 0;
+
+                if (totalPdfPages > OrderAttachmentLimits.MaximumTotalPdfPages)
+                {
+                    throw new InvalidDataException(
+                        "Łączna liczba stron załączników PDF przekracza limit 500.");
+                }
+            }
+
+            var unexpectedEntry = archive.Entries.FirstOrDefault(entry =>
+                !referencedEntries.Contains(entry.FullName));
+
+            if (unexpectedEntry != null)
+            {
+                throw new InvalidDataException(
+                    $"Pakiet zawiera nieoczekiwany wpis ZIP: {unexpectedEntry.FullName}.");
+            }
+
+            return store;
+        }
+        catch
+        {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    private static bool IsSafeZipEntryName(string entryName)
+    {
+        if (string.IsNullOrWhiteSpace(entryName) ||
+            entryName.Contains('\\') ||
+            entryName.StartsWith('/') ||
+            Path.IsPathRooted(entryName))
+        {
+            return false;
+        }
+
+        return entryName
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .All(segment => segment is not "." and not "..");
     }
 
 
@@ -373,7 +647,8 @@ public static class CommaPdfDataReader
                 Order = attachment.Order,
                 Length = attachment.Length,
                 Sha256 = attachment.Sha256 ?? "",
-                BlobEntry = attachment.BlobEntry ?? ""
+                BlobEntry = attachment.BlobEntry ?? "",
+                PdfPageCount = attachment.PdfPageCount
             }).ToList()
         };
     }
@@ -563,7 +838,7 @@ public sealed class CommaColourData
     public string Value { get; set; } = "";
 }
 
-public sealed class CommaOrderData
+public sealed class CommaOrderData : IDisposable
 {
     public string Format { get; set; } = "";
     public int FormatVersion { get; set; }
@@ -588,6 +863,21 @@ public sealed class CommaOrderData
     public List<CommaOrderGarmentData> Garments { get; set; } = new();
     public List<CommaOrderProductionEntryData> ProductionEntries { get; set; } = new();
     public List<CommaOrderAttachmentData> Attachments { get; set; } = new();
+
+    public OrderAttachmentContentStore? AttachmentContentStore { get; set; }
+
+    public OrderAttachmentContentStore? DetachAttachmentContentStore()
+    {
+        var store = AttachmentContentStore;
+        AttachmentContentStore = null;
+        return store;
+    }
+
+    public void Dispose()
+    {
+        AttachmentContentStore?.Dispose();
+        AttachmentContentStore = null;
+    }
 }
 
 public sealed class CommaOrderGarmentData
@@ -637,4 +927,5 @@ public sealed class CommaOrderAttachmentData
     public long Length { get; set; }
     public string Sha256 { get; set; } = "";
     public string BlobEntry { get; set; } = "";
+    public int? PdfPageCount { get; set; }
 }

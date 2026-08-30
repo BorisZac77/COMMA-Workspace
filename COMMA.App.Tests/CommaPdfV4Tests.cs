@@ -1,24 +1,31 @@
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
+using Avalonia.Controls;
+using COMMA.App.Layout;
 using COMMA.App.Models;
+using COMMA.App.Services.Attachments;
 using COMMA.App.Services.Pdf;
 using COMMA.App.Tests.TestSupport;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
+using UglyToad.PdfPig;
 
 namespace COMMA.App.Tests;
 
 public sealed class CommaPdfV4Tests
 {
     [Fact]
-    public void Manifest_UsesExplicitV4IdentityAndEnvelope()
+    public void Manifest_UsesExplicitV4IdentityAndEmbeddedPackage()
     {
         using var fixture = new V4PdfFixture();
         using var document = JsonDocument.Parse(fixture.ReadJson());
         var root = document.RootElement;
 
-        Assert.Contains(
+        Assert.DoesNotContain(
             OrderPdfV4DataEmbedder.HiddenDataBeginMarker,
             fixture.RawPdfText);
-        Assert.Contains(
+        Assert.DoesNotContain(
             OrderPdfV4DataEmbedder.HiddenDataEndMarker,
             fixture.RawPdfText);
         Assert.Equal(
@@ -26,6 +33,39 @@ public sealed class CommaPdfV4Tests
             root.GetProperty("Format").GetString());
         Assert.Equal(4, root.GetProperty("FormatVersion").GetInt32());
         Assert.Equal("4.0.0", root.GetProperty("ApplicationVersion").GetString());
+    }
+
+    [Fact]
+    public void EmbeddedPackage_IsZipContainingUtf8ManifestAndAttachmentBlob()
+    {
+        using var fixture = new V4PdfFixture();
+        var packageBytes = fixture.ReadPackageBytes();
+
+        using var packageStream = new MemoryStream(packageBytes, writable: false);
+        using var archive = new ZipArchive(packageStream, ZipArchiveMode.Read);
+
+        Assert.Equal(2, archive.Entries.Count);
+        var entry = archive.GetEntry(
+            OrderPdfV4DataEmbedder.ManifestEntryName);
+        Assert.NotNull(entry);
+        Assert.Contains(
+            archive.Entries,
+            item => item.FullName ==
+                OrderAttachmentValidator.CreateBlobEntry(
+                    V4PdfFixture.AttachmentId,
+                    ".pdf"));
+
+        using var entryStream = entry.Open();
+        using var manifestStream = new MemoryStream();
+        entryStream.CopyTo(manifestStream);
+
+        var strictUtf8 = new UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false,
+            throwOnInvalidBytes: true);
+        var json = strictUtf8.GetString(manifestStream.ToArray());
+
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(4, document.RootElement.GetProperty("FormatVersion").GetInt32());
     }
 
     [Fact]
@@ -71,10 +111,61 @@ public sealed class CommaPdfV4Tests
         Assert.Equal("instrukcja.pdf", attachment.Name);
         Assert.Equal("application/pdf", attachment.MimeType);
         Assert.Equal(".pdf", attachment.Extension);
-        Assert.Equal(2, attachment.Order);
-        Assert.Equal(123456, attachment.Length);
-        Assert.Equal("ABCDEF012345", attachment.Sha256);
-        Assert.Equal("blobs/attachment-1.pdf", attachment.BlobEntry);
+        Assert.Equal(0, attachment.Order);
+        Assert.Equal(fixture.AttachmentLength, attachment.Length);
+        Assert.Equal(fixture.AttachmentSha256, attachment.Sha256);
+        Assert.Equal(
+            OrderAttachmentValidator.CreateBlobEntry(
+                V4PdfFixture.AttachmentId,
+                ".pdf"),
+            attachment.BlobEntry);
+        Assert.Equal(1, attachment.PdfPageCount);
+    }
+
+    [Fact]
+    public void PackageLoadedDescriptionEditedToControllerBoundaryPassesFinalValidation()
+    {
+        using var fixture = new V4PdfFixture();
+        var data = CommaPdfDataReader.Read(fixture.OutputPdfPath);
+        var loaded = Assert.Single(data.Garments);
+        var selectedDrawingCount = 4;
+        var textBox = new TextBox
+        {
+            Text = loaded.ViewDescriptions.Front
+        };
+        using var controller =
+            new GarmentViewDescriptionTextBoxController(
+                textBox,
+                () => selectedDrawingCount);
+
+        textBox.Text = string.Join(
+            '\n',
+            Enumerable.Repeat(
+                "ghjghjghjghjghj żółć WIELKIE LITERY",
+                100));
+
+        Assert.NotEqual(loaded.ViewDescriptions.Front, textBox.Text);
+        Assert.Equal(textBox.Text, controller.AcceptedText);
+        Assert.True(controller.IsAtCapacity);
+        Assert.True(
+            controller.IsCurrentTextValidForCommit(
+                selectedDrawingCount));
+        Assert.True(
+            GarmentViewDescriptionLayout.FitsEditorTargets(
+                textBox.Text,
+                selectedDrawingCount));
+    }
+
+    [Fact]
+    public void EmptyOrderNumber_IsAllowedAndRoundTripsAsEmptyInV4()
+    {
+        using var fixture = new V4PdfFixture(orderNumber: "");
+
+        var data = CommaPdfDataReader.Read(fixture.OutputPdfPath);
+
+        Assert.Equal(4, data.FormatVersion);
+        Assert.Equal("", data.OrderNumber);
+        Assert.Equal("BINNEN BOUWERS – ŻÓŁĆ", data.OrderName);
     }
 
     [Fact]
@@ -123,6 +214,71 @@ public sealed class CommaPdfV4Tests
     }
 
     [Fact]
+    public void EmbeddedPackage_RequiresExactlyFormatVersionFour()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePdfPath = directory.GetPath("source.pdf");
+        var packagePath = directory.GetPath(
+            OrderPdfV4DataEmbedder.EmbeddedPackageFileName);
+        var outputPdfPath = directory.GetPath("unknown-package-version.pdf");
+
+        CreateValidSourcePdf(sourcePdfPath);
+        CreatePackageWithVersion(packagePath, 99);
+
+        DocumentOperation
+            .LoadFile(sourcePdfPath)
+            .AddAttachment(
+                new DocumentOperation.DocumentAttachment
+                {
+                    Key = OrderPdfV4DataEmbedder.EmbeddedPackageKey,
+                    FilePath = packagePath,
+                    AttachmentName =
+                        OrderPdfV4DataEmbedder.EmbeddedPackageFileName,
+                    MimeType = "application/zip",
+                    Relationship =
+                        DocumentOperation.DocumentAttachmentRelationship.Data
+                })
+            .Save(outputPdfPath);
+
+        var exception = Assert.Throws<NotSupportedException>(
+            () => CommaPdfDataReader.Read(outputPdfPath));
+
+        Assert.Contains("99", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "Nieobsługiwana wersja",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OldV4MarkerTransport_IsStillReadable()
+    {
+        using var directory = new TemporaryDirectory();
+        var pdfPath = directory.GetPath("old-v4-marker.pdf");
+        CreateValidSourcePdf(pdfPath);
+        AppendOldV4Marker(pdfPath, "OLD-V4-0042");
+
+        var data = CommaPdfDataReader.Read(pdfPath);
+
+        Assert.Equal(4, data.FormatVersion);
+        Assert.Equal("OLD-V4-0042", data.OrderNumber);
+        var garment = Assert.Single(data.Garments);
+        Assert.Equal("Stary opis przodu: żółć", garment.ViewDescriptions.Front);
+        Assert.Equal("Stary opis tyłu", garment.ViewDescriptions.Back);
+    }
+
+    [Fact]
+    public void EmbeddedPackage_HasPriorityOverOldV4Marker()
+    {
+        using var fixture = new V4PdfFixture();
+        AppendOldV4Marker(fixture.OutputPdfPath, "MARKER-VALUE");
+
+        var data = CommaPdfDataReader.Read(fixture.OutputPdfPath);
+
+        Assert.Equal("ZL-2026-0042", data.OrderNumber);
+    }
+
+    [Fact]
     public void Duplicate_DeepCopiesAllViewDescriptions()
     {
         var garment = V4PdfFixture.CreateGarment();
@@ -139,23 +295,117 @@ public sealed class CommaPdfV4Tests
         Assert.Equal("Opis przodu", duplicate.ViewDescriptions.Front);
     }
 
+    private static void CreateValidSourcePdf(string path)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        Document.Create(document =>
+        {
+            document.Page(page =>
+            {
+                page.Content().Text("COMMA Workspace v4 marker compatibility");
+            });
+        }).GeneratePdf(path);
+    }
+
+    private static void AppendOldV4Marker(
+        string pdfPath,
+        string orderNumber)
+    {
+        var manifest = new CommaV4Manifest
+        {
+            Format = OrderPdfV4DataEmbedder.FormatName,
+            FormatVersion = 4,
+            ApplicationVersion = OrderPdfV4DataEmbedder.ApplicationVersion,
+            OrderNumber = orderNumber,
+            OrderName = "OLD V4 MARKER",
+            Garments =
+            [
+                new CommaV4GarmentData
+                {
+                    ProductCode = "OLD-V4-GARMENT",
+                    ProductName = "Old V4 garment",
+                    Name = "Old V4 garment",
+                    ShowFront = true,
+                    ShowBack = true,
+                    ViewDescriptions = new CommaV4GarmentViewDescriptions
+                    {
+                        Front = "Stary opis przodu: żółć",
+                        Back = "Stary opis tyłu"
+                    }
+                }
+            ]
+        };
+        var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
+        var payload = Convert.ToBase64String(manifestBytes);
+
+        using var stream = new FileStream(
+            pdfPath,
+            FileMode.Append,
+            FileAccess.Write,
+            FileShare.None);
+        using var writer = new StreamWriter(
+            stream,
+            new UTF8Encoding(false));
+
+        writer.WriteLine();
+        writer.WriteLine(OrderPdfV4DataEmbedder.HiddenDataBeginMarker);
+        writer.WriteLine($"%{payload}");
+        writer.WriteLine(OrderPdfV4DataEmbedder.HiddenDataEndMarker);
+    }
+
+    private static void CreatePackageWithVersion(
+        string packagePath,
+        int formatVersion)
+    {
+        using var packageStream = new FileStream(
+            packagePath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None);
+        using var archive = new ZipArchive(
+            packageStream,
+            ZipArchiveMode.Create);
+        var manifestEntry = archive.CreateEntry(
+            OrderPdfV4DataEmbedder.ManifestEntryName);
+        using var manifestStream = manifestEntry.Open();
+
+        JsonSerializer.Serialize(
+            manifestStream,
+            new
+            {
+                Format = OrderPdfV4DataEmbedder.FormatName,
+                FormatVersion = formatVersion,
+                ApplicationVersion = "99.0.0"
+            });
+    }
+
     private sealed class V4PdfFixture : IDisposable
     {
         public static readonly Guid AttachmentId =
             Guid.Parse("c68a58e6-8723-48af-8615-f7c63aafc1e7");
 
         private readonly TemporaryDirectory directory = new();
+        private readonly OrderAttachmentContentStore attachmentContentStore =
+            new();
 
-        public V4PdfFixture()
+        public V4PdfFixture(
+            string orderNumber = "ZL-2026-0042")
         {
             var sourcePdfPath = directory.GetPath("source.pdf");
+            var attachmentPath = directory.GetPath("instrukcja.pdf");
             OutputPdfPath = directory.GetPath("output.pdf");
 
-            File.WriteAllBytes(
-                sourcePdfPath,
-                "%PDF-1.4\n%%EOF\n"u8.ToArray());
+            CreateValidSourcePdf(sourcePdfPath);
+            CreateValidSourcePdf(attachmentPath);
 
-            var card = CreateCard();
+            var stored = attachmentContentStore.ImportFile(
+                AttachmentId,
+                attachmentPath,
+                ".pdf");
+            AttachmentLength = stored.Length;
+            AttachmentSha256 = stored.Sha256;
+
+            var card = CreateCard(orderNumber);
             var garment = CreateGarment();
             var attachment = new OrderAttachmentMetadata
             {
@@ -163,10 +413,13 @@ public sealed class CommaPdfV4Tests
                 Name = "instrukcja.pdf",
                 MimeType = "application/pdf",
                 Extension = ".pdf",
-                Order = 2,
-                Length = 123456,
-                Sha256 = "ABCDEF012345",
-                BlobEntry = "blobs/attachment-1.pdf"
+                Order = 0,
+                Length = stored.Length,
+                Sha256 = stored.Sha256,
+                BlobEntry = OrderAttachmentValidator.CreateBlobEntry(
+                    AttachmentId,
+                    ".pdf"),
+                PdfPageCount = 1
             };
 
             card.Attachments.Add(attachment);
@@ -175,7 +428,8 @@ public sealed class CommaPdfV4Tests
                 sourcePdfPath,
                 OutputPdfPath,
                 card,
-                [garment]);
+                [garment],
+                attachmentContentStore);
 
             RawPdfText = Encoding.Latin1.GetString(
                 File.ReadAllBytes(OutputPdfPath));
@@ -185,35 +439,52 @@ public sealed class CommaPdfV4Tests
 
         public string RawPdfText { get; }
 
+        public long AttachmentLength { get; }
+
+        public string AttachmentSha256 { get; }
+
         public string ReadJson()
         {
-            var beginIndex = RawPdfText.LastIndexOf(
-                OrderPdfV4DataEmbedder.HiddenDataBeginMarker,
-                StringComparison.Ordinal);
-            var endIndex = RawPdfText.IndexOf(
-                OrderPdfV4DataEmbedder.HiddenDataEndMarker,
-                beginIndex + OrderPdfV4DataEmbedder.HiddenDataBeginMarker.Length,
-                StringComparison.Ordinal);
+            var packageBytes = ReadPackageBytes();
 
-            Assert.True(beginIndex >= 0);
-            Assert.True(endIndex > beginIndex);
+            using var packageStream = new MemoryStream(
+                packageBytes,
+                writable: false);
+            using var archive = new ZipArchive(
+                packageStream,
+                ZipArchiveMode.Read);
+            var manifestEntry = archive.GetEntry(
+                OrderPdfV4DataEmbedder.ManifestEntryName);
+            Assert.NotNull(manifestEntry);
 
-            var block = RawPdfText.Substring(
-                beginIndex + OrderPdfV4DataEmbedder.HiddenDataBeginMarker.Length,
-                endIndex - beginIndex -
-                OrderPdfV4DataEmbedder.HiddenDataBeginMarker.Length);
-            var encoded = string.Concat(
-                block
-                    .Split(
-                        ["\r\n", "\n", "\r"],
-                        StringSplitOptions.RemoveEmptyEntries)
-                    .Select(line => line.Trim().TrimStart('%')));
+            using var manifestEntryStream = manifestEntry.Open();
+            using var manifestStream = new MemoryStream();
+            manifestEntryStream.CopyTo(manifestStream);
 
-            return Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+            return new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false,
+                    throwOnInvalidBytes: true)
+                .GetString(manifestStream.ToArray());
+        }
+
+        public byte[] ReadPackageBytes()
+        {
+            using var document = PdfDocument.Open(OutputPdfPath);
+            Assert.True(document.Advanced.TryGetEmbeddedFiles(
+                out var embeddedFiles));
+
+            var package = Assert.Single(embeddedFiles, file =>
+                string.Equals(
+                    file.Name,
+                    OrderPdfV4DataEmbedder.EmbeddedPackageFileName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            return package.Bytes.ToArray();
         }
 
         public void Dispose()
         {
+            attachmentContentStore.Dispose();
             directory.Dispose();
         }
 
@@ -235,11 +506,12 @@ public sealed class CommaPdfV4Tests
             return garment;
         }
 
-        private static ProductionCard CreateCard()
+        private static ProductionCard CreateCard(
+            string orderNumber)
         {
             var card = new ProductionCard
             {
-                OrderNumber = "ZL-2026-0042",
+                OrderNumber = orderNumber,
                 OrderName = "BINNEN BOUWERS – ŻÓŁĆ",
                 Customer = "Binnen Bouwers",
                 DueDate = "31.08.2026",

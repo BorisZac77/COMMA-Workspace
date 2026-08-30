@@ -128,4 +128,6 @@ public sealed class CommaV4AttachmentMetadata
     public string Sha256 { get; set; } = "";
 
     public string BlobEntry { get; set; } = "";
+
+    public int? PdfPageCount { get; set; }
 }

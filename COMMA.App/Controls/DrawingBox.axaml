@@ -16,22 +16,37 @@
                        FontWeight="Bold"
                        Text="{Binding Title, ElementName=Root}"/>
 
-            <Image x:Name="DrawingImage"
-                   Grid.Row="1"
-                   Margin="8,14,8,8"
-                   Stretch="Uniform"
-                   MaxWidth="{Binding MaxDrawingWidth, ElementName=Root}"
-                   MaxHeight="{Binding MaxDrawingHeight, ElementName=Root}"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Top"
-                   RenderTransformOrigin="50%,50%">
+            <StackPanel x:Name="DrawingContentPanel"
+                        Grid.Row="1"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Top">
 
-                <Image.RenderTransform>
-                    <ScaleTransform ScaleX="{Binding ScaleX, ElementName=Root}"
-                                    ScaleY="1"/>
-                </Image.RenderTransform>
+                <Image x:Name="DrawingImage"
+                       Margin="8,14,8,2"
+                       Stretch="Uniform"
+                       MaxWidth="{Binding MaxDrawingWidth, ElementName=Root}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Top"
+                       RenderTransformOrigin="50%,50%">
 
-            </Image>
+                    <Image.RenderTransform>
+                        <ScaleTransform ScaleX="{Binding ScaleX, ElementName=Root}"
+                                        ScaleY="1"/>
+                    </Image.RenderTransform>
+
+                </Image>
+
+                <TextBlock x:Name="DescriptionTextBlock"
+                           Margin="6,1,6,2"
+                           HorizontalAlignment="Stretch"
+                           TextAlignment="Left"
+                           TextWrapping="Wrap"
+                           TextTrimming="None"
+                           IsVisible="False"
+                           Text="{Binding Description, ElementName=Root}"
+                           FontSize="{Binding DescriptionFontSize, ElementName=Root}"/>
+
+            </StackPanel>
 
         </Grid>
 

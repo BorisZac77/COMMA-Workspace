@@ -3,6 +3,7 @@ using System.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
+using COMMA.App.Layout;
 
 namespace COMMA.App.Controls;
 
@@ -37,6 +38,28 @@ public partial class DrawingBox : UserControl
         AvaloniaProperty.Register<DrawingBox, byte[]?>(
             nameof(CroppedImageData));
 
+    public static readonly StyledProperty<string> DescriptionProperty =
+        AvaloniaProperty.Register<DrawingBox, string>(
+            nameof(Description),
+            string.Empty);
+
+    public static readonly StyledProperty<double> DescriptionFontSizeProperty =
+        AvaloniaProperty.Register<DrawingBox, double>(
+            nameof(DescriptionFontSize),
+            10);
+
+    public static readonly StyledProperty<double> DescriptionTopMarginProperty =
+        AvaloniaProperty.Register<DrawingBox, double>(
+            nameof(DescriptionTopMargin),
+            1);
+
+    public static readonly StyledProperty<DescriptionTargetGeometry>
+        DescriptionGeometryProperty =
+        AvaloniaProperty.Register<DrawingBox, DescriptionTargetGeometry>(
+            nameof(DescriptionGeometry),
+            GarmentViewDescriptionLayout.GetReferenceGeometry(
+                DescriptionLayoutTarget.FirstPageTwoViews));
+
     private Bitmap? drawingBitmap;
 
     private bool isAttachedToVisualTree;
@@ -44,6 +67,9 @@ public partial class DrawingBox : UserControl
     public DrawingBox()
     {
         InitializeComponent();
+
+        SizeChanged +=
+            (_, _) => UpdateDescriptionPresentation();
     }
 
     public string Title
@@ -82,10 +108,58 @@ public partial class DrawingBox : UserControl
         set => SetValue(CroppedImageDataProperty, value);
     }
 
+    public string Description
+    {
+        get => GetValue(DescriptionProperty);
+        set => SetValue(DescriptionProperty, value);
+    }
+
+    public double DescriptionFontSize
+    {
+        get => GetValue(DescriptionFontSizeProperty);
+        set => SetValue(DescriptionFontSizeProperty, value);
+    }
+
+    public double DescriptionTopMargin
+    {
+        get => GetValue(DescriptionTopMarginProperty);
+        set => SetValue(DescriptionTopMarginProperty, value);
+    }
+
+    public DescriptionTargetGeometry DescriptionGeometry
+    {
+        get => GetValue(DescriptionGeometryProperty);
+        set => SetValue(DescriptionGeometryProperty, value);
+    }
+
     protected override void OnPropertyChanged(
         AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+
+        if (change.Property == DescriptionProperty &&
+            DescriptionTextBlock != null)
+        {
+            UpdateDescriptionPresentation();
+        }
+
+        if (change.Property == MaxDrawingHeightProperty &&
+            DrawingImage != null)
+        {
+            UpdateDescriptionPresentation();
+        }
+
+        if (change.Property == DescriptionTopMarginProperty &&
+            DescriptionTextBlock != null)
+        {
+            UpdateDescriptionPresentation();
+        }
+
+        if (change.Property == DescriptionGeometryProperty &&
+            DescriptionTextBlock != null)
+        {
+            UpdateDescriptionPresentation();
+        }
 
         if (!isAttachedToVisualTree)
             return;
@@ -107,6 +181,8 @@ public partial class DrawingBox : UserControl
 
         isAttachedToVisualTree =
             true;
+
+        UpdateDescriptionPresentation();
 
         if (CroppedImageData is { Length: > 0 } imageData)
         {
@@ -161,6 +237,55 @@ public partial class DrawingBox : UserControl
             DrawingImage.Source =
                 null;
         }
+    }
+
+    private void UpdateDescriptionPresentation()
+    {
+        if (DescriptionTextBlock == null)
+            return;
+
+        DescriptionTextBlock.IsVisible =
+            !string.IsNullOrWhiteSpace(
+                Description);
+
+        DescriptionTextBlock.Margin =
+            new Thickness(
+                6,
+                DescriptionTopMargin,
+                6,
+                2);
+
+        if (Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            DrawingImage.MaxHeight =
+                MaxDrawingHeight;
+
+            return;
+        }
+
+        const double horizontalChrome = 28;
+
+        var measurement =
+            GarmentViewDescriptionLayout.MeasurePreview(
+                Description,
+                Math.Max(
+                    1,
+                    Bounds.Width - horizontalChrome),
+                GarmentViewDescriptionLayout
+                    .GetPreviewTextHeight(DescriptionGeometry));
+
+        if (DescriptionTextBlock.IsVisible)
+        {
+            DescriptionFontSize =
+                measurement.FontSize;
+            DescriptionTextBlock.LineHeight =
+                measurement.FontSize *
+                GarmentViewDescriptionLayout
+                    .PreviewLineHeight;
+        }
+
+        DrawingImage.MaxHeight =
+            MaxDrawingHeight;
     }
 
     private void LoadCroppedImage(byte[]? imageData)

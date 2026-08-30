@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
-using System.Text;
+using System.Security.Cryptography;
 using System.Text.Json;
 using COMMA.App.Models;
+using COMMA.App.Services.Attachments;
+using QuestPDF.Fluent;
 
 namespace COMMA.App.Services.Pdf;
 
@@ -25,11 +28,24 @@ public static class OrderPdfV4DataEmbedder
     public const string ApplicationVersion =
         "4.0.0";
 
+    public const string EmbeddedPackageFileName =
+        "comma-workspace-v4.package";
+
+    public const string EmbeddedPackageKey =
+        EmbeddedPackageFileName;
+
+    public const string ManifestEntryName =
+        "manifest.json";
+
+    private const string EmbeddedPackageMimeType =
+        "application/zip";
+
     public static void AddEmbeddedData(
         string sourcePdfPath,
         string outputPath,
         ProductionCard card,
-        IReadOnlyList<OrderGarmentItem> garments)
+        IReadOnlyList<OrderGarmentItem> garments,
+        OrderAttachmentContentStore? attachmentContentStore = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(garments);
@@ -66,58 +82,199 @@ public static class OrderPdfV4DataEmbedder
 
         Directory.CreateDirectory(outputDirectory);
 
-        if (File.Exists(outputPath))
-            File.Delete(outputPath);
-
-        File.Copy(
-            sourcePdfPath,
-            outputPath,
-            overwrite: true);
-
         var manifest = CreateManifest(
             card,
             garments);
 
-        AppendManifest(
-            outputPath,
-            manifest);
+        var temporaryPackagePath = Path.Combine(
+            outputDirectory,
+            $".comma-workspace-v4-{Guid.NewGuid():N}.package");
+        var temporaryOutputPath = Path.Combine(
+            outputDirectory,
+            $".comma-workspace-v4-output-{Guid.NewGuid():N}.pdf");
+
+        try
+        {
+            WritePackage(
+                temporaryPackagePath,
+                manifest,
+                card.Attachments
+                    .OrderBy(attachment => attachment.Order)
+                    .ToList(),
+                attachmentContentStore);
+
+            DocumentOperation
+                .LoadFile(sourcePdfPath)
+                .AddAttachment(
+                    new DocumentOperation.DocumentAttachment
+                    {
+                        Key = EmbeddedPackageKey,
+                        FilePath = temporaryPackagePath,
+                        AttachmentName = EmbeddedPackageFileName,
+                        MimeType = EmbeddedPackageMimeType,
+                        Description =
+                            "COMMA Workspace 4.0 production card package",
+                        Relationship =
+                            DocumentOperation.DocumentAttachmentRelationship.Data,
+                        CreationDate = DateTime.UtcNow,
+                        ModificationDate = DateTime.UtcNow,
+                        Replace = true
+                    })
+                .Save(temporaryOutputPath);
+
+            File.Move(
+                temporaryOutputPath,
+                outputPath,
+                overwrite: true);
+        }
+        finally
+        {
+            TryDeleteFile(temporaryPackagePath);
+            TryDeleteFile(temporaryOutputPath);
+        }
     }
 
-    private static void AppendManifest(
-        string pdfPath,
-        CommaV4Manifest manifest)
+    private static void WritePackage(
+        string packagePath,
+        CommaV4Manifest manifest,
+        IReadOnlyList<OrderAttachmentMetadata> attachments,
+        OrderAttachmentContentStore? attachmentContentStore)
     {
-        var json = JsonSerializer.Serialize(manifest);
-        var jsonBytes = Encoding.UTF8.GetBytes(json);
-        var base64 = Convert.ToBase64String(jsonBytes);
-
-        using var stream = new FileStream(
-            pdfPath,
-            FileMode.Append,
+        using var packageStream = new FileStream(
+            packagePath,
+            FileMode.CreateNew,
             FileAccess.Write,
             FileShare.None);
 
-        using var writer = new StreamWriter(
-            stream,
-            new UTF8Encoding(
-                encoderShouldEmitUTF8Identifier: false));
+        using var archive = new ZipArchive(
+            packageStream,
+            ZipArchiveMode.Create,
+            leaveOpen: false);
 
-        writer.WriteLine();
-        writer.WriteLine(HiddenDataBeginMarker);
-
-        const int lineLength = 120;
-
-        for (var index = 0; index < base64.Length; index += lineLength)
+        if (attachments.Count > 0 && attachmentContentStore == null)
         {
-            var length = Math.Min(
-                lineLength,
-                base64.Length - index);
-
-            writer.Write("%");
-            writer.WriteLine(base64.Substring(index, length));
+            throw new InvalidDataException(
+                "Brakuje magazynu oryginalnej zawartości załączników.");
         }
 
-        writer.WriteLine(HiddenDataEndMarker);
+        if (attachments.Count > OrderAttachmentLimits.MaximumAttachmentCount)
+        {
+            throw new InvalidDataException(
+                "Można zapisać maksymalnie 25 załączników.");
+        }
+
+        var usedBlobEntries = new HashSet<string>(StringComparer.Ordinal);
+        var usedIds = new HashSet<Guid>();
+        long totalLength = 0;
+        var totalPdfPages = 0;
+
+        for (var attachmentIndex = 0;
+             attachmentIndex < attachments.Count;
+             attachmentIndex++)
+        {
+            var attachment = attachments[attachmentIndex];
+            attachment.Order = attachmentIndex;
+            if (attachment.Id == Guid.Empty || !usedIds.Add(attachment.Id))
+            {
+                throw new InvalidDataException(
+                    "Załączniki zawierają niepoprawny lub zduplikowany identyfikator.");
+            }
+
+            var blobEntry = OrderAttachmentValidator.CreateBlobEntry(
+                attachment.Id,
+                attachment.Extension);
+
+            if (!usedBlobEntries.Add(blobEntry))
+            {
+                throw new InvalidDataException(
+                    "Załączniki zawierają zduplikowaną ścieżkę BlobEntry.");
+            }
+
+            using var content = attachmentContentStore!.OpenRead(attachment.Id);
+            var validated = OrderAttachmentValidator.Validate(
+                attachment.Name,
+                content);
+            content.Position = 0;
+            attachment.MimeType = validated.MimeType;
+            attachment.Extension = validated.Extension;
+            attachment.PdfPageCount = validated.PdfPageCount;
+            totalPdfPages += validated.PdfPageCount ?? 0;
+
+            if (totalPdfPages > OrderAttachmentLimits.MaximumTotalPdfPages)
+            {
+                throw new InvalidDataException(
+                    "Łączna liczba stron załączników PDF przekracza limit 500.");
+            }
+
+            var entry = archive.CreateEntry(blobEntry, CompressionLevel.Optimal);
+            using var entryStream = entry.Open();
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = new byte[81920];
+            long length = 0;
+
+            while (true)
+            {
+                var read = content.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                    break;
+
+                length += read;
+                if (length > OrderAttachmentLimits.MaximumFileBytes)
+                {
+                    throw new InvalidDataException(
+                        "Załącznik przekracza maksymalny rozmiar 50 MB.");
+                }
+
+                entryStream.Write(buffer, 0, read);
+                hash.AppendData(buffer, 0, read);
+            }
+
+            totalLength += length;
+            if (totalLength > OrderAttachmentLimits.MaximumTotalBytes)
+            {
+                throw new InvalidDataException(
+                    "Łączny rozmiar załączników przekracza limit 200 MB.");
+            }
+
+            var sha256 = Convert.ToHexString(
+                    hash.GetHashAndReset())
+                .ToLowerInvariant();
+            attachment.Length = length;
+            attachment.Sha256 = sha256;
+            attachment.BlobEntry = blobEntry;
+
+            var manifestAttachment = manifest.Attachments.Single(item =>
+                item.Id == attachment.Id);
+            manifestAttachment.Length = length;
+            manifestAttachment.Sha256 = sha256;
+            manifestAttachment.BlobEntry = blobEntry;
+            manifestAttachment.Order = attachmentIndex;
+            manifestAttachment.MimeType = validated.MimeType;
+            manifestAttachment.Extension = validated.Extension;
+            manifestAttachment.PdfPageCount = validated.PdfPageCount;
+        }
+
+        var manifestBytes =
+            JsonSerializer.SerializeToUtf8Bytes(manifest);
+
+        var manifestEntry = archive.CreateEntry(
+            ManifestEntryName,
+            CompressionLevel.Optimal);
+
+        using var manifestStream = manifestEntry.Open();
+        manifestStream.Write(manifestBytes);
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+        }
     }
 
     private static CommaV4Manifest CreateManifest(
@@ -215,7 +372,8 @@ public static class OrderPdfV4DataEmbedder
             Order = attachment.Order,
             Length = attachment.Length,
             Sha256 = Safe(attachment.Sha256),
-            BlobEntry = Safe(attachment.BlobEntry)
+            BlobEntry = Safe(attachment.BlobEntry),
+            PdfPageCount = attachment.PdfPageCount
         };
     }
 

@@ -36,7 +36,8 @@
             <!-- ================================================= -->
 
             <Viewbox Grid.Row="0"
-                     Stretch="Uniform">
+                     Stretch="Uniform"
+                     IsVisible="{Binding IsProductionCardPreviewPage}">
 
                 <Grid Width="620"
                       Height="877">
@@ -80,32 +81,98 @@
                                 </Border>
 
 
-                                <!-- NAZWA ZLECENIA -->
-                                <Border Grid.Row="0"
-                                        Grid.Column="1"
-                                        Grid.ColumnSpan="3"
-                                        BorderBrush="#111111"
-                                        BorderThickness="0,1,1,1"
-                                        Padding="4">
+                                <!-- NUMER / NAZWA ZLECENIA / NUMER STRONY -->
+                                <Grid Grid.Row="0"
+                                      Grid.Column="1"
+                                      Grid.ColumnSpan="3"
+                                      ColumnDefinitions="108.3,*,70">
 
-                                    <Viewbox Stretch="Uniform"
-                                             StretchDirection="DownOnly"
-                                             Margin="8,0">
+                                    <Border Grid.Column="0"
+                                            BorderBrush="#111111"
+                                            BorderThickness="0,1,1,1"
+                                            Padding="2">
 
-                                        <TextBlock HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   TextAlignment="Center"
-                                                   TextWrapping="NoWrap"
-                                                   FontSize="20"
-                                                   FontWeight="Black"
-                                                   Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
-                                                   Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
-                                                   Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
-                                                   Text="{Binding ProductionCard.PreviewOrderName}"/>
+                                        <Grid RowDefinitions="8,*">
 
-                                    </Viewbox>
+                                            <TextBlock Grid.Row="0"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="5.5"
+                                                       FontWeight="Bold"
+                                                       Text="NUMER ZLECENIA"/>
 
-                                </Border>
+                                            <TextBlock Grid.Row="1"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Classes="orderNameValue"
+                                                       Text="{Binding ProductionCard.OrderNumber}"/>
+
+                                        </Grid>
+
+                                    </Border>
+
+                                    <Border Grid.Column="1"
+                                            BorderBrush="#111111"
+                                            BorderThickness="0,1,1,1"
+                                            Padding="2">
+
+                                        <Grid RowDefinitions="8,*">
+
+                                            <TextBlock Grid.Row="0"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="5.5"
+                                                       FontWeight="Bold"
+                                                       Text="NAZWA ZLECENIA"/>
+
+                                            <TextBlock Grid.Row="1"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       MaxLines="2"
+                                                       FontSize="12"
+                                                       FontWeight="Black"
+                                                       Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                       Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                       Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
+                                                       Text="{Binding ProductionCard.PreviewOrderName}"/>
+
+                                        </Grid>
+
+                                    </Border>
+
+                                    <Border Grid.Column="2"
+                                            BorderBrush="#111111"
+                                            BorderThickness="0,1,1,1"
+                                            Padding="2">
+
+                                        <Grid RowDefinitions="8,*">
+
+                                            <TextBlock Grid.Row="0"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="5.5"
+                                                       FontWeight="Bold"
+                                                       Text="STRONA"/>
+
+                                            <TextBlock Grid.Row="1"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       FontSize="13"
+                                                       FontWeight="Black"
+                                                       Text="{Binding PreviewPage.PageNumberText}"/>
+
+                                        </Grid>
+
+                                    </Border>
+
+                                </Grid>
 
 
                                 <!-- KLIENT -->
@@ -425,9 +492,10 @@
                                                       TargetNullValue=False,
                                                       FallbackValue=False}">
 
-                            <!-- UPROSZCZONY NAGŁÓWEK -->
-                            <Grid Grid.Row="0"
-                                  ColumnDefinitions="155,*,90">
+                            <!-- NAGŁÓWEK KONTYNUACYJNY -->
+                            <Grid x:Name="ContinuationHeader"
+                                  Grid.Row="0"
+                                  ColumnDefinitions="155,108.3,*,70">
 
                                 <!-- LOGO -->
                                 <Border Grid.Column="0"
@@ -444,37 +512,67 @@
                                 </Border>
 
 
-                                <!-- NAZWA ZLECENIA -->
+                                <!-- NUMER ZLECENIA -->
                                 <Border Grid.Column="1"
                                         BorderBrush="#111111"
                                         BorderThickness="0,1,1,1"
-                                        Padding="5">
+                                        Padding="2">
 
-                                    <Grid RowDefinitions="14,*">
+                                    <Grid RowDefinitions="8,*">
 
                                         <TextBlock Grid.Row="0"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   FontSize="7"
+                                                   FontSize="5.5"
+                                                   FontWeight="Bold"
+                                                   Text="NUMER ZLECENIA"/>
+
+                                        <TextBlock x:Name="ContinuationOrderNumberValue"
+                                                   Grid.Row="1"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxLines="2"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
+                                                   Classes="orderNameValue"
+                                                   Text="{Binding ProductionCard.OrderNumber}"/>
+
+                                    </Grid>
+
+                                </Border>
+
+
+                                <!-- NAZWA ZLECENIA -->
+                                <Border Grid.Column="2"
+                                        BorderBrush="#111111"
+                                        BorderThickness="0,1,1,1"
+                                        Padding="2">
+
+                                    <Grid RowDefinitions="8,*">
+
+                                        <TextBlock Grid.Row="0"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="5.5"
                                                    FontWeight="Bold"
                                                    Text="NAZWA ZLECENIA"/>
 
-                                        <Viewbox Grid.Row="1"
-                                                 Stretch="Uniform"
-                                                 StretchDirection="DownOnly"
-                                                 Margin="10,2">
-
-                                            <TextBlock HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       TextAlignment="Center"
-                                                       TextWrapping="NoWrap"
-                                                       FontSize="19"
-                                                       FontWeight="Black"
-                                                       Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
-                                                       Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
-                                                       Text="{Binding ProductionCard.PreviewOrderName}"/>
-
-                                        </Viewbox>
+                                        <TextBlock x:Name="ContinuationOrderNameValue"
+                                                   Grid.Row="1"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="2"
+                                                   FontSize="13"
+                                                   FontWeight="Black"
+                                                   Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                   Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
+                                                   Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
+                                                   Text="{Binding ProductionCard.PreviewOrderName}"/>
 
                                     </Grid>
 
@@ -482,17 +580,17 @@
 
 
                                 <!-- NUMER STRONY -->
-                                <Border Grid.Column="2"
+                                <Border Grid.Column="3"
                                         BorderBrush="#111111"
                                         BorderThickness="0,1,1,1"
-                                        Padding="3">
+                                        Padding="2">
 
-                                    <Grid RowDefinitions="18,*">
+                                    <Grid RowDefinitions="8,*">
 
                                         <TextBlock Grid.Row="0"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   FontSize="7"
+                                                   FontSize="5.5"
                                                    FontWeight="Bold"
                                                    Text="STRONA"/>
 
@@ -500,7 +598,7 @@
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
                                                    TextAlignment="Center"
-                                                   FontSize="15"
+                                                   FontSize="13"
                                                    FontWeight="Black"
                                                    Text="{Binding PreviewPage.PageNumberText}"/>
 
@@ -529,6 +627,23 @@
                     </Border>
 
                 </Grid>
+
+            </Viewbox>
+
+            <Viewbox Grid.Row="0"
+                     Stretch="Uniform"
+                     IsVisible="{Binding IsAttachmentPreviewPage}">
+
+                <Border Width="{Binding PreviewAttachmentPageWidth}"
+                        Height="{Binding PreviewAttachmentPageHeight}"
+                        Background="White"
+                        BorderBrush="#111111"
+                        BorderThickness="1">
+
+                    <Image Source="{Binding PreviewAttachmentImage}"
+                           Stretch="Uniform"/>
+
+                </Border>
 
             </Viewbox>
 

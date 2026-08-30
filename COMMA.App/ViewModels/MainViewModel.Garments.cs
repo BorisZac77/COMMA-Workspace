@@ -1,9 +1,12 @@
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using COMMA.App.Layout;
 using COMMA.App.Models;
 using COMMA.App.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -50,7 +53,11 @@ public partial class MainViewModel
             new GarmentEditorWindow(
                 garment,
                 isFirstGarment:
-                    Garments.Count == 0);
+                    Garments.Count == 0,
+                descriptionTargetResolver:
+                    CreateDescriptionTargetResolver(
+                        Garments.Count,
+                        replaceExisting: false));
 
         var result =
             await dialog.ShowDialog<bool>(
@@ -98,7 +105,11 @@ public partial class MainViewModel
             new GarmentEditorWindow(
                 garment,
                 isFirstGarment:
-                    index == 0);
+                    index == 0,
+                descriptionTargetResolver:
+                    CreateDescriptionTargetResolver(
+                        index,
+                        replaceExisting: true));
 
         var result =
             await dialog.ShowDialog<bool>(
@@ -148,7 +159,11 @@ public partial class MainViewModel
         var dialog =
             new GarmentEditorWindow(
                 duplicate,
-                isFirstGarment: false);
+                isFirstGarment: false,
+                descriptionTargetResolver:
+                    CreateDescriptionTargetResolver(
+                        sourceIndex + 1,
+                        replaceExisting: false));
 
         var result =
             await dialog.ShowDialog<bool>(
@@ -241,6 +256,109 @@ public partial class MainViewModel
 
         SetPdfStatus(
             "✓ Usunięto odzież ze zlecenia.");
+    }
+
+
+    private Func<GarmentViewSelection, bool, GarmentViewDescriptionGeometrySet>
+        CreateDescriptionTargetResolver(
+            int targetIndex,
+            bool replaceExisting)
+    {
+        return (selection, startNewPage) =>
+            ResolveDescriptionTarget(
+                targetIndex,
+                replaceExisting,
+                selection,
+                startNewPage);
+    }
+
+
+    private GarmentViewDescriptionGeometrySet ResolveDescriptionTarget(
+        int targetIndex,
+        bool replaceExisting,
+        GarmentViewSelection selection,
+        bool startNewPage)
+    {
+        var planningTarget =
+            CreatePlanningGarment(
+                selection,
+                targetIndex > 0 && startNewPage);
+        var planningGarments =
+            Garments.ToList();
+
+        if (replaceExisting &&
+            targetIndex >= 0 &&
+            targetIndex < planningGarments.Count)
+        {
+            planningGarments[targetIndex] =
+                planningTarget;
+        }
+        else
+        {
+            planningGarments.Insert(
+                Math.Clamp(
+                    targetIndex,
+                    0,
+                    planningGarments.Count),
+                planningTarget);
+        }
+
+        var pages = OrderPageLayoutEngine.BuildPages(planningGarments);
+        var fallbackTarget = GarmentViewDescriptionLayout.GetTarget(
+            targetIndex == 0,
+            Math.Min(2, Math.Max(1, selection.Count)));
+        var fallback = GarmentViewDescriptionLayout.GetReferenceGeometry(fallbackTarget);
+
+        DescriptionTargetGeometry Resolve(GarmentViewKind view)
+        {
+            var drawing = planningTarget.Drawings.First(candidate =>
+                view switch
+                {
+                    GarmentViewKind.Front => candidate.IsFront,
+                    GarmentViewKind.Back => candidate.IsBack,
+                    GarmentViewKind.Right => candidate.IsRight,
+                    _ => candidate.IsLeft
+                });
+            var plannedView = pages
+                .SelectMany(page => page.Placements)
+                .Where(placement => ReferenceEquals(placement.Garment, planningTarget))
+                .SelectMany(placement => placement.Views)
+                .FirstOrDefault(candidate => ReferenceEquals(candidate.Drawing, drawing));
+
+            return plannedView?.Geometry ?? fallback;
+        }
+
+        return new GarmentViewDescriptionGeometrySet(
+            Resolve(GarmentViewKind.Front),
+            Resolve(GarmentViewKind.Back),
+            Resolve(GarmentViewKind.Right),
+            Resolve(GarmentViewKind.Left));
+    }
+
+
+    private static OrderGarmentItem CreatePlanningGarment(
+        GarmentViewSelection selection,
+        bool startNewPage)
+    {
+        var garment = new OrderGarmentItem
+        {
+            Name = "DESCRIPTION TARGET",
+            StartNewPage = startNewPage,
+            ShowFront = selection.Front,
+            ShowBack = selection.Back,
+            ShowRight = selection.Right,
+            ShowLeft = selection.Left
+        };
+
+        garment.Drawings.AddRange(
+        [
+            new DrawingFile { IsFront = true },
+            new DrawingFile { IsBack = true },
+            new DrawingFile { IsRight = true },
+            new DrawingFile { IsLeft = true }
+        ]);
+
+        return garment;
     }
 
 

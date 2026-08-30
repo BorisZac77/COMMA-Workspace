@@ -171,38 +171,45 @@ public partial class GarmentPageSection : UserControl
     private static Control BuildPageLayout(
         OrderPageLayout page)
     {
-        return page.Garments.Count switch
+        return page.Placements.Count switch
         {
             1 => BuildSingleGarmentLayout(
-                page.Garments[0]),
+                page.Placements[0],
+                page),
 
             2 => BuildTwoGarmentLayout(
-                page.Garments[0],
-                page.Garments[1]),
+                page.Placements[0],
+                page.Placements[1],
+                page),
 
             3 => BuildThreeGarmentLayout(
-                page.Garments[0],
-                page.Garments[1],
-                page.Garments[2]),
+                page.Placements[0],
+                page.Placements[1],
+                page.Placements[2],
+                page),
 
             _ => BuildFourGarmentLayout(
-                page.Garments[0],
-                page.Garments[1],
-                page.Garments[2],
-                page.Garments[3])
+                page.Placements[0],
+                page.Placements[1],
+                page.Placements[2],
+                page.Placements[3],
+                page)
         };
     }
 
     private static Control BuildSingleGarmentLayout(
-        OrderGarmentItem garment)
+        OrderPageGarmentPlacement garment,
+        OrderPageLayout page)
     {
         return CreateGarmentBox(
-            garment);
+            garment,
+            page);
     }
 
     private static Control BuildTwoGarmentLayout(
-        OrderGarmentItem first,
-        OrderGarmentItem second)
+        OrderPageGarmentPlacement first,
+        OrderPageGarmentPlacement second,
+        OrderPageLayout page)
     {
         var grid =
             new Grid
@@ -221,11 +228,13 @@ public partial class GarmentPageSection : UserControl
 
         var firstBox =
             CreateGarmentBox(
-                first);
+                first,
+                page);
 
         var secondBox =
             CreateGarmentBox(
-                second);
+                second,
+                page);
 
         Grid.SetRow(
             firstBox,
@@ -245,9 +254,10 @@ public partial class GarmentPageSection : UserControl
     }
 
     private static Control BuildThreeGarmentLayout(
-        OrderGarmentItem first,
-        OrderGarmentItem second,
-        OrderGarmentItem third)
+        OrderPageGarmentPlacement first,
+        OrderPageGarmentPlacement second,
+        OrderPageGarmentPlacement third,
+        OrderPageLayout page)
     {
         var garments =
             new[]
@@ -260,20 +270,20 @@ public partial class GarmentPageSection : UserControl
         var totalDrawingCount =
             garments.Sum(
                 garment =>
-                    garment.SelectedDrawingCount);
+                    garment.DrawingCount);
 
         var twoDrawingGarments =
             garments
                 .Where(
                     garment =>
-                        garment.SelectedDrawingCount == 2)
+                        garment.DrawingCount == 2)
                 .ToList();
 
         var oneDrawingGarments =
             garments
                 .Where(
                     garment =>
-                        garment.SelectedDrawingCount == 1)
+                        garment.DrawingCount == 1)
                 .ToList();
 
         if (totalDrawingCount == 4 &&
@@ -285,7 +295,8 @@ public partial class GarmentPageSection : UserControl
                 second,
                 third,
                 twoDrawingGarments[0],
-                oneDrawingGarments);
+                oneDrawingGarments,
+                page);
         }
 
         var grid =
@@ -316,7 +327,8 @@ public partial class GarmentPageSection : UserControl
 
         var firstBox =
             CreateGarmentBox(
-                first);
+                first,
+                page);
 
         Grid.SetRow(
             firstBox,
@@ -332,7 +344,8 @@ public partial class GarmentPageSection : UserControl
 
         var secondBox =
             CreateGarmentBox(
-                second);
+                second,
+                page);
 
         Grid.SetRow(
             secondBox,
@@ -344,7 +357,8 @@ public partial class GarmentPageSection : UserControl
 
         var thirdBox =
             CreateGarmentBox(
-                third);
+                third,
+                page);
 
         Grid.SetRow(
             thirdBox,
@@ -367,11 +381,12 @@ public partial class GarmentPageSection : UserControl
     }
 
     private static Control BuildBalancedThreeGarmentLayout(
-        OrderGarmentItem first,
-        OrderGarmentItem second,
-        OrderGarmentItem third,
-        OrderGarmentItem twoDrawingGarment,
-        System.Collections.Generic.IReadOnlyList<OrderGarmentItem> oneDrawingGarments)
+        OrderPageGarmentPlacement first,
+        OrderPageGarmentPlacement second,
+        OrderPageGarmentPlacement third,
+        OrderPageGarmentPlacement twoDrawingGarment,
+        System.Collections.Generic.IReadOnlyList<OrderPageGarmentPlacement> oneDrawingGarments,
+        OrderPageLayout page)
     {
         var grid =
             new Grid
@@ -401,15 +416,18 @@ public partial class GarmentPageSection : UserControl
 
         var twoDrawingBox =
             CreateGarmentBox(
-                twoDrawingGarment);
+                twoDrawingGarment,
+                page);
 
         var firstSingleBox =
             CreateGarmentBox(
-                oneDrawingGarments[0]);
+                oneDrawingGarments[0],
+                page);
 
         var secondSingleBox =
             CreateGarmentBox(
-                oneDrawingGarments[1]);
+                oneDrawingGarments[1],
+                page);
 
         var twoDrawingGarmentIsFirst =
             ReferenceEquals(
@@ -495,10 +513,11 @@ public partial class GarmentPageSection : UserControl
     }
 
     private static Control BuildFourGarmentLayout(
-        OrderGarmentItem first,
-        OrderGarmentItem second,
-        OrderGarmentItem third,
-        OrderGarmentItem fourth)
+        OrderPageGarmentPlacement first,
+        OrderPageGarmentPlacement second,
+        OrderPageGarmentPlacement third,
+        OrderPageGarmentPlacement fourth,
+        OrderPageLayout page)
     {
         var grid =
             new Grid
@@ -542,7 +561,8 @@ public partial class GarmentPageSection : UserControl
         {
             var box =
                 CreateGarmentBox(
-                    garments[index]);
+                    garments[index],
+                    page);
 
             Grid.SetRow(
                 box,
@@ -560,7 +580,8 @@ public partial class GarmentPageSection : UserControl
     }
 
     private static Control CreateGarmentBox(
-        OrderGarmentItem garment)
+        OrderPageGarmentPlacement placement,
+        OrderPageLayout page)
     {
         var grid =
             new Grid
@@ -589,7 +610,7 @@ public partial class GarmentPageSection : UserControl
             new TextBlock
             {
                 Text =
-                    garment.DisplayName,
+                    placement.Garment.DisplayName,
 
                 HorizontalAlignment =
                     HorizontalAlignment.Center,
@@ -621,7 +642,10 @@ public partial class GarmentPageSection : UserControl
             new DrawingSection
             {
                 Garment =
-                    garment
+                    placement.Garment,
+
+                Placement = placement,
+                Page = page
             };
 
         Grid.SetRow(

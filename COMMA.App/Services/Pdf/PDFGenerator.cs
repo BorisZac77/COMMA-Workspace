@@ -130,7 +130,8 @@ public static class PdfGenerator
                     {
                         HeaderSection.Build(
                             column,
-                            card);
+                            card,
+                            "1/1");
 
                         column.Item()
                             .PaddingTop(
