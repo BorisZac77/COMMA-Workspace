@@ -112,13 +112,13 @@ public sealed class MainViewModelOrderTests
             DescriptionLayoutTarget.LaterPageTwoViews,
             firstGeometry.Right.Target);
         Assert.Equal(
-            DescriptionLayoutTarget.LaterPageTwoViews,
+            DescriptionLayoutTarget.LaterPageFourViews,
             secondGeometry.Front.Target);
         Assert.Equal(
-            DescriptionLayoutTarget.LaterPageTwoViews,
+            DescriptionLayoutTarget.LaterPageFourViews,
             thirdGeometry.Front.Target);
-        Assert.True(
-            secondGeometry.Front.PdfDrawingCellHeight <
+        Assert.Equal(
+            secondGeometry.Front.PdfDrawingCellHeight,
             thirdGeometry.Right.PdfDrawingCellHeight);
     }
 }

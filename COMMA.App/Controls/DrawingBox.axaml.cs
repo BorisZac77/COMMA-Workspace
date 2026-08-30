@@ -244,9 +244,9 @@ public partial class DrawingBox : UserControl
         if (DescriptionTextBlock == null)
             return;
 
-        DescriptionTextBlock.IsVisible =
-            !string.IsNullOrWhiteSpace(
-                Description);
+        DescriptionTextBlock.Height =
+            GarmentViewDescriptionLayout.GetPreviewTextHeight(
+                DescriptionGeometry);
 
         DescriptionTextBlock.Margin =
             new Thickness(
@@ -263,18 +263,15 @@ public partial class DrawingBox : UserControl
             return;
         }
 
-        const double horizontalChrome = 28;
-
         var measurement =
             GarmentViewDescriptionLayout.MeasurePreview(
                 Description,
-                Math.Max(
-                    1,
-                    Bounds.Width - horizontalChrome),
+                GarmentViewDescriptionLayout
+                    .GetPreviewTextWidth(DescriptionGeometry),
                 GarmentViewDescriptionLayout
                     .GetPreviewTextHeight(DescriptionGeometry));
 
-        if (DescriptionTextBlock.IsVisible)
+        if (!string.IsNullOrWhiteSpace(Description))
         {
             DescriptionFontSize =
                 measurement.FontSize;

@@ -66,6 +66,7 @@ public static class PdfStyles
     public const float HeaderPageNumberWidth = 88f;
     public const float FirstPageHeaderOrderNumberWidth = 101.5f;
     public const float FirstPageHeaderPageNumberWidth = 68f;
+    public const float HeaderIdentityHorizontalPadding = 6f;
     public const string OrderNameColor = "#0071BC";
 
     // =========================================================
@@ -154,6 +155,7 @@ public static class PdfStyles
 
     public const float HeaderTitleFontSize = 18f;
     public const float HeaderOrderLabelFontSize = 7f;
+    public const float HeaderOrderLabelHeight = 9f;
     public const float HeaderOrderNameFontSize = 15f;
 
     public const float SectionTitleFontSize = 9f;

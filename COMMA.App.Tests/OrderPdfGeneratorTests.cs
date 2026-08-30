@@ -5,6 +5,7 @@ using COMMA.App.Tests.TestSupport;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using SkiaSharp;
 using PdfPigDocument = UglyToad.PdfPig.PdfDocument;
 using PdfSharpDocumentOpenMode = PdfSharp.Pdf.IO.PdfDocumentOpenMode;
 using PdfSharpReader = PdfSharp.Pdf.IO.PdfReader;
@@ -88,19 +89,27 @@ public sealed class OrderPdfGeneratorTests
             AssertTextPointSize(
                 pdf.GetPage(1),
                 "ORDERNUMBER2026",
-                10);
+                OrderHeaderTextLayout.FitNumber(
+                    card.OrderNumber,
+                    OrderHeaderTextLayout.PdfFirstPageNumberGeometry).FontSize);
             AssertTextPointSize(
                 pdf.GetPage(1),
                 "ORDERNAMECOLOR",
-                14);
+                OrderHeaderTextLayout.FitName(
+                    card.OrderName,
+                    OrderHeaderTextLayout.PdfFirstPageNameGeometry).FontSize);
             AssertTextPointSize(
                 pdf.GetPage(2),
                 "ORDERNUMBER2026",
-                11);
+                OrderHeaderTextLayout.FitNumber(
+                    card.OrderNumber,
+                    OrderHeaderTextLayout.PdfLaterPageNumberGeometry).FontSize);
             AssertTextPointSize(
                 pdf.GetPage(2),
                 "ORDERNAMECOLOR",
-                15);
+                OrderHeaderTextLayout.FitName(
+                    card.OrderName,
+                    OrderHeaderTextLayout.PdfLaterPageNameGeometry).FontSize);
 
             for (var pageNumber = 1; pageNumber <= 2; pageNumber++)
             {
@@ -341,6 +350,192 @@ public sealed class OrderPdfGeneratorTests
     }
 
     [Fact]
+    public void ShortHeaderValuesAreCenteredAndContainedOnFirstAndLaterPages()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("centered-header-values.pdf");
+        const string orderNumber = "324234";
+        const string orderName = "PLOPSA4OK";
+        var card = new ProductionCard
+        {
+            OrderNumber = orderNumber,
+            OrderName = orderName
+        };
+        var pages = OrderPageLayoutEngine.BuildPages(
+        [
+            CreateGarment(2, "First"),
+            CreateGarment(3, "Second")
+        ]);
+
+        OrderPdfGenerator.Generate(outputPath, card, pages);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        Assert.Equal(2, pdf.NumberOfPages);
+
+        AssertHeaderValueIsCenteredAndContained(
+            pdf.GetPage(1),
+            orderNumber,
+            PdfStyles.HeaderLogoWidth,
+            PdfStyles.FirstPageHeaderOrderNumberWidth,
+            PdfStyles.HeaderTopRowHeight);
+        AssertHeaderValueIsCenteredAndContained(
+            pdf.GetPage(1),
+            orderName,
+            PdfStyles.HeaderLogoWidth +
+            PdfStyles.FirstPageHeaderOrderNumberWidth,
+            PdfStyles.AvailableContentWidth -
+            PdfStyles.HeaderLogoWidth -
+            PdfStyles.FirstPageHeaderOrderNumberWidth -
+            PdfStyles.FirstPageHeaderPageNumberWidth,
+            PdfStyles.HeaderTopRowHeight);
+        AssertHeaderValueIsCenteredAndContained(
+            pdf.GetPage(2),
+            orderNumber,
+            PdfStyles.HeaderLogoWidth,
+            PdfStyles.FirstPageHeaderOrderNumberWidth,
+            PdfStyles.HeaderHeight);
+        AssertHeaderValueIsCenteredAndContained(
+            pdf.GetPage(2),
+            orderName,
+            PdfStyles.HeaderLogoWidth +
+            PdfStyles.FirstPageHeaderOrderNumberWidth,
+            PdfStyles.AvailableContentWidth -
+            PdfStyles.HeaderLogoWidth -
+            PdfStyles.FirstPageHeaderOrderNumberWidth -
+            PdfStyles.FirstPageHeaderPageNumberWidth,
+            PdfStyles.HeaderHeight);
+    }
+
+    [Fact]
+    public void LongHeaderValuesKeepSafeInsetsStayBoldAndPageNumbersAreCentered()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("long-safe-header-values.pdf");
+        const string orderNumber =
+            "ZL-2026-00000000000000000000000000000042";
+        const string orderName =
+            "BARDZO DŁUGA NAZWA ZLECENIA WYMAGAJĄCA DWÓCH PEŁNYCH LINII";
+        var card = new ProductionCard
+        {
+            OrderNumber = orderNumber,
+            OrderName = orderName
+        };
+        var pages = OrderPageLayoutEngine.BuildPages(
+        [
+            CreateGarment(4, "First"),
+            CreateGarment(4, "Second"),
+            CreateGarment(4, "Third"),
+            CreateGarment(4, "Fourth"),
+            CreateGarment(4, "Fifth")
+        ]);
+
+        Assert.Equal(6, pages.Count);
+        OrderPdfGenerator.Generate(outputPath, card, pages);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        Assert.Equal(6, pdf.NumberOfPages);
+
+        foreach (var pageNumber in new[] { 1, 2 })
+        {
+            var page = pdf.GetPage(pageNumber);
+            var headerHeight = pageNumber == 1
+                ? PdfStyles.HeaderTopRowHeight
+                : PdfStyles.HeaderHeight;
+
+            AssertBlueHeaderFieldHasSafeInsetsAndBoldText(
+                page,
+                PdfStyles.HeaderLogoWidth,
+                PdfStyles.FirstPageHeaderOrderNumberWidth,
+                headerHeight,
+                mustBeDynamicallyReduced: true);
+            AssertBlueHeaderFieldHasSafeInsetsAndBoldText(
+                page,
+                PdfStyles.HeaderLogoWidth +
+                PdfStyles.FirstPageHeaderOrderNumberWidth,
+                PdfStyles.AvailableContentWidth -
+                PdfStyles.HeaderLogoWidth -
+                PdfStyles.FirstPageHeaderOrderNumberWidth -
+                PdfStyles.FirstPageHeaderPageNumberWidth,
+                headerHeight,
+                mustBeDynamicallyReduced: pageNumber == 1);
+            AssertPageNumberIsCenteredBelowLabel(
+                page,
+                $"{pageNumber}/6",
+                headerHeight);
+        }
+    }
+
+    [Fact]
+    public void HeaderControlDocumentsContainCompleteShortAndLongValues()
+    {
+        var configuredOutput = Environment.GetEnvironmentVariable(
+            "COMMA_HEADER_QA_OUTPUT");
+        using var temporaryDirectory = string.IsNullOrWhiteSpace(configuredOutput)
+            ? new TemporaryDirectory()
+            : null;
+        var outputDirectory = string.IsNullOrWhiteSpace(configuredOutput)
+            ? temporaryDirectory!.Path
+            : Path.GetFullPath(configuredOutput);
+        Directory.CreateDirectory(outputDirectory);
+
+        var cases = new[]
+        {
+            new
+            {
+                FileName = "header-short-values.pdf",
+                Number = "324234",
+                Name = "PLOPSA 4.0 OK",
+                GarmentCount = 2
+            },
+            new
+            {
+                FileName = "header-long-values.pdf",
+                Number = "ZL-2026-00000000000000000000000000000042",
+                Name =
+                    "BARDZO DŁUGA NAZWA ZLECENIA WYMAGAJĄCA DWÓCH PEŁNYCH LINII",
+                GarmentCount = 5
+            }
+        }.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(configuredOutput))
+        {
+            cases = cases.Where(item =>
+                item.FileName == "header-long-values.pdf");
+        }
+
+        foreach (var item in cases)
+        {
+            var outputPath = Path.Combine(
+                outputDirectory,
+                item.FileName);
+            var card = new ProductionCard
+            {
+                OrderNumber = item.Number,
+                OrderName = item.Name
+            };
+            var garments = Enumerable.Range(1, item.GarmentCount)
+                .Select(index => CreateGarment(4, $"Garment {index}"))
+                .ToList();
+            var pages = OrderPageLayoutEngine.BuildPages(garments);
+
+            OrderPdfGenerator.Generate(outputPath, card, pages);
+
+            using var pdf = PdfPigDocument.Open(outputPath);
+            var expectedPageCount = item.GarmentCount + 1;
+            Assert.Equal(expectedPageCount, pdf.NumberOfPages);
+
+            for (var pageNumber = 1;
+                 pageNumber <= expectedPageCount;
+                 pageNumber++)
+            {
+                var text = WithoutSpaces(pdf.GetPage(pageNumber).Text);
+                Assert.Contains(WithoutSpaces(item.Number), text);
+                Assert.Contains(WithoutSpaces(item.Name), text);
+            }
+        }
+    }
+
+    [Fact]
     public void PreviewContinuationHeader_UsesAcceptedGeometryAndSharedBlueStyle()
     {
         var previewPath = Path.GetFullPath(
@@ -379,13 +574,20 @@ public sealed class OrderPdfGeneratorTests
             (string?)element.Attribute("Text") == "STRONA");
 
         var numberValue = Assert.Single(textBlocks, element =>
-            (string?)element.Attribute("Text") ==
-            "{Binding ProductionCard.OrderNumber}");
+            (string?)element.Attribute(x + "Name") ==
+            "ContinuationOrderNumberValue");
         Assert.Equal(
             "orderNameValue",
             (string?)numberValue.Attribute("Classes"));
-        Assert.Equal("12", (string?)numberValue.Attribute("FontSize"));
-        Assert.Equal("2", (string?)numberValue.Attribute("MaxLines"));
+        Assert.Contains(
+            "LaterNumberFontSize",
+            (string?)numberValue.Attribute("FontSize"));
+        Assert.Contains(
+            "LaterNumberText",
+            (string?)numberValue.Attribute("Text"));
+        Assert.Equal("1", (string?)numberValue.Attribute("MaxLines"));
+        Assert.Equal("Bold", (string?)numberValue.Attribute("FontWeight"));
+        Assert.Null(numberValue.Attribute("TextTrimming"));
         Assert.Equal(
             "1",
             (string?)numberValue.Attribute("Grid.Row"));
@@ -394,11 +596,18 @@ public sealed class OrderPdfGeneratorTests
             (string?)numberValue.Parent?.Attribute("RowDefinitions"));
 
         var nameValue = Assert.Single(textBlocks, element =>
-            (string?)element.Attribute("Text") ==
-            "{Binding ProductionCard.PreviewOrderName}");
+            (string?)element.Attribute(x + "Name") ==
+            "ContinuationOrderNameValue");
         Assert.NotNull(nameValue.Attribute("Classes.orderNameValue"));
-        Assert.Equal("13", (string?)nameValue.Attribute("FontSize"));
+        Assert.Contains(
+            "LaterNameFontSize",
+            (string?)nameValue.Attribute("FontSize"));
+        Assert.Contains(
+            "LaterNameText",
+            (string?)nameValue.Attribute("Text"));
         Assert.Equal("2", (string?)nameValue.Attribute("MaxLines"));
+        Assert.Equal("Bold", (string?)nameValue.Attribute("FontWeight"));
+        Assert.Null(nameValue.Attribute("TextTrimming"));
         Assert.Equal(
             "1",
             (string?)nameValue.Attribute("Grid.Row"));
@@ -418,6 +627,60 @@ public sealed class OrderPdfGeneratorTests
                 element.Name.LocalName == "Setter" &&
                 (string?)element.Attribute("Property") == "Foreground");
         Assert.Equal("#0071BC", (string?)foreground.Attribute("Value"));
+
+        foreach (var valueName in new[]
+                 {
+                     "FirstOrderNumberValue",
+                     "FirstOrderNameValue",
+                     "ContinuationOrderNumberValue",
+                     "ContinuationOrderNameValue"
+                 })
+        {
+            var value = Assert.Single(
+                document.Descendants(),
+                element =>
+                    element.Name.LocalName == "TextBlock" &&
+                    (string?)element.Attribute(x + "Name") == valueName);
+            Assert.Equal(
+                "Center",
+                (string?)value.Attribute("HorizontalAlignment"));
+            Assert.Equal(
+                "Center",
+                (string?)value.Attribute("VerticalAlignment"));
+            Assert.Equal(
+                "Center",
+                (string?)value.Attribute("TextAlignment"));
+            Assert.Equal("Bold", (string?)value.Attribute("FontWeight"));
+
+            var border = value.Parent?.Parent;
+            Assert.Equal("6.25,2", (string?)border?.Attribute("Padding"));
+        }
+
+        foreach (var valueName in new[]
+                 {
+                     "FirstPageNumberValue",
+                     "ContinuationPageNumberValue"
+                 })
+        {
+            var value = Assert.Single(
+                document.Descendants(),
+                element =>
+                    element.Name.LocalName == "TextBlock" &&
+                    (string?)element.Attribute(x + "Name") == valueName);
+            Assert.Equal("Bold", (string?)value.Attribute("FontWeight"));
+            Assert.Equal(
+                "Center",
+                (string?)value.Attribute("HorizontalAlignment"));
+            Assert.Equal(
+                "Center",
+                (string?)value.Attribute("VerticalAlignment"));
+            Assert.Equal(
+                "1",
+                (string?)value.Attribute("Grid.Row"));
+            Assert.Equal(
+                "8,*",
+                (string?)value.Parent?.Attribute("RowDefinitions"));
+        }
     }
 
     [Fact]
@@ -731,7 +994,7 @@ public sealed class OrderPdfGeneratorTests
     [Theory]
     [InlineData(2)]
     [InlineData(4)]
-    public void EditorAcceptedMixedTextIsCompleteAndStaysAbovePdfSafetyMargin(
+    public void EditorAcceptedMixedTextIsCompleteAndStaysInsidePdfContent(
         int drawingCount)
     {
         using var directory = new TemporaryDirectory();
@@ -798,11 +1061,97 @@ public sealed class OrderPdfGeneratorTests
             letters.Count);
         Assert.True(
             lowestLetterBottom >=
-            contentBottom +
-            GarmentViewDescriptionLayout.PdfBottomSafetyMargin);
+            contentBottom);
         AssertDrawingImagesAreCenteredInCells(
             page,
             drawingCount);
+    }
+
+    [Fact]
+    public void PlopsaSecondPageFrontDescriptionUsesThreeLinesInsideLeftCell()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath(
+            "plopsa-page-2-three-line-description.pdf");
+        var card = new ProductionCard
+        {
+            OrderName = "PLOPSA DESCRIPTION REGRESSION"
+        };
+        var upper = CreateGarment(3, "0380");
+        var lower = CreateGarment(
+            2,
+            "0386 Pro Wear Care Sweatshirt Hoodie bluza");
+        var drawingFixture = CreateSquareDrawingFixture(directory);
+
+        foreach (var drawing in upper.Drawings.Concat(lower.Drawings))
+            drawing.FullPath = drawingFixture;
+
+        var pages = OrderPageLayoutEngine.BuildPages([upper, lower]);
+        var pagePlan = pages[1];
+        var lowerPlacement = pagePlan.Placements[1];
+        var frontGeometry = lowerPlacement.Views[0].Geometry;
+        var controller =
+            new GarmentViewDescriptionInputController("", frontGeometry);
+        var change = controller.Apply(
+            new string('W', 4000),
+            frontGeometry);
+        var accepted = change.Text;
+
+        Assert.False(change.WasFullyAccepted);
+        Assert.True(controller.IsAtCapacity);
+        Assert.Equal(
+            3,
+            GarmentViewDescriptionLayout.MeasurePdf(
+                accepted,
+                GarmentViewDescriptionLayout.GetPdfTextWidth(frontGeometry),
+                GarmentViewDescriptionLayout.GetPdfTextHeight(frontGeometry)).LineCount);
+        Assert.False(
+            controller.Apply(
+                accepted + "W",
+                frontGeometry).WasFullyAccepted);
+
+        lower.ViewDescriptions.Front = accepted;
+        OrderPdfGenerator.Generate(outputPath, card, pages);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        var renderedPage = pdf.GetPage(2);
+        var letters = GetTextLetters(renderedPage, accepted);
+        var lines = letters
+            .GroupBy(letter => Math.Round(letter.StartBaseLine.Y, 1))
+            .ToList();
+        var contentLeft =
+            (renderedPage.Width - PdfStyles.AvailableContentWidth) / 2d;
+        var divider =
+            contentLeft + PdfStyles.AvailableContentWidth / 2d;
+        var expectedTextLeft =
+            contentLeft +
+            PdfStyles.DrawingCellPadding +
+            PdfStyles.DrawingDescriptionHorizontalPadding;
+        var expectedTextRight =
+            divider -
+            PdfStyles.DrawingCellPadding -
+            PdfStyles.DrawingDescriptionHorizontalPadding;
+
+        Assert.Equal(3, lines.Count);
+        Assert.Equal(
+            accepted.Count(character => !char.IsWhiteSpace(character)),
+            letters.Count);
+        Assert.All(
+            letters,
+            letter => Assert.InRange(
+                letter.BoundingBox.Left,
+                expectedTextLeft - 1,
+                expectedTextRight));
+        Assert.InRange(
+            letters.Max(letter => letter.BoundingBox.Right),
+            expectedTextRight - 12,
+            expectedTextRight + 1);
+        Assert.All(
+            lines,
+            line => Assert.InRange(
+                line.Min(letter => letter.BoundingBox.Left),
+                expectedTextLeft - 1,
+                expectedTextLeft + 1.5));
     }
 
     [Fact]
@@ -868,6 +1217,35 @@ public sealed class OrderPdfGeneratorTests
         return garment;
     }
 
+    private static string CreateSquareDrawingFixture(
+        TemporaryDirectory directory)
+    {
+        var path = directory.GetPath("square-drawing-fixture.png");
+        using var bitmap = new SKBitmap(
+            200,
+            200,
+            SKColorType.Rgba8888,
+            SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        using var paint = new SKPaint
+        {
+            Color = SKColors.Black,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 4,
+            IsAntialias = true
+        };
+
+        canvas.Clear(SKColors.White);
+        canvas.DrawRect(new SKRect(20, 20, 180, 180), paint);
+        canvas.Flush();
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+
+        return path;
+    }
+
     private static string WithoutSpaces(string value) =>
         value.Replace(" ", "", StringComparison.Ordinal);
 
@@ -920,6 +1298,175 @@ public sealed class OrderPdfGeneratorTests
         }
     }
 
+    private static void AssertBlueHeaderFieldHasSafeInsetsAndBoldText(
+        UglyToad.PdfPig.Content.Page page,
+        double fieldOffset,
+        double fieldWidth,
+        double fieldHeight,
+        bool mustBeDynamicallyReduced)
+    {
+        var contentLeft =
+            (page.Width - PdfStyles.AvailableContentWidth) / 2d;
+        var contentTop =
+            page.Height -
+            PdfStyles.PageMargin -
+            PdfStyles.OuterBorderWidth -
+            PdfStyles.PagePadding;
+        var fieldLeft = contentLeft + fieldOffset;
+        var fieldRight = fieldLeft + fieldWidth;
+        var fieldBottom = contentTop - fieldHeight;
+        var letters = page.Letters
+            .Where(letter =>
+            {
+                var rgb = letter.Color.ToRGBValues();
+                var centerX =
+                    (letter.BoundingBox.Left + letter.BoundingBox.Right) / 2d;
+                var centerY =
+                    (letter.BoundingBox.Bottom + letter.BoundingBox.Top) / 2d;
+
+                return Math.Abs(rgb.r) < 0.001 &&
+                       Math.Abs(rgb.g - 113d / 255d) < 0.001 &&
+                       Math.Abs(rgb.b - 188d / 255d) < 0.001 &&
+                       centerX >= fieldLeft &&
+                       centerX <= fieldRight &&
+                       centerY >= fieldBottom &&
+                       centerY <= contentTop;
+            })
+            .ToList();
+
+        Assert.NotEmpty(letters);
+        Assert.True(
+            letters.Min(letter => letter.BoundingBox.Left) >=
+            fieldLeft + PdfStyles.HeaderIdentityHorizontalPadding - 0.5);
+        Assert.True(
+            letters.Max(letter => letter.BoundingBox.Right) <=
+            fieldRight - PdfStyles.HeaderIdentityHorizontalPadding + 0.5);
+        Assert.All(
+            letters,
+            letter => Assert.Contains(
+                "Bold",
+                letter.FontName,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (mustBeDynamicallyReduced)
+        {
+            Assert.All(
+                letters,
+                letter => Assert.True(
+                    letter.PointSize < OrderHeaderTextLayout.BaseFontSize));
+        }
+    }
+
+    private static void AssertPageNumberIsCenteredBelowLabel(
+        UglyToad.PdfPig.Content.Page page,
+        string expectedText,
+        double fieldHeight)
+    {
+        var letters = page.Letters.ToList();
+        var pageLetterText = string.Concat(
+            letters.Select(letter => letter.Value));
+        var startIndex = pageLetterText.IndexOf(
+            expectedText,
+            StringComparison.Ordinal);
+
+        Assert.True(startIndex >= 0);
+
+        var valueLetters = letters
+            .Skip(startIndex)
+            .Take(expectedText.Length)
+            .ToList();
+        var contentLeft =
+            (page.Width - PdfStyles.AvailableContentWidth) / 2d;
+        var contentTop =
+            page.Height -
+            PdfStyles.PageMargin -
+            PdfStyles.OuterBorderWidth -
+            PdfStyles.PagePadding;
+        var fieldLeft =
+            contentLeft +
+            PdfStyles.AvailableContentWidth -
+            PdfStyles.FirstPageHeaderPageNumberWidth;
+        var fieldRight =
+            fieldLeft + PdfStyles.FirstPageHeaderPageNumberWidth;
+        var fieldBottom = contentTop - fieldHeight;
+        var expectedCenterX = (fieldLeft + fieldRight) / 2d;
+        var expectedCenterY =
+            fieldBottom +
+            (fieldHeight - PdfStyles.HeaderOrderLabelHeight) / 2d;
+        var actualLeft = valueLetters.Min(letter => letter.BoundingBox.Left);
+        var actualRight = valueLetters.Max(letter => letter.BoundingBox.Right);
+        var actualBottom = valueLetters.Min(letter => letter.BoundingBox.Bottom);
+        var actualTop = valueLetters.Max(letter => letter.BoundingBox.Top);
+
+        Assert.InRange(
+            (actualLeft + actualRight) / 2d,
+            expectedCenterX - 1.5,
+            expectedCenterX + 1.5);
+        Assert.InRange(
+            (actualBottom + actualTop) / 2d,
+            expectedCenterY - 3,
+            expectedCenterY + 3);
+        Assert.All(
+            valueLetters,
+            letter => Assert.Contains(
+                "Bold",
+                letter.FontName,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void AssertHeaderValueIsCenteredAndContained(
+        UglyToad.PdfPig.Content.Page page,
+        string expectedText,
+        double fieldOffset,
+        double fieldWidth,
+        double fieldHeight)
+    {
+        var letters = page.Letters.ToList();
+        var pageLetterText = string.Concat(
+            letters.Select(letter => letter.Value));
+        var startIndex = pageLetterText.IndexOf(
+            expectedText,
+            StringComparison.Ordinal);
+
+        Assert.True(startIndex >= 0);
+
+        var valueLetters = letters
+            .Skip(startIndex)
+            .Take(expectedText.Length)
+            .ToList();
+        var contentLeft =
+            (page.Width - PdfStyles.AvailableContentWidth) / 2d;
+        var contentTop =
+            page.Height -
+            PdfStyles.PageMargin -
+            PdfStyles.OuterBorderWidth -
+            PdfStyles.PagePadding;
+        var fieldLeft = contentLeft + fieldOffset;
+        var fieldRight = fieldLeft + fieldWidth;
+        var fieldBottom = contentTop - fieldHeight;
+        var expectedCenterX = (fieldLeft + fieldRight) / 2d;
+        var expectedCenterY =
+            fieldBottom +
+            (fieldHeight - PdfStyles.HeaderOrderLabelHeight) / 2d;
+        var actualLeft = valueLetters.Min(letter => letter.BoundingBox.Left);
+        var actualRight = valueLetters.Max(letter => letter.BoundingBox.Right);
+        var actualBottom = valueLetters.Min(letter => letter.BoundingBox.Bottom);
+        var actualTop = valueLetters.Max(letter => letter.BoundingBox.Top);
+
+        Assert.InRange(actualLeft, fieldLeft, fieldRight);
+        Assert.InRange(actualRight, fieldLeft, fieldRight);
+        Assert.InRange(actualBottom, fieldBottom, contentTop);
+        Assert.InRange(actualTop, fieldBottom, contentTop);
+        Assert.InRange(
+            (actualLeft + actualRight) / 2d,
+            expectedCenterX - 1.5,
+            expectedCenterX + 1.5);
+        Assert.InRange(
+            (actualBottom + actualTop) / 2d,
+            expectedCenterY - 3,
+            expectedCenterY + 3);
+    }
+
     private static void AssertDescriptionImmediatelyFollowsImage(
         UglyToad.PdfPig.Content.Page page,
         string expectedText)
@@ -928,7 +1475,12 @@ public sealed class OrderPdfGeneratorTests
             page,
             expectedText);
 
-        Assert.InRange(gap, 0, 10);
+        Assert.InRange(
+            gap,
+            0,
+            GarmentViewDescriptionLayout.PdfLargeFontSize *
+            PdfStyles.DrawingDescriptionLineHeight +
+            PdfStyles.MultiDrawingDescriptionTopGap);
     }
 
     private static double GetDescriptionGap(

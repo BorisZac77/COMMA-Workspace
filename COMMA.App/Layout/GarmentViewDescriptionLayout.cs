@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using COMMA.App.Models;
+using COMMA.App.Services;
 using COMMA.App.Services.Pdf;
 using SkiaSharp;
 
@@ -10,33 +12,41 @@ namespace COMMA.App.Layout;
 
 public static class GarmentViewDescriptionLayout
 {
-    public const double PreviewLargeFontSize = 13;
-    public const double PreviewMediumFontSize = 12;
-    public const double PreviewMinimumFontSize = 11;
-
     public const float PdfLargeFontSize = 11f;
     public const float PdfMediumFontSize = 10f;
     public const float PdfMinimumFontSize = 9f;
 
-    public const double PreviewLineHeight = 1.2;
+    private const double PreviewScale = 620.0 / PdfStyles.PageWidth;
 
-    public const double PreviewBottomSafetyMargin =
-        PreviewMinimumFontSize * PreviewLineHeight;
+    public const double PreviewLargeFontSize = PdfLargeFontSize * PreviewScale;
+    public const double PreviewMediumFontSize = PdfMediumFontSize * PreviewScale;
+    public const double PreviewMinimumFontSize = PdfMinimumFontSize * PreviewScale;
 
-    public const double PdfBottomSafetyMargin =
-        PdfMinimumFontSize * PdfStyles.DrawingDescriptionLineHeight;
+    public const double PreviewLineHeight =
+        PdfStyles.DrawingDescriptionLineHeight;
 
     public const double MultiDrawingPreviewDescriptionGap = 9;
     public const double MultiDrawingPreviewDescriptionTopMargin = 7;
 
     private const float PdfDrawingTopGap = 7f;
     private const float GarmentTitleHeight = 21f;
-    private const double PreviewScale = 620.0 / PdfStyles.PageWidth;
     private const double FitTolerance = 0.25;
     private const double EditorInputSafetyMargin = 0.25;
 
     private static readonly SKTypeface MeasurementTypeface =
-        SKTypeface.FromFamilyName("Arial") ?? SKTypeface.Default;
+        CreateMeasurementTypeface();
+
+    private static SKTypeface CreateMeasurementTypeface()
+    {
+        var bundledLatoPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "LatoFont",
+            "Lato-Regular.ttf");
+
+        return File.Exists(bundledLatoPath)
+            ? SKTypeface.FromFile(bundledLatoPath)
+            : SKTypeface.FromFamilyName("Lato") ?? SKTypeface.Default;
+    }
 
     public static DescriptionMeasurement MeasurePreview(
         string? description,
@@ -446,21 +456,8 @@ public static class GarmentViewDescriptionLayout
     public static double GetPreviewTextHeight(
         DescriptionTargetGeometry geometry)
     {
-        var height =
-            GetPdfTextHeightBeforeSafety(geometry) *
-            PreviewScale;
-
-        if (GetLayoutKind(geometry.Target) == DescriptionLayoutKind.FourViews)
-        {
-            height -=
-                MultiDrawingPreviewDescriptionGap -
-                PdfStyles.MultiDrawingDescriptionTopGap *
-                PreviewScale;
-        }
-
-        return Math.Max(
-            0,
-            height - PreviewBottomSafetyMargin);
+        return GetPdfTextHeight(geometry) *
+               PreviewScale;
     }
 
     public static double GetReferencePdfTextWidth(
@@ -509,21 +506,7 @@ public static class GarmentViewDescriptionLayout
     public static double GetPdfTextHeight(
         DescriptionTargetGeometry geometry)
     {
-        return Math.Max(
-            0,
-            GetPdfTextHeightBeforeSafety(geometry) -
-            PdfBottomSafetyMargin);
-    }
-
-    private static double GetPdfTextHeightBeforeSafety(
-        DescriptionTargetGeometry geometry)
-    {
         var layout = GetLayoutKind(geometry.Target);
-        var cellHeight = geometry.PdfDrawingCellHeight;
-        var maximumImageHeight =
-            layout == DescriptionLayoutKind.TwoViews
-                ? GetTwoViewMaximumImageHeight()
-                : PdfStyles.MultiDrawingMaximumHeight;
         var descriptionTopGap =
             layout == DescriptionLayoutKind.TwoViews
                 ? PdfStyles.DrawingDescriptionTopGap
@@ -531,12 +514,79 @@ public static class GarmentViewDescriptionLayout
 
         return Math.Max(
             0,
-            cellHeight -
+            geometry.PdfDrawingCellHeight -
             PdfStyles.DrawingTitleHeight -
             PdfDrawingTopGap -
             PdfStyles.DrawingCellPadding * 2d -
-            maximumImageHeight -
+            GetPdfRenderedImageHeight(geometry) -
             descriptionTopGap);
+    }
+
+    public static double GetPdfMaximumImageHeight(
+        DescriptionTargetGeometry geometry)
+    {
+        var layout = GetLayoutKind(geometry.Target);
+        var layoutMaximum = layout == DescriptionLayoutKind.TwoViews
+            ? GetTwoViewMaximumImageHeight()
+            : PdfStyles.MultiDrawingMaximumHeight;
+        var descriptionTopGap = layout == DescriptionLayoutKind.TwoViews
+            ? PdfStyles.DrawingDescriptionTopGap
+            : PdfStyles.MultiDrawingDescriptionTopGap;
+        var physicalMaximum =
+            geometry.PdfDrawingCellHeight -
+            PdfStyles.DrawingTitleHeight -
+            PdfDrawingTopGap -
+            PdfStyles.DrawingCellPadding * 2d -
+            descriptionTopGap;
+
+        return Math.Max(
+            1,
+            Math.Min(layoutMaximum, physicalMaximum));
+    }
+
+    public static double GetPdfRenderedImageWidth(
+        DescriptionTargetGeometry geometry)
+    {
+        var imageHeight = GetPdfRenderedImageHeight(geometry);
+
+        return imageHeight * geometry.ImageAspectRatio;
+    }
+
+    public static double GetPdfRenderedImageHeight(
+        DescriptionTargetGeometry geometry)
+    {
+        var maximumHeight = GetPdfMaximumImageHeight(geometry);
+        var availableWidth = Math.Max(
+            1,
+            geometry.PdfDrawingCellWidth -
+            PdfStyles.DrawingCellPadding * 2d);
+
+        if (GetLayoutKind(geometry.Target) == DescriptionLayoutKind.TwoViews)
+        {
+            availableWidth = Math.Min(
+                availableWidth,
+                maximumHeight);
+        }
+
+        return Math.Max(
+            1,
+            Math.Min(
+                maximumHeight,
+                availableWidth / geometry.ImageAspectRatio));
+    }
+
+    public static double GetPreviewMaximumImageHeight(
+        DescriptionTargetGeometry geometry)
+    {
+        return GetPdfRenderedImageHeight(geometry) *
+               PreviewScale;
+    }
+
+    public static double GetPreviewMaximumImageWidth(
+        DescriptionTargetGeometry geometry)
+    {
+        return GetPdfRenderedImageWidth(geometry) *
+               PreviewScale;
     }
 
     public static DescriptionLayoutKind GetLayoutKind(
@@ -716,7 +766,48 @@ public static class GarmentViewDescriptionLayout
         return new DescriptionTargetGeometry(
             target,
             cellWidth,
-            cellHeight);
+            cellHeight,
+            GetImageAspectRatio(
+                drawing,
+                GetLayoutKind(target) == DescriptionLayoutKind.FourViews));
+    }
+
+    private static double GetImageAspectRatio(
+        DrawingFile drawing,
+        bool cropDrawingImage)
+    {
+        if (string.IsNullOrWhiteSpace(drawing.FullPath) ||
+            !File.Exists(drawing.FullPath))
+        {
+            return 1;
+        }
+
+        try
+        {
+            if (cropDrawingImage)
+            {
+                var croppedImage =
+                    DrawingImageCropper.TryCreateCroppedPng(drawing.FullPath);
+
+                if (croppedImage.Length > 0)
+                {
+                    using var bitmap = SKBitmap.Decode(croppedImage);
+
+                    if (bitmap is { Width: > 0, Height: > 0 })
+                        return (double)bitmap.Width / bitmap.Height;
+                }
+            }
+
+            using var codec = SKCodec.Create(drawing.FullPath);
+
+            return codec is { Info.Width: > 0, Info.Height: > 0 }
+                ? (double)codec.Info.Width / codec.Info.Height
+                : 1;
+        }
+        catch
+        {
+            return 1;
+        }
     }
 
     public static string GetDescription(
@@ -736,7 +827,7 @@ public static class GarmentViewDescriptionLayout
                         ? garment.ViewDescriptions.Left
                         : "";
 
-        return NormalizeLineEndings(description).Trim();
+        return NormalizeLineEndings(description);
     }
 
     private static DescriptionMeasurement Measure(
@@ -974,7 +1065,8 @@ public enum DescriptionLayoutTarget
 public readonly record struct DescriptionTargetGeometry(
     DescriptionLayoutTarget Target,
     double PdfDrawingCellWidth,
-    double PdfDrawingCellHeight);
+    double PdfDrawingCellHeight,
+    double ImageAspectRatio = 1);
 
 public enum GarmentViewKind
 {

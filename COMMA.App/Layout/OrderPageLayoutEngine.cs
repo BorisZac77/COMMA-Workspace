@@ -54,15 +54,19 @@ public static class OrderPageLayoutEngine
                 var availableSlots =
                     pageCapacity - currentPage.DrawingCount;
 
+                var remainingDrawings =
+                    drawings.Count - drawingIndex;
+
                 /*
-                 * Zachowujemy specjalny układ pierwszej strony: kolejnej
-                 * pozycji nie dzielimy tylko po to, aby wypełnić jej
-                 * pojedyncze wolne miejsce. Od strony 2 wolne miejsca są
-                 * wykorzystywane globalnie przez następne pozycje.
+                 * Nowej pozycji nie dzielimy tylko po to, aby wypełnić
+                 * wolne miejsca poprzedniej strony, jeśli wszystkie jej
+                 * rzuty mieszczą się razem na pustej stronie kontynuacji.
+                 * Nie dotyczy to rzutów pozycji już rozpoczętej.
                  */
-                if (ReferenceEquals(currentPage, pages[0]) &&
-                    garmentIndex > 0 &&
-                    drawings.Count - drawingIndex > availableSlots)
+                if (currentPage.DrawingCount > 0 &&
+                    drawingIndex == 0 &&
+                    remainingDrawings > availableSlots &&
+                    remainingDrawings <= 4)
                 {
                     currentPage = null;
                     continue;
@@ -71,7 +75,7 @@ public static class OrderPageLayoutEngine
                 var drawingsToTake =
                     Math.Min(
                         availableSlots,
-                        drawings.Count - drawingIndex);
+                        remainingDrawings);
 
                 currentPage.AddPlacement(
                     garment,

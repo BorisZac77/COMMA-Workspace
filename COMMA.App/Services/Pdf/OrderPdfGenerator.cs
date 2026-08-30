@@ -25,13 +25,6 @@ public static class OrderPdfGenerator
     private const float DrawingTopGap =
         7f;
 
-    private const float FullGarmentWidth =
-        PdfStyles.AvailableContentWidth;
-
-    private const float HalfGarmentWidth =
-        (PdfStyles.AvailableContentWidth - GarmentGap) / 2f;
-
-
     public static void Generate(
         string outputPath,
         ProductionCard card,
@@ -198,6 +191,16 @@ public static class OrderPdfGenerator
         var orderName =
             SafeOrderName(card);
 
+        var orderNumberFit =
+            OrderHeaderTextLayout.FitNumber(
+                orderNumber,
+                OrderHeaderTextLayout.PdfLaterPageNumberGeometry);
+
+        var orderNameFit =
+            OrderHeaderTextLayout.FitName(
+                orderName,
+                OrderHeaderTextLayout.PdfLaterPageNameGeometry);
+
         container
             .Row(row =>
             {
@@ -214,7 +217,9 @@ public static class OrderPdfGenerator
                         PdfStyles.FirstPageHeaderOrderNumberWidth)
                     .Border(
                         PdfStyles.StandardBorderWidth)
-                    .Padding(1)
+                    .PaddingHorizontal(
+                        PdfStyles.HeaderIdentityHorizontalPadding)
+                    .PaddingVertical(1)
                     .Column(column =>
                     {
                         BuildLaterPageHeaderLabel(
@@ -225,9 +230,9 @@ public static class OrderPdfGenerator
                             .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
-                            .Text(orderNumber)
-                            .ClampLines(2)
-                            .FontSize(11)
+                            .Text(orderNumberFit.DisplayText)
+                            .FontSize((float)orderNumberFit.FontSize)
+                            .LineHeight(OrderHeaderTextLayout.LineHeight)
                             .FontColor(
                                 PdfStyles.OrderNameColor)
                             .Bold();
@@ -236,8 +241,9 @@ public static class OrderPdfGenerator
                 row.RelativeItem()
                     .Border(
                         PdfStyles.StandardBorderWidth)
-                    .Padding(
-                        1)
+                    .PaddingHorizontal(
+                        PdfStyles.HeaderIdentityHorizontalPadding)
+                    .PaddingVertical(1)
                     .Column(column =>
                     {
                         BuildLaterPageHeaderLabel(
@@ -248,13 +254,12 @@ public static class OrderPdfGenerator
                             .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
-                            .Text(orderName)
-                            .ClampLines(2)
-                            .FontSize(
-                                GetLaterPageOrderNameFontSize(orderName))
+                            .Text(orderNameFit.DisplayText)
+                            .FontSize((float)orderNameFit.FontSize)
+                            .LineHeight(OrderHeaderTextLayout.LineHeight)
                             .FontColor(
                                 PdfStyles.OrderNameColor)
-                            .ExtraBold();
+                            .Bold();
                     });
 
                 row.ConstantItem(
@@ -269,6 +274,7 @@ public static class OrderPdfGenerator
                             "STRONA");
 
                         column.Item()
+                            .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
                             .Text(
@@ -285,7 +291,7 @@ public static class OrderPdfGenerator
         string label)
     {
         column.Item()
-            .Height(9)
+            .Height(PdfStyles.HeaderOrderLabelHeight)
             .AlignCenter()
             .AlignMiddle()
             .Text(label)
@@ -342,32 +348,6 @@ public static class OrderPdfGenerator
     {
         return card.OrderNumber?.Trim() ??
                string.Empty;
-    }
-
-
-    private static float GetOrderNameFontSize(
-        string value)
-    {
-        var length =
-            value.Length;
-
-        if (length <= 15)
-            return 14f;
-
-        if (length <= 25)
-            return 12f;
-
-        if (length <= 40)
-            return 10f;
-
-        return 9f;
-    }
-
-
-    private static float GetLaterPageOrderNameFontSize(
-        string value)
-    {
-        return GetOrderNameFontSize(value) + 1f;
     }
 
 
@@ -453,7 +433,6 @@ public static class OrderPdfGenerator
             container,
             garment,
             availableHeight,
-            FullGarmentWidth,
             page);
     }
 
@@ -480,7 +459,6 @@ public static class OrderPdfGenerator
                             cell,
                             first,
                             garmentHeight,
-                            FullGarmentWidth,
                             page));
 
                 column.Item()
@@ -495,7 +473,6 @@ public static class OrderPdfGenerator
                             cell,
                             second,
                             garmentHeight,
-                            FullGarmentWidth,
                             page));
             });
     }
@@ -568,7 +545,6 @@ public static class OrderPdfGenerator
                             cell,
                             first,
                             rowHeight,
-                            FullGarmentWidth,
                             page));
 
                 column.Item()
@@ -586,7 +562,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     second,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
 
                         row.ConstantItem(
@@ -598,7 +573,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     third,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
                     });
             });
@@ -642,7 +616,6 @@ public static class OrderPdfGenerator
                                 cell,
                                 twoDrawingGarment,
                                 rowHeight,
-                                FullGarmentWidth,
                                 page));
 
                     column.Item()
@@ -688,7 +661,6 @@ public static class OrderPdfGenerator
                                 cell,
                                 twoDrawingGarment,
                                 rowHeight,
-                                FullGarmentWidth,
                                 page));
 
                     return;
@@ -717,7 +689,6 @@ public static class OrderPdfGenerator
                             cell,
                             twoDrawingGarment,
                             rowHeight,
-                            FullGarmentWidth,
                             page));
             });
     }
@@ -739,7 +710,6 @@ public static class OrderPdfGenerator
                             cell,
                             left,
                             rowHeight,
-                            HalfGarmentWidth,
                             page));
 
                 row.ConstantItem(
@@ -751,7 +721,6 @@ public static class OrderPdfGenerator
                             cell,
                             right,
                             rowHeight,
-                            HalfGarmentWidth,
                             page));
             });
     }
@@ -784,7 +753,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     first,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
 
                         row.ConstantItem(
@@ -796,7 +764,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     second,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
                     });
 
@@ -815,7 +782,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     third,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
 
                         row.ConstantItem(
@@ -827,7 +793,6 @@ public static class OrderPdfGenerator
                                     cell,
                                     fourth,
                                     rowHeight,
-                                    HalfGarmentWidth,
                                     page));
                     });
             });
@@ -842,7 +807,6 @@ public static class OrderPdfGenerator
         IContainer container,
         OrderPageGarmentPlacement placement,
         float totalHeight,
-        float totalWidth,
         OrderPageLayout page)
     {
         var drawingHeight =
@@ -876,7 +840,6 @@ public static class OrderPdfGenerator
                             drawings,
                             placement,
                             drawingHeight,
-                            totalWidth,
                             page));
             });
     }
@@ -934,7 +897,6 @@ public static class OrderPdfGenerator
         IContainer container,
         OrderPageGarmentPlacement placement,
         float availableHeight,
-        float availableWidth,
         OrderPageLayout page)
     {
         var rows =
@@ -984,10 +946,7 @@ public static class OrderPdfGenerator
                                 row,
                                 placement,
                                 layoutRow,
-                                rowHeight,
-                                rows.Count,
                                 drawingCount,
-                                availableWidth,
                                 page));
                 }
             });
@@ -998,10 +957,7 @@ public static class OrderPdfGenerator
         IContainer container,
         OrderPageGarmentPlacement placement,
         DrawingLayoutRow layoutRow,
-        float cellHeight,
-        int rowCount,
         int drawingCount,
-        float availableWidth,
         OrderPageLayout page)
     {
         if (layoutRow.Second == null ||
@@ -1013,10 +969,7 @@ public static class OrderPdfGenerator
                         cell,
                         placement,
                         layoutRow.First,
-                        cellHeight,
-                        rowCount,
                         drawingCount,
-                        availableWidth,
                         page));
 
             return;
@@ -1031,10 +984,7 @@ public static class OrderPdfGenerator
                             cell,
                             placement,
                             layoutRow.First,
-                            cellHeight,
-                            rowCount,
                             drawingCount,
-                            availableWidth / 2f,
                             page));
 
                 row.RelativeItem()
@@ -1043,10 +993,7 @@ public static class OrderPdfGenerator
                             cell,
                             placement,
                             layoutRow.Second,
-                            cellHeight,
-                            rowCount,
                             drawingCount,
-                            availableWidth / 2f,
                             page));
             });
     }
@@ -1056,29 +1003,13 @@ public static class OrderPdfGenerator
         IContainer container,
         OrderPageGarmentPlacement placement,
         DrawingFile drawing,
-        float cellHeight,
-        int rowCount,
         int drawingCount,
-        float cellWidth,
         OrderPageLayout page)
     {
-        var maximumImageHeight =
-            GetMaximumImageHeight(
-                rowCount,
-                drawingCount);
-
         var description =
             GarmentViewDescriptionLayout.GetDescription(
                 placement.Garment,
                 drawing);
-
-        var descriptionTextWidth =
-            Math.Max(
-                1f,
-                cellWidth -
-                PdfStyles.DrawingCellPadding * 2 -
-                PdfStyles.DrawingDescriptionHorizontalPadding * 2);
-
         var descriptionTopGap =
             drawingCount >= 3
                 ? PdfStyles.MultiDrawingDescriptionTopGap
@@ -1088,6 +1019,15 @@ public static class OrderPdfGenerator
                 page,
                 placement,
                 drawing);
+        var renderedImageHeight =
+            (float)GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(
+                descriptionGeometry);
+        var renderedImageWidth =
+            (float)GarmentViewDescriptionLayout.GetPdfRenderedImageWidth(
+                descriptionGeometry);
+        var descriptionTextWidth =
+            GarmentViewDescriptionLayout.GetPdfTextWidth(
+                descriptionGeometry);
         var descriptionMeasurement =
             GarmentViewDescriptionLayout.MeasurePdf(
                 description,
@@ -1096,12 +1036,6 @@ public static class OrderPdfGenerator
                     descriptionGeometry));
         var descriptionFontSize =
             (float)descriptionMeasurement.FontSize;
-
-        var descriptionHeight =
-            string.IsNullOrEmpty(description)
-                ? 0f
-                : (float)descriptionMeasurement.TextHeight +
-                  descriptionTopGap;
         container
             .Border(
                 PdfStyles.StandardBorderWidth)
@@ -1128,26 +1062,20 @@ public static class OrderPdfGenerator
                     .Column(contentColumn =>
                     {
                         contentColumn.Item()
-                            .ShrinkVertical()
-                            .MaxHeight(
-                                maximumImageHeight)
+                            .Height(
+                                renderedImageHeight)
                             .AlignTop()
                             .AlignCenter()
                             .Element(imageArea =>
                             {
                                 var drawingArea =
                                     imageArea
-                                    .MaxHeight(
-                                        maximumImageHeight)
+                                    .Height(
+                                        renderedImageHeight)
+                                    .Width(
+                                        renderedImageWidth)
                                     .AlignTop()
                                     .AlignCenter();
-
-                                if (drawingCount < 3)
-                                {
-                                    drawingArea =
-                                        drawingArea.MaxWidth(
-                                            maximumImageHeight);
-                                }
 
                                 drawingArea
                                     .Element(image =>
@@ -1157,52 +1085,24 @@ public static class OrderPdfGenerator
                                             drawingCount >= 3));
                             });
 
-                        if (!string.IsNullOrEmpty(description))
-                        {
-                            contentColumn.Item()
-                                .Height(
-                                    descriptionHeight)
-                                .PaddingHorizontal(
-                                    PdfStyles.DrawingDescriptionHorizontalPadding)
-                                .PaddingTop(
-                                    descriptionTopGap)
-                                .AlignMiddle()
-                                .Text(description)
-                                .FontSize(
-                                    descriptionFontSize)
-                                .LineHeight(
-                                    PdfStyles.DrawingDescriptionLineHeight)
-                                .AlignLeft();
-                        }
+                        contentColumn.Item()
+                            .Height(
+                                (float)GarmentViewDescriptionLayout.GetPdfTextHeight(
+                                    descriptionGeometry) +
+                                descriptionTopGap)
+                            .PaddingHorizontal(
+                                PdfStyles.DrawingDescriptionHorizontalPadding)
+                            .PaddingTop(
+                                descriptionTopGap)
+                            .AlignTop()
+                            .Text(description)
+                            .FontSize(
+                                descriptionFontSize)
+                            .LineHeight(
+                                PdfStyles.DrawingDescriptionLineHeight)
+                            .AlignLeft();
                     });
             });
-    }
-
-
-    /*
-     * Dla 1–2 rysunków wielkość maksymalna jest liczona dokładnie
-     * z tej samej geometrii, której używał PDF 2.0.
-     *
-     * Dla 3–4 rysunków obowiązuje wspólny limit 70 mm wysokości.
-     */
-    private static float GetMaximumImageHeight(
-        int rowCount,
-        int drawingCount)
-    {
-        if (drawingCount >= 3)
-            return PdfStyles.MultiDrawingMaximumHeight;
-
-        var referenceRowHeight =
-            PdfStyles.GetDrawingRowHeight(
-                rowCount);
-
-        var imageHeight =
-            PdfStyles.GetDrawingImageHeight(
-                referenceRowHeight);
-
-        return
-            imageHeight *
-            0.75f;
     }
 
 

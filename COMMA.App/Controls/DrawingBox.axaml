@@ -37,13 +37,12 @@
                 </Image>
 
                 <TextBlock x:Name="DescriptionTextBlock"
-                           Margin="6,1,6,2"
-                           HorizontalAlignment="Stretch"
+                            Margin="6,1,6,2"
+                            HorizontalAlignment="Stretch"
                            TextAlignment="Left"
                            TextWrapping="Wrap"
                            TextTrimming="None"
-                           IsVisible="False"
-                           Text="{Binding Description, ElementName=Root}"
+                            Text="{Binding Description, ElementName=Root}"
                            FontSize="{Binding DescriptionFontSize, ElementName=Root}"/>
 
             </StackPanel>

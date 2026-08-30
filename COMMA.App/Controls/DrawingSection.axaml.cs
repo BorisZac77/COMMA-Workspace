@@ -8,22 +8,11 @@ using Avalonia.Media;
 using COMMA.App.Layout;
 using COMMA.App.Models;
 using COMMA.App.Services;
-using COMMA.App.Services.Pdf;
 
 namespace COMMA.App.Controls;
 
 public partial class DrawingSection : UserControl
 {
-    /*
-     * Podgląd A4 ma 620 x 877.
-     * PDF A4 ma 595.28 x 841.89 pt.
-     *
-     * Dzięki temu limity rysunków w podglądzie
-     * odpowiadają rzeczywistej geometrii PDF.
-     */
-    private const double PreviewScale =
-        620.0 / PdfStyles.PageWidth;
-
 
     public static readonly StyledProperty<ProductionCard?> ProductionCardProperty =
         AvaloniaProperty.Register<DrawingSection, ProductionCard?>(
@@ -361,14 +350,6 @@ public partial class DrawingSection : UserControl
                     ? 1
                     : 2);
 
-        var maxDrawingHeight =
-            CalculatePdfEquivalentDrawingHeight(
-                rows.Count,
-                drawingCount);
-
-        var limitDrawingWidth =
-            drawingCount < 3;
-
         var cropDrawingImage =
             drawingCount >= 3;
 
@@ -401,15 +382,16 @@ public partial class DrawingSection : UserControl
 
             var layoutRow =
                 rows[rowIndex];
+            var firstGeometry =
+                GetDescriptionGeometry(
+                    layoutRow.First);
 
             var firstDrawingBox =
                 CreateDrawingBox(
                     layoutRow.First,
                     garment,
-                    maxDrawingHeight,
-                    limitDrawingWidth,
                     cropDrawingImage,
-                    GetDescriptionGeometry(layoutRow.First));
+                    firstGeometry);
 
             Grid.SetRow(
                 firstDrawingBox,
@@ -432,14 +414,16 @@ public partial class DrawingSection : UserControl
             if (layoutRow.Second == null)
                 continue;
 
+            var secondGeometry =
+                GetDescriptionGeometry(
+                    layoutRow.Second);
+
             var secondDrawingBox =
                 CreateDrawingBox(
                     layoutRow.Second,
                     garment,
-                    maxDrawingHeight,
-                    limitDrawingWidth,
                     cropDrawingImage,
-                    GetDescriptionGeometry(layoutRow.Second));
+                    secondGeometry);
 
             Grid.SetRow(
                 secondDrawingBox,
@@ -468,46 +452,9 @@ public partial class DrawingSection : UserControl
     }
 
 
-    private static double CalculatePdfEquivalentDrawingHeight(
-        int rowCount,
-        int drawingCount)
-    {
-        if (drawingCount >= 3)
-        {
-            return
-                PdfStyles.MultiDrawingMaximumHeight *
-                PreviewScale;
-        }
-
-        var rowHeight =
-            PdfStyles.GetDrawingRowHeight(
-                rowCount);
-
-        var imageHeight =
-            PdfStyles.GetDrawingImageHeight(
-                rowHeight);
-
-        /*
-         * PDF DrawingSection.cs:
-         *
-         * MaxWidth(imageHeight * 0.75f)
-         * MaxHeight(imageHeight * 0.75f)
-         */
-        var pdfMaximumSize =
-            imageHeight *
-            0.75;
-
-        return
-            pdfMaximumSize *
-            PreviewScale;
-    }
-
-
     private static DrawingBox CreateDrawingBox(
         DrawingFile drawing,
         OrderGarmentItem? garment,
-        double maxDrawingHeight,
-        bool limitDrawingWidth,
         bool cropDrawingImage,
         DescriptionTargetGeometry descriptionGeometry)
     {
@@ -517,6 +464,12 @@ public partial class DrawingSection : UserControl
                 : GarmentViewDescriptionLayout.GetDescription(
                     garment,
                     drawing);
+        var maximumDrawingHeight =
+            GarmentViewDescriptionLayout.GetPreviewMaximumImageHeight(
+                descriptionGeometry);
+        var maximumDrawingWidth =
+            GarmentViewDescriptionLayout.GetPreviewMaximumImageWidth(
+                descriptionGeometry);
 
         return new DrawingBox
         {
@@ -548,12 +501,10 @@ public partial class DrawingSection : UserControl
                     : 1,
 
             MaxDrawingWidth =
-                limitDrawingWidth
-                    ? maxDrawingHeight
-                    : double.PositiveInfinity,
+                maximumDrawingWidth,
 
             MaxDrawingHeight =
-                maxDrawingHeight,
+                maximumDrawingHeight,
 
             CroppedImageData =
                 cropDrawingImage

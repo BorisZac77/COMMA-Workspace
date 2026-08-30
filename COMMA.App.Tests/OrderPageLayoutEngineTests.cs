@@ -88,6 +88,79 @@ public sealed class OrderPageLayoutEngineTests
     }
 
     [Fact]
+    public void OneFreeSlot_ThenFourDrawingGarment_StartsOnNewPageAndStaysWhole()
+    {
+        var first = OrderTestData.CreateGarment(3, "First");
+        var second = OrderTestData.CreateGarment(2, "Second");
+        var fourDrawings = OrderTestData.CreateGarment(4, "Four drawings");
+
+        var pages = OrderPageLayoutEngine.BuildPages(
+            [first, second, fourDrawings]);
+
+        Assert.Equal([2, 3, 4], pages.Select(page => page.DrawingCount));
+        Assert.Equal([first, second], pages[1].Garments);
+        Assert.Same(
+            fourDrawings,
+            Assert.Single(pages[2].Garments));
+        Assert.Equal(
+            fourDrawings.SelectedDrawings,
+            Assert.Single(pages[2].Placements).Drawings);
+    }
+
+    [Fact]
+    public void EveryContinuationPage_ContainsAtMostFourDrawings()
+    {
+        var garments = new[]
+        {
+            OrderTestData.CreateGarment(3, "First"),
+            OrderTestData.CreateGarment(2, "Second"),
+            OrderTestData.CreateGarment(4, "Third"),
+            OrderTestData.CreateGarment(3, "Fourth"),
+            OrderTestData.CreateGarment(4, "Fifth")
+        };
+
+        var pages = OrderPageLayoutEngine.BuildPages(garments);
+
+        Assert.InRange(pages[0].DrawingCount, 1, 2);
+        Assert.All(
+            pages.Skip(1),
+            page => Assert.InRange(page.DrawingCount, 1, 4));
+    }
+
+    [Fact]
+    public void PlopsaDocument_CreatesExpectedSixPagePlan()
+    {
+        var garment0380 = OrderTestData.CreateGarment(3, "0380");
+        var garment0386 = OrderTestData.CreateGarment(2, "0386");
+        var garment0510 = OrderTestData.CreateGarment(3, "0510");
+        var garment0388 = OrderTestData.CreateGarment(3, "0388");
+        var garment0638 = OrderTestData.CreateGarment(
+            1,
+            "0638",
+            startNewPage: true);
+        var garment0637 = OrderTestData.CreateGarment(4, "0637");
+
+        var pages = OrderPageLayoutEngine.BuildPages(
+        [
+            garment0380,
+            garment0386,
+            garment0510,
+            garment0388,
+            garment0638,
+            garment0637
+        ]);
+
+        Assert.Equal(6, pages.Count);
+        Assert.Equal([2, 3, 3, 3, 1, 4], pages.Select(page => page.DrawingCount));
+        Assert.Equal([garment0380], pages[0].Garments);
+        Assert.Equal([garment0380, garment0386], pages[1].Garments);
+        Assert.Equal([garment0510], pages[2].Garments);
+        Assert.Equal([garment0388], pages[3].Garments);
+        Assert.Equal([garment0638], pages[4].Garments);
+        Assert.Equal([garment0637], pages[5].Garments);
+    }
+
+    [Fact]
     public void GarmentTransitions_OnContinuationPages_UseAvailableSlotsInOrder()
     {
         var variants = new[]
@@ -95,7 +168,7 @@ public sealed class OrderPageLayoutEngineTests
             (FirstCount: 3, SecondCount: 1, PageCounts: new[] { 2, 2 }),
             (FirstCount: 3, SecondCount: 3, PageCounts: new[] { 2, 4 }),
             (FirstCount: 4, SecondCount: 2, PageCounts: new[] { 2, 4 }),
-            (FirstCount: 4, SecondCount: 3, PageCounts: new[] { 2, 4, 1 })
+            (FirstCount: 4, SecondCount: 3, PageCounts: new[] { 2, 2, 3 })
         };
 
         foreach (var variant in variants)
@@ -146,13 +219,13 @@ public sealed class OrderPageLayoutEngineTests
 
         var pages = OrderPageLayoutEngine.BuildPages(garments);
 
-        Assert.Equal(3, pages.Count);
+        Assert.Equal(4, pages.Count);
 
         for (var index = 0; index < pages.Count; index++)
         {
             Assert.Equal(index + 1, pages[index].PageNumber);
-            Assert.Equal(3, pages[index].TotalPages);
-            Assert.Equal($"{index + 1}/3", pages[index].PageNumberText);
+            Assert.Equal(4, pages[index].TotalPages);
+            Assert.Equal($"{index + 1}/4", pages[index].PageNumberText);
         }
     }
 
@@ -200,10 +273,10 @@ public sealed class OrderPageLayoutEngineTests
         Assert.Equal(4, pages.Count);
         Assert.Equal(["FRONT", "BACK"], pages[0].Placements[0].Drawings.Select(DrawingLayoutEngine.GetViewName));
         Assert.Equal(["RIGHT", "LEFT"], pages[1].Placements[0].Drawings.Select(DrawingLayoutEngine.GetViewName));
-        Assert.Equal([first, second], pages[1].Garments);
-        Assert.Equal([second, third], pages[2].Garments);
+        Assert.Same(first, Assert.Single(pages[1].Garments));
+        Assert.Same(second, Assert.Single(pages[2].Garments));
         Assert.Same(third, Assert.Single(pages[3].Garments));
-        Assert.Equal([2, 4, 4, 2], pages.Select(page => page.DrawingCount));
+        Assert.Equal([2, 2, 4, 4], pages.Select(page => page.DrawingCount));
         Assert.Equal(
             ["FRONT", "BACK", "RIGHT", "LEFT"],
             pages

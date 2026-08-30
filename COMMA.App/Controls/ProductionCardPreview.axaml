@@ -3,8 +3,14 @@
              xmlns:vm="using:COMMA.App.ViewModels"
              xmlns:models="using:COMMA.App.Models"
              xmlns:controls="using:COMMA.App.Controls"
+             xmlns:converters="using:COMMA.App.Converters"
              x:Class="COMMA.App.Controls.ProductionCardPreview"
              x:DataType="vm:MainViewModel">
+
+    <UserControl.Resources>
+        <converters:OrderHeaderTextValueConverter
+            x:Key="OrderHeaderTextValueConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
 
@@ -90,7 +96,7 @@
                                     <Border Grid.Column="0"
                                             BorderBrush="#111111"
                                             BorderThickness="0,1,1,1"
-                                            Padding="2">
+                                            Padding="6.25,2">
 
                                         <Grid RowDefinitions="8,*">
 
@@ -101,15 +107,21 @@
                                                        FontWeight="Bold"
                                                        Text="NUMER ZLECENIA"/>
 
-                                            <TextBlock Grid.Row="1"
+                                            <TextBlock x:Name="FirstOrderNumberValue"
+                                                       Grid.Row="1"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        TextAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       FontSize="11"
+                                                       TextWrapping="NoWrap"
+                                                       MaxLines="1"
+                                                       FontSize="{Binding ProductionCard.OrderNumber,
+                                                           Converter={StaticResource OrderHeaderTextValueConverter},
+                                                           ConverterParameter=FirstNumberFontSize}"
                                                        FontWeight="Bold"
                                                        Classes="orderNameValue"
-                                                       Text="{Binding ProductionCard.OrderNumber}"/>
+                                                       Text="{Binding ProductionCard.OrderNumber,
+                                                           Converter={StaticResource OrderHeaderTextValueConverter},
+                                                           ConverterParameter=FirstNumberText}"/>
 
                                         </Grid>
 
@@ -118,7 +130,7 @@
                                     <Border Grid.Column="1"
                                             BorderBrush="#111111"
                                             BorderThickness="0,1,1,1"
-                                            Padding="2">
+                                            Padding="6.25,2">
 
                                         <Grid RowDefinitions="8,*">
 
@@ -129,18 +141,26 @@
                                                        FontWeight="Bold"
                                                        Text="NAZWA ZLECENIA"/>
 
-                                            <TextBlock Grid.Row="1"
+                                            <TextBlock x:Name="FirstOrderNameValue"
+                                                       Grid.Row="1"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        TextAlignment="Center"
-                                                       TextWrapping="Wrap"
+                                                       TextWrapping="NoWrap"
                                                        MaxLines="2"
-                                                       FontSize="12"
-                                                       FontWeight="Black"
+                                                       LineHeight="{Binding ProductionCard.PreviewOrderName,
+                                                           Converter={StaticResource OrderHeaderTextValueConverter},
+                                                           ConverterParameter=FirstNameLineHeight}"
+                                                       FontSize="{Binding ProductionCard.PreviewOrderName,
+                                                           Converter={StaticResource OrderHeaderTextValueConverter},
+                                                           ConverterParameter=FirstNameFontSize}"
+                                                       FontWeight="Bold"
                                                        Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
                                                        Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
                                                        Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
-                                                       Text="{Binding ProductionCard.PreviewOrderName}"/>
+                                                       Text="{Binding ProductionCard.PreviewOrderName,
+                                                           Converter={StaticResource OrderHeaderTextValueConverter},
+                                                           ConverterParameter=FirstNameText}"/>
 
                                         </Grid>
 
@@ -160,12 +180,13 @@
                                                        FontWeight="Bold"
                                                        Text="STRONA"/>
 
-                                            <TextBlock Grid.Row="1"
+                                            <TextBlock x:Name="FirstPageNumberValue"
+                                                       Grid.Row="1"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        TextAlignment="Center"
                                                        FontSize="13"
-                                                       FontWeight="Black"
+                                                       FontWeight="Bold"
                                                        Text="{Binding PreviewPage.PageNumberText}"/>
 
                                         </Grid>
@@ -516,7 +537,7 @@
                                 <Border Grid.Column="1"
                                         BorderBrush="#111111"
                                         BorderThickness="0,1,1,1"
-                                        Padding="2">
+                                        Padding="6.25,2">
 
                                     <Grid RowDefinitions="8,*">
 
@@ -532,13 +553,16 @@
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
                                                    TextAlignment="Center"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   MaxLines="2"
-                                                   FontSize="12"
+                                                   TextWrapping="NoWrap"
+                                                   MaxLines="1"
+                                                   FontSize="{Binding ProductionCard.OrderNumber,
+                                                       Converter={StaticResource OrderHeaderTextValueConverter},
+                                                       ConverterParameter=LaterNumberFontSize}"
                                                    FontWeight="Bold"
                                                    Classes="orderNameValue"
-                                                   Text="{Binding ProductionCard.OrderNumber}"/>
+                                                   Text="{Binding ProductionCard.OrderNumber,
+                                                       Converter={StaticResource OrderHeaderTextValueConverter},
+                                                       ConverterParameter=LaterNumberText}"/>
 
                                     </Grid>
 
@@ -549,7 +573,7 @@
                                 <Border Grid.Column="2"
                                         BorderBrush="#111111"
                                         BorderThickness="0,1,1,1"
-                                        Padding="2">
+                                        Padding="6.25,2">
 
                                     <Grid RowDefinitions="8,*">
 
@@ -565,14 +589,21 @@
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
                                                    TextAlignment="Center"
-                                                   TextWrapping="Wrap"
+                                                   TextWrapping="NoWrap"
                                                    MaxLines="2"
-                                                   FontSize="13"
-                                                   FontWeight="Black"
+                                                   LineHeight="{Binding ProductionCard.PreviewOrderName,
+                                                       Converter={StaticResource OrderHeaderTextValueConverter},
+                                                       ConverterParameter=LaterNameLineHeight}"
+                                                   FontSize="{Binding ProductionCard.PreviewOrderName,
+                                                       Converter={StaticResource OrderHeaderTextValueConverter},
+                                                       ConverterParameter=LaterNameFontSize}"
+                                                   FontWeight="Bold"
                                                    Classes.placeholder="{Binding ProductionCard.IsOrderNameEmpty}"
                                                    Classes.orderNamePlaceholder="{Binding ProductionCard.IsOrderNameEmpty}"
                                                    Classes.orderNameValue="{Binding !ProductionCard.IsOrderNameEmpty}"
-                                                   Text="{Binding ProductionCard.PreviewOrderName}"/>
+                                                   Text="{Binding ProductionCard.PreviewOrderName,
+                                                       Converter={StaticResource OrderHeaderTextValueConverter},
+                                                       ConverterParameter=LaterNameText}"/>
 
                                     </Grid>
 
@@ -594,12 +625,13 @@
                                                    FontWeight="Bold"
                                                    Text="STRONA"/>
 
-                                        <TextBlock Grid.Row="1"
+                                        <TextBlock x:Name="ContinuationPageNumberValue"
+                                                   Grid.Row="1"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
                                                    TextAlignment="Center"
                                                    FontSize="13"
-                                                   FontWeight="Black"
+                                                   FontWeight="Bold"
                                                    Text="{Binding PreviewPage.PageNumberText}"/>
 
                                     </Grid>

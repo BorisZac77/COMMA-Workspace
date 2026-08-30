@@ -40,7 +40,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void FirstPageTwoViewControllerRejectsLaterPageCapacity()
+    public void LaterTwoViewControllerUsesItsAdditionalPhysicalHeight()
     {
         var source = string.Join(
             '\n',
@@ -109,6 +109,210 @@ public sealed class GarmentViewDescriptionLayoutTests
         Assert.True(
             firstGeometry.PdfDrawingCellHeight <
             continuationGeometry.PdfDrawingCellHeight);
+    }
+
+    [Fact]
+    public void PlopsaSecondPageFrontDescriptionUsesThreeFullLeftCellLines()
+    {
+        var upper = OrderTestData.CreateGarment(3, "0380");
+        var lower = OrderTestData.CreateGarment(
+            2,
+            "0386 Pro Wear Care Sweatshirt Hoodie bluza");
+        var page = OrderPageLayoutEngine.BuildPages([upper, lower])[1];
+        var upperPlacement = page.Placements[0];
+        var lowerPlacement = page.Placements[1];
+        var frontGeometry = lowerPlacement.Views[0].Geometry;
+        var backGeometry = lowerPlacement.Views[1].Geometry;
+
+        Assert.Equal(1, upperPlacement.DrawingCount);
+        Assert.Equal(2, lowerPlacement.DrawingCount);
+        Assert.Equal(
+            PdfStyles.AvailableContentWidth / 2d,
+            frontGeometry.PdfDrawingCellWidth,
+            precision: 3);
+        Assert.Equal(
+            frontGeometry.PdfDrawingCellWidth,
+            backGeometry.PdfDrawingCellWidth,
+            precision: 3);
+        Assert.Equal(
+            frontGeometry.PdfDrawingCellWidth -
+            PdfStyles.DrawingCellPadding * 2d -
+            PdfStyles.DrawingDescriptionHorizontalPadding * 2d,
+            GarmentViewDescriptionLayout.GetPdfTextWidth(frontGeometry),
+            precision: 3);
+
+        var typedController =
+            new GarmentViewDescriptionInputController("", frontGeometry);
+        var typed = FillByTypingUntilRejected(
+            typedController,
+            frontGeometry,
+            "Długi opis PLOPSA pod rzutem PRZÓD wykorzystuje całą szerokość lewej komórki. ");
+
+        AssertThreeLineBoundary(typed, frontGeometry);
+        Assert.False(
+            typedController.Apply(
+                typed + "X",
+                frontGeometry).WasFullyAccepted);
+
+        var pasteController =
+            new GarmentViewDescriptionInputController("", frontGeometry);
+        var pasted = pasteController.Apply(
+            string.Concat(Enumerable.Repeat(
+                "Wklejony opis ze spacjami dla przedniego rzutu. ",
+                100)),
+            frontGeometry);
+
+        Assert.False(pasted.WasFullyAccepted);
+        AssertThreeLineBoundary(pasted.Text, frontGeometry);
+
+        var middle = pasted.Text.Length / 2;
+        var edited = pasteController.Apply(
+            pasted.Text.Remove(middle, 1).Insert(middle, "i"),
+            frontGeometry);
+
+        Assert.True(edited.WasFullyAccepted);
+        AssertThreeLineBoundary(edited.Text, frontGeometry);
+
+        var unbrokenController =
+            new GarmentViewDescriptionInputController("", frontGeometry);
+        var unbroken = unbrokenController.Apply(
+            new string('W', 4000),
+            frontGeometry);
+
+        Assert.False(unbroken.WasFullyAccepted);
+        AssertThreeLineBoundary(unbroken.Text, frontGeometry);
+
+        var manualController =
+            new GarmentViewDescriptionInputController("", frontGeometry);
+        const string threeManualLines =
+            "pierwsza linia\ndruga linia\ntrzecia linia";
+        var manual = manualController.Apply(
+            threeManualLines,
+            frontGeometry);
+
+        Assert.True(manual.WasFullyAccepted);
+        Assert.Equal(threeManualLines, manual.Text);
+        AssertThreeLineBoundary(manual.Text, frontGeometry);
+        Assert.False(
+            manualController.Apply(
+                threeManualLines + "\nczwarta linia",
+                frontGeometry).WasFullyAccepted);
+    }
+
+    [Fact]
+    public void PlopsaThreeViewPageAcceptsManualLinesUntilPhysicalBottom()
+    {
+        var first = OrderTestData.CreateGarment(2, "Strona 1");
+        var second = OrderTestData.CreateGarment(
+            2,
+            "Strona 2",
+            startNewPage: true);
+        var garment = OrderTestData.CreateGarment(
+            3,
+            "0510 trzy rzuty",
+            startNewPage: true);
+        var page = OrderPageLayoutEngine.BuildPages([first, second, garment])[2];
+        var placement = Assert.Single(page.Placements);
+        var upperGeometry = placement.Views[0].Geometry;
+        var controller =
+            new GarmentViewDescriptionInputController("", upperGeometry);
+        var multilineSource = string.Join(
+            '\n',
+            Enumerable.Range(1, 100)
+                .Select(index => $"linia {index}"));
+        var pasted = controller.Apply(
+            multilineSource,
+            upperGeometry);
+        var measurement = GarmentViewDescriptionLayout.MeasurePdf(
+            pasted.Text,
+            GarmentViewDescriptionLayout.GetPdfTextWidth(upperGeometry),
+            GarmentViewDescriptionLayout.GetPdfTextHeight(upperGeometry));
+
+        Assert.Equal(3, placement.DrawingCount);
+        Assert.False(pasted.WasFullyAccepted);
+        Assert.True(measurement.Fits);
+        Assert.True(measurement.LineCount > 3);
+        Assert.Contains('\n', pasted.Text);
+        Assert.True(controller.IsAtCapacity);
+        Assert.False(
+            controller.Apply(
+                pasted.Text + "\njeszcze jedna linia",
+                upperGeometry).WasFullyAccepted);
+
+        var severalEnters =
+            "pierwsza\n\n\ndruga\ntrzecia\nczwarta";
+        var enterController =
+            new GarmentViewDescriptionInputController("", upperGeometry);
+        var entered = enterController.Apply(
+            severalEnters,
+            upperGeometry);
+
+        Assert.True(entered.WasFullyAccepted);
+        Assert.Equal(severalEnters, entered.Text);
+        Assert.Equal(
+            6,
+            GarmentViewDescriptionLayout.MeasurePdf(
+                entered.Text,
+                GarmentViewDescriptionLayout.GetPdfTextWidth(upperGeometry),
+                GarmentViewDescriptionLayout.GetPdfTextHeight(upperGeometry)).LineCount);
+
+        const string trailingEnters = "pierwsza\n\n\n";
+        garment.ViewDescriptions.Front = trailingEnters;
+
+        Assert.Equal(
+            trailingEnters,
+            GarmentViewDescriptionLayout.GetDescription(
+                garment,
+                placement.Drawings[0]));
+        Assert.Equal(
+            4,
+            GarmentViewDescriptionLayout.MeasurePdf(
+                trailingEnters,
+                GarmentViewDescriptionLayout.GetPdfTextWidth(upperGeometry),
+                GarmentViewDescriptionLayout.GetPdfTextHeight(upperGeometry)).LineCount);
+
+        var middle = pasted.Text.Length / 2;
+        var edited = controller.Apply(
+            pasted.Text.Remove(middle, 1).Insert(middle, "i"),
+            upperGeometry);
+
+        Assert.True(edited.WasFullyAccepted);
+        Assert.Equal(pasted.Text.Length, edited.Text.Length);
+    }
+
+    [Fact]
+    public void FullWidthFieldCalculatesLineCapacityFromRemainingHeight()
+    {
+        var first = OrderTestData.CreateGarment(2, "Strona 1");
+        var garment = OrderTestData.CreateGarment(
+            1,
+            "Pełna szerokość",
+            startNewPage: true);
+        var page = OrderPageLayoutEngine.BuildPages([first, garment])[1];
+        var geometry = Assert.Single(page.Placements).Views[0].Geometry;
+        var controller =
+            new GarmentViewDescriptionInputController("", geometry);
+        var source = string.Join(
+            '\n',
+            Enumerable.Repeat("x", 1000));
+        var accepted = controller.Apply(source, geometry);
+        var measurement = GarmentViewDescriptionLayout.MeasurePdf(
+            accepted.Text,
+            GarmentViewDescriptionLayout.GetPdfTextWidth(geometry),
+            GarmentViewDescriptionLayout.GetPdfTextHeight(geometry));
+        var previewCapacity = (int)Math.Floor(
+            (GarmentViewDescriptionLayout.GetPreviewTextHeight(geometry) - 0.25) /
+            (GarmentViewDescriptionLayout.PreviewMinimumFontSize *
+             GarmentViewDescriptionLayout.PreviewLineHeight));
+        var pdfCapacity = (int)Math.Floor(
+            (GarmentViewDescriptionLayout.GetPdfTextHeight(geometry) - 0.25) /
+            (GarmentViewDescriptionLayout.PdfMinimumFontSize *
+             PdfStyles.DrawingDescriptionLineHeight));
+
+        Assert.Equal(PdfStyles.AvailableContentWidth, geometry.PdfDrawingCellWidth);
+        Assert.False(accepted.WasFullyAccepted);
+        Assert.True(measurement.LineCount > 3);
+        Assert.Equal(Math.Min(previewCapacity, pdfCapacity), measurement.LineCount);
     }
 
     [Theory]
@@ -249,7 +453,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void DescriptionMayUseMoreThanThreeLinesWhenItFits()
+    public void DescriptionAllowsMoreThanThreeRenderedLinesWhenTheyFit()
     {
         const string description =
             "pierwsza\ndruga\ntrzecia\nczwarta\npiąta";
@@ -310,10 +514,18 @@ public sealed class GarmentViewDescriptionLayoutTests
             GarmentViewDescriptionLayout.MeasurePreview(text, 200, 100).FontSize);
         Assert.Equal(
             GarmentViewDescriptionLayout.PreviewMediumFontSize,
-            GarmentViewDescriptionLayout.MeasurePreview(text, 200, 15).FontSize);
+            GarmentViewDescriptionLayout.MeasurePreview(
+                text,
+                200,
+                GarmentViewDescriptionLayout.PreviewMediumFontSize *
+                GarmentViewDescriptionLayout.PreviewLineHeight).FontSize);
         Assert.Equal(
             GarmentViewDescriptionLayout.PreviewMinimumFontSize,
-            GarmentViewDescriptionLayout.MeasurePreview(text, 200, 13.5).FontSize);
+            GarmentViewDescriptionLayout.MeasurePreview(
+                text,
+                200,
+                GarmentViewDescriptionLayout.PreviewMinimumFontSize *
+                GarmentViewDescriptionLayout.PreviewLineHeight).FontSize);
 
         Assert.Equal(
             GarmentViewDescriptionLayout.PdfLargeFontSize,
@@ -687,16 +899,25 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void SafetyMarginReservesOneFullMinimumLineAndLimitsWhitespace()
+    public void DescriptionHeightComesFromCellAndRenderedImage()
     {
+        var compact = new DescriptionTargetGeometry(
+            DescriptionLayoutTarget.LaterPageThreeViews,
+            200,
+            240,
+            0.5);
+        var wideImage = compact with { ImageAspectRatio = 4 };
+
+        Assert.True(
+            GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(compact) >
+            GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(wideImage));
+        Assert.True(
+            GarmentViewDescriptionLayout.GetPdfTextHeight(compact) <
+            GarmentViewDescriptionLayout.GetPdfTextHeight(wideImage));
         Assert.Equal(
-            GarmentViewDescriptionLayout.PreviewMinimumFontSize *
-            GarmentViewDescriptionLayout.PreviewLineHeight,
-            GarmentViewDescriptionLayout.PreviewBottomSafetyMargin);
-        Assert.Equal(
-            GarmentViewDescriptionLayout.PdfMinimumFontSize *
-            PdfStyles.DrawingDescriptionLineHeight,
-            GarmentViewDescriptionLayout.PdfBottomSafetyMargin);
+            GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(compact) * compact.ImageAspectRatio,
+            GarmentViewDescriptionLayout.GetPdfRenderedImageWidth(compact),
+            precision: 3);
 
         var acceptedSpaces = GarmentViewDescriptionLayout.LimitTextChange(
             "",
@@ -711,7 +932,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void ConservativeLineCapacityIsSixteenForTwoViewsAndSevenForFourViews()
+    public void ReferenceLayoutsExposeDifferentDynamicLineCapacities()
     {
         var twoViewCapacity = (int)Math.Floor(
             GarmentViewDescriptionLayout.GetReferencePreviewTextHeight(
@@ -724,8 +945,9 @@ public sealed class GarmentViewDescriptionLayoutTests
             (GarmentViewDescriptionLayout.PreviewMinimumFontSize *
              GarmentViewDescriptionLayout.PreviewLineHeight));
 
-        Assert.Equal(16, twoViewCapacity);
-        Assert.Equal(7, fourViewCapacity);
+        Assert.True(twoViewCapacity > 3);
+        Assert.True(fourViewCapacity > 3);
+        Assert.NotEqual(twoViewCapacity, fourViewCapacity);
     }
 
     [Fact]
@@ -797,7 +1019,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void TwoViewLayoutAcceptsMoreTextThanFourViewLayout()
+    public void ReferenceTwoViewLayoutAcceptsMoreTextThanFourViewLayout()
     {
         var source = new string('x', 4000);
         var twoViewText = GarmentViewDescriptionLayout.LimitTextChange(
@@ -821,7 +1043,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void ExistingTextIsNotTruncatedWhenLayoutBecomesCompact()
+    public void ExistingTextIsNotTruncatedWhenLayoutTargetChanges()
     {
         var source = new string('x', 4000);
         var acceptedForTwoViews =
@@ -872,7 +1094,7 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
-    public void EditorAndPreviewHaveNoThreeLineOrRedValidationRule()
+    public void EditorAndPreviewUseDynamicHeightWithoutRedValidation()
     {
         var editor = XDocument.Load(GetAppPath("Views", "GarmentEditorWindow.axaml"));
         var drawingBox = XDocument.Load(GetAppPath("Controls", "DrawingBox.axaml"));
@@ -910,7 +1132,7 @@ public sealed class GarmentViewDescriptionLayoutTests
         Assert.Equal("6,1,6,2", (string?)description.Attribute("Margin"));
         Assert.DoesNotContain("DescriptionValidationText", editor.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("#B42318", editor.ToString(), StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("maksymalnie 3 liniach", editorCode, StringComparison.Ordinal);
+        Assert.Contains("GetPreviewTextHeight", drawingBoxCode, StringComparison.Ordinal);
         Assert.Contains("TextChanging", textBoxControllerCode, StringComparison.Ordinal);
         Assert.Contains("TextChanged", textBoxControllerCode, StringComparison.Ordinal);
         Assert.Contains("GarmentViewDescriptionTextBoxController", editorCode, StringComparison.Ordinal);
@@ -1048,5 +1270,47 @@ public sealed class GarmentViewDescriptionLayoutTests
 
         throw new InvalidOperationException(
             "Opis nie osiągnął stanu pełnego.");
+    }
+
+    private static string FillByTypingUntilRejected(
+        GarmentViewDescriptionInputController controller,
+        DescriptionTargetGeometry geometry,
+        string source)
+    {
+        var accepted = "";
+
+        for (var index = 0; index < 10000; index++)
+        {
+            var change = controller.Apply(
+                accepted + source[index % source.Length],
+                geometry);
+
+            if (!change.WasFullyAccepted)
+                return accepted;
+
+            accepted = change.Text;
+        }
+
+        throw new InvalidOperationException(
+            "Opis nie osiągnął granicy trzech linii.");
+    }
+
+    private static void AssertThreeLineBoundary(
+        string text,
+        DescriptionTargetGeometry geometry)
+    {
+        var preview = GarmentViewDescriptionLayout.MeasurePreview(
+            text,
+            GarmentViewDescriptionLayout.GetPreviewTextWidth(geometry),
+            GarmentViewDescriptionLayout.GetPreviewTextHeight(geometry));
+        var pdf = GarmentViewDescriptionLayout.MeasurePdf(
+            text,
+            GarmentViewDescriptionLayout.GetPdfTextWidth(geometry),
+            GarmentViewDescriptionLayout.GetPdfTextHeight(geometry));
+
+        Assert.True(preview.Fits);
+        Assert.True(pdf.Fits);
+        Assert.Equal(3, preview.LineCount);
+        Assert.Equal(3, pdf.LineCount);
     }
 }

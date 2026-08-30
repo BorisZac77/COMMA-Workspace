@@ -1,7 +1,7 @@
 using COMMA.App.Models;
+using COMMA.App.Layout;
 using COMMA.App.Services.Branding;
 using QuestPDF.Fluent;
-using QuestPDF.Infrastructure;
 
 namespace COMMA.App.Services.Pdf;
 
@@ -93,6 +93,16 @@ public static class HeaderSection
         var orderName =
             Safe(card.OrderName);
 
+        var orderNumberFit =
+            OrderHeaderTextLayout.FitNumber(
+                orderNumber,
+                OrderHeaderTextLayout.PdfFirstPageNumberGeometry);
+
+        var orderNameFit =
+            OrderHeaderTextLayout.FitName(
+                orderName,
+                OrderHeaderTextLayout.PdfFirstPageNameGeometry);
+
         table.Cell()
             .ColumnSpan(3)
             .Height(PdfStyles.HeaderTopRowHeight)
@@ -101,7 +111,9 @@ public static class HeaderSection
                 row.ConstantItem(
                         PdfStyles.FirstPageHeaderOrderNumberWidth)
                     .Border(PdfStyles.StandardBorderWidth)
-                    .Padding(1)
+                    .PaddingHorizontal(
+                        PdfStyles.HeaderIdentityHorizontalPadding)
+                    .PaddingVertical(1)
                     .Column(column =>
                     {
                         BuildHeaderLabel(
@@ -109,10 +121,12 @@ public static class HeaderSection
                             "NUMER ZLECENIA");
 
                         column.Item()
+                            .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
-                            .Text(orderNumber)
-                            .FontSize(10)
+                            .Text(orderNumberFit.DisplayText)
+                            .FontSize((float)orderNumberFit.FontSize)
+                            .LineHeight(OrderHeaderTextLayout.LineHeight)
                             .FontColor(
                                 PdfStyles.OrderNameColor)
                             .Bold();
@@ -120,7 +134,9 @@ public static class HeaderSection
 
                 row.RelativeItem()
                     .Border(PdfStyles.StandardBorderWidth)
-                    .Padding(1)
+                    .PaddingHorizontal(
+                        PdfStyles.HeaderIdentityHorizontalPadding)
+                    .PaddingVertical(1)
                     .Column(column =>
                     {
                         BuildHeaderLabel(
@@ -128,14 +144,15 @@ public static class HeaderSection
                             "NAZWA ZLECENIA");
 
                         column.Item()
+                            .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
-                            .Text(orderName)
-                            .FontSize(
-                                GetOrderNameFontSize(orderName))
+                            .Text(orderNameFit.DisplayText)
+                            .FontSize((float)orderNameFit.FontSize)
+                            .LineHeight(OrderHeaderTextLayout.LineHeight)
                             .FontColor(
                                 PdfStyles.OrderNameColor)
-                            .ExtraBold();
+                            .Bold();
                     });
 
                 row.ConstantItem(
@@ -149,11 +166,12 @@ public static class HeaderSection
                             "STRONA");
 
                         column.Item()
+                            .ExtendVertical()
                             .AlignCenter()
                             .AlignMiddle()
                             .Text(pageNumberText)
                             .FontSize(13)
-                            .ExtraBold();
+                            .Bold();
                     });
             });
     }
@@ -163,7 +181,7 @@ public static class HeaderSection
         string label)
     {
         column.Item()
-            .Height(9)
+            .Height(PdfStyles.HeaderOrderLabelHeight)
             .AlignCenter()
             .AlignMiddle()
             .Text(label)
@@ -199,24 +217,6 @@ public static class HeaderSection
                         PdfStyles.OrderValueFontSize)
                     .Bold();
             });
-    }
-
-    private static float GetOrderNameFontSize(
-        string value)
-    {
-        var length =
-            value.Length;
-
-        if (length <= 15)
-            return 14f;
-
-        if (length <= 25)
-            return 12f;
-
-        if (length <= 40)
-            return 10f;
-
-        return 9f;
     }
 
     private static string Safe(
