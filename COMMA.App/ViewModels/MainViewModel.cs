@@ -51,6 +51,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private string? loadedOrderName;
 
+    private int? loadedPdfFormatVersion;
+
     private bool pdfOutputFolderSelectedSincePdfLoad;
 
     [ObservableProperty]
@@ -103,6 +105,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                         null;
 
                     loadedOrderName =
+                        null;
+
+                    loadedPdfFormatVersion =
                         null;
 
                     pdfOutputFolderSelectedSincePdfLoad =
@@ -991,7 +996,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
                 SetLoadedPdfIdentity(
                     pdfPath,
-                    data.OrderName);
+                    data.OrderName,
+                    data.FormatVersion);
 
                 AdoptLoadedAttachmentContents(data);
 
@@ -1031,7 +1037,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
                 SetLoadedPdfIdentity(
                     pdfPath,
-                    data.OrderName);
+                    data.OrderName,
+                    data.FormatVersion);
 
                 AdoptLoadedAttachmentContents(data);
 
@@ -1077,7 +1084,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             SetLoadedPdfIdentity(
                 pdfPath,
-                data.OrderName);
+                data.OrderName,
+                data.FormatVersion);
 
             AdoptLoadedAttachmentContents(data);
 
@@ -1155,6 +1163,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         card.ReceivedDate = data.ReceivedDate ?? "";
         card.DueDate = data.DueDate ?? "";
         card.ProductionType = data.ProductionType ?? "";
+        card.ProductCode = data.ProductCode;
+        card.ProductName = data.ProductName;
         card.Colour = data.Colour ?? "";
         card.Size = data.Size ?? "";
         card.Quantity = data.Quantity ?? "";
@@ -1364,7 +1374,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 ProductionCard.OrderName,
                 loadedPdfPath,
                 isSameDocument,
-                pdfOutputFolderSelectedSincePdfLoad);
+                pdfOutputFolderSelectedSincePdfLoad,
+                loadedPdfFormatVersion);
 
         var outputDirectory =
             savePlan.OutputDirectory;
@@ -1528,7 +1539,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             SetLoadedPdfIdentity(
                 outputFile,
-                ProductionCard.OrderName);
+                ProductionCard.OrderName,
+                OrderPdfV4DataEmbedder.FormatVersion);
 
             TryDeleteFile(
                 temporaryPdfFile);
@@ -2049,13 +2061,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void SetLoadedPdfIdentity(
         string pdfPath,
-        string? orderName)
+        string? orderName,
+        int formatVersion)
     {
         loadedPdfPath =
             pdfPath;
 
         loadedOrderName =
             orderName ?? "";
+
+        loadedPdfFormatVersion =
+            formatVersion;
 
         pdfOutputFolderSelectedSincePdfLoad =
             false;
@@ -2074,10 +2090,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         string? orderName,
         string? loadedPdfPath,
         bool isSameDocument,
-        bool outputFolderSelectedSincePdfLoad)
+        bool outputFolderSelectedSincePdfLoad,
+        int? loadedFormatVersion)
     {
         if (isSameDocument &&
-            !outputFolderSelectedSincePdfLoad)
+            !outputFolderSelectedSincePdfLoad &&
+            loadedFormatVersion != 3)
         {
             var loadedDirectory =
                 Path.GetDirectoryName(

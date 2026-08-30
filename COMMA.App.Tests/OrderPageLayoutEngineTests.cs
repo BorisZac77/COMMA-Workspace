@@ -208,6 +208,39 @@ public sealed class OrderPageLayoutEngineTests
     }
 
     [Fact]
+    public void OneDrawingThenThree_WithStartNewPage_LeavesPreviousPagePartial()
+    {
+        var firstPage = OrderTestData.CreateGarment(2, "First page");
+        var previous = OrderTestData.CreateGarment(1, "Previous");
+        var boundary = OrderTestData.CreateGarment(
+            3,
+            "Boundary",
+            startNewPage: true);
+
+        var pages = OrderPageLayoutEngine.BuildPages(
+            [firstPage, previous, boundary]);
+
+        Assert.Equal([2, 1, 3], pages.Select(page => page.DrawingCount));
+        Assert.Same(previous, Assert.Single(pages[1].Garments));
+        Assert.Same(boundary, Assert.Single(pages[2].Garments));
+        Assert.Same(boundary, pages[2].Placements[0].Garment);
+    }
+
+    [Fact]
+    public void OneDrawingThenThree_WithoutStartNewPage_StillFillsAvailableSlots()
+    {
+        var firstPage = OrderTestData.CreateGarment(2, "First page");
+        var previous = OrderTestData.CreateGarment(1, "Previous");
+        var next = OrderTestData.CreateGarment(3, "Next");
+
+        var pages = OrderPageLayoutEngine.BuildPages(
+            [firstPage, previous, next]);
+
+        Assert.Equal([2, 4], pages.Select(page => page.DrawingCount));
+        Assert.Equal([previous, next], pages[1].Garments);
+    }
+
+    [Fact]
     public void PageNumbersAndTotals_AreAppliedToEveryPage()
     {
         var garments = new[]

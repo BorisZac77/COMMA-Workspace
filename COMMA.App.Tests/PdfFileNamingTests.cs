@@ -143,7 +143,8 @@ public sealed class PdfFileNamingTests
             restoredData.OrderName,
             sourcePath,
             isSameDocument: true,
-            outputFolderSelectedSincePdfLoad: true);
+            outputFolderSelectedSincePdfLoad: true,
+            loadedFormatVersion: restoredFormatVersion);
 
         Assert.False(GetPlanValue<bool>(plan, "HasConflict"));
         Assert.Equal(
@@ -180,7 +181,8 @@ public sealed class PdfFileNamingTests
             "ORDER",
             sourcePath,
             isSameDocument: true,
-            outputFolderSelectedSincePdfLoad: true);
+            outputFolderSelectedSincePdfLoad: true,
+            loadedFormatVersion: 3);
 
         Assert.False(GetPlanValue<bool>(plan, "HasConflict"));
         Assert.Equal(
@@ -211,7 +213,8 @@ public sealed class PdfFileNamingTests
             "ORDER",
             sourcePath,
             isSameDocument: true,
-            outputFolderSelectedSincePdfLoad: true);
+            outputFolderSelectedSincePdfLoad: true,
+            loadedFormatVersion: 3);
 
         Assert.True(GetPlanValue<bool>(plan, "HasConflict"));
         Assert.Equal(
@@ -287,7 +290,8 @@ public sealed class PdfFileNamingTests
             "ORDER",
             sourcePath,
             isSameDocument: true,
-            outputFolderSelectedSincePdfLoad: false);
+            outputFolderSelectedSincePdfLoad: false,
+            loadedFormatVersion: 4);
 
         Assert.True(GetPlanValue<bool>(plan, "HasConflict"));
         Assert.Equal(
@@ -298,12 +302,56 @@ public sealed class PdfFileNamingTests
             GetPlanValue<string>(plan, "OverwriteOutputFile"));
     }
 
+    [Fact]
+    public void Workspace3Pdf_DoesNotReplaceConfiguredOutputFolderWithSourceFolder()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourceDirectory = directory.GetPath("workspace-3-source");
+        var savedOutputDirectory = directory.GetPath("configured-output");
+        Directory.CreateDirectory(sourceDirectory);
+        Directory.CreateDirectory(savedOutputDirectory);
+
+        var sourcePath = Path.Combine(sourceDirectory, "ORDER.pdf");
+        var configuredTarget = Path.Combine(savedOutputDirectory, "ORDER.pdf");
+        File.WriteAllBytes(sourcePath, "workspace-3-source"u8.ToArray());
+        File.WriteAllBytes(configuredTarget, "configured-target"u8.ToArray());
+        File.WriteAllBytes(
+            Path.Combine(savedOutputDirectory, "ORDER_1.pdf"),
+            "configured-target-one"u8.ToArray());
+        var sourceHash = GetSha256(sourcePath);
+        var targetHash = GetSha256(configuredTarget);
+
+        var plan = CreateSavePlan(
+            savedOutputDirectory,
+            "ORDER",
+            sourcePath,
+            isSameDocument: true,
+            outputFolderSelectedSincePdfLoad: false,
+            loadedFormatVersion: 3);
+
+        Assert.Equal(
+            savedOutputDirectory,
+            GetPlanValue<string>(plan, "OutputDirectory"));
+        Assert.Equal(
+            configuredTarget,
+            GetPlanValue<string>(plan, "OverwriteOutputFile"));
+        Assert.True(GetPlanValue<bool>(plan, "HasConflict"));
+        Assert.Equal(
+            Path.Combine(savedOutputDirectory, "ORDER_2.pdf"),
+            GetPlanValue<string>(plan, "CreateNewOutputFile"));
+
+        // Samo rozstrzygnięcie planu odpowiada anulowaniu: nic nie zapisuje.
+        Assert.Equal(sourceHash, GetSha256(sourcePath));
+        Assert.Equal(targetHash, GetSha256(configuredTarget));
+    }
+
     private static object CreateSavePlan(
         string selectedOutputDirectory,
         string orderName,
         string loadedPdfPath,
         bool isSameDocument,
-        bool outputFolderSelectedSincePdfLoad)
+        bool outputFolderSelectedSincePdfLoad,
+        int loadedFormatVersion)
     {
         var method = typeof(MainViewModel).GetMethod(
             "CreatePdfSavePlan",
@@ -319,7 +367,8 @@ public sealed class PdfFileNamingTests
                     orderName,
                     loadedPdfPath,
                     isSameDocument,
-                    outputFolderSelectedSincePdfLoad
+                    outputFolderSelectedSincePdfLoad,
+                    loadedFormatVersion
                 ]));
     }
 

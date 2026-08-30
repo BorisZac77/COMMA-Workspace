@@ -67,7 +67,7 @@ public sealed class OrderAttachmentTests
         var savePlan = Assert.IsAssignableFrom<object>(
             savePlanMethod.Invoke(
                 null,
-                [cardFolder, "ORDER", null, false, false]));
+                [cardFolder, "ORDER", null, false, false, null]));
         var outputDirectoryProperty = savePlan.GetType().GetProperty(
             "OutputDirectory");
         Assert.NotNull(outputDirectoryProperty);

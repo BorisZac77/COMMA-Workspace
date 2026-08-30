@@ -676,7 +676,7 @@ public static class CommaPdfDataReader
             ShowBack = data.ShowBack,
             ShowLeft = data.ShowLeft,
             ShowRight = data.ShowRight,
-            Garments = data.Garments.Select(garment => new CommaOrderGarmentData
+            Garments = data.Garments.Select((garment, index) => new CommaOrderGarmentData
             {
                 ProductCode = garment.ProductCode ?? "",
                 ProductName = garment.ProductName ?? "",
@@ -687,7 +687,10 @@ public static class CommaPdfDataReader
                 ShowBack = garment.ShowBack,
                 ShowRight = garment.ShowRight,
                 ShowLeft = garment.ShowLeft,
-                StartNewPage = garment.StartNewPage
+                StartNewPage = garment.StartNewPage ||
+                    data.FormatVersion == 3 &&
+                    index > 0 &&
+                    CountSelectedViews(garment) >= 3
             }).ToList(),
             ProductionEntries = data.ProductionEntries.Select(entry =>
                 new CommaOrderProductionEntryData
@@ -702,6 +705,14 @@ public static class CommaPdfDataReader
                     }).ToList()
                 }).ToList()
         };
+    }
+
+    private static int CountSelectedViews(CommaGarmentData garment)
+    {
+        return (garment.ShowFront ? 1 : 0) +
+               (garment.ShowBack ? 1 : 0) +
+               (garment.ShowRight ? 1 : 0) +
+               (garment.ShowLeft ? 1 : 0);
     }
 
     private static CommaOrderProductionEntryData MapProductionEntry(
