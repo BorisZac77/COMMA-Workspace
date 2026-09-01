@@ -289,8 +289,16 @@ public sealed class OrderAttachmentTests
         Assert.Equal(
             "{Binding Attachments}",
             (string?)attachmentsList.Attribute("ItemsSource"));
+        Assert.DoesNotContain(
+            "card.Attachments.ToArray()",
+            codeBehind,
+            StringComparison.Ordinal);
         Assert.Contains(
-            "AttachmentsList.ItemsSource = card.Attachments.ToArray();",
+            "AttachmentsList.ItemsSource = null;",
+            codeBehind,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "AttachmentsList.ItemsSource = card.Attachments;",
             codeBehind,
             StringComparison.Ordinal);
         Assert.Contains(
@@ -308,16 +316,20 @@ public sealed class OrderAttachmentTests
         var refreshIndex = codeBehind.IndexOf(
             "RefreshAttachmentsList(selected);",
             StringComparison.Ordinal);
-        var rebindIndex = codeBehind.IndexOf(
-            "AttachmentsList.ItemsSource = card.Attachments.ToArray();",
+        var resetIndex = codeBehind.IndexOf(
+            "AttachmentsList.ItemsSource = null;",
+            StringComparison.Ordinal);
+        var liveItemsSourceIndex = codeBehind.IndexOf(
+            "AttachmentsList.ItemsSource = card.Attachments;",
             StringComparison.Ordinal);
         var selectionIndex = codeBehind.IndexOf(
             "AttachmentsList.SelectedItem = selected;",
             StringComparison.Ordinal);
 
         Assert.True(moveIndex >= 0 && moveIndex < refreshIndex);
-        Assert.True(refreshIndex < rebindIndex);
-        Assert.True(rebindIndex < selectionIndex);
+        Assert.True(refreshIndex < resetIndex);
+        Assert.True(resetIndex < liveItemsSourceIndex);
+        Assert.True(liveItemsSourceIndex < selectionIndex);
     }
 
     [Fact]

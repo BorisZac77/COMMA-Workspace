@@ -154,7 +154,8 @@ public partial class AttachmentsWindow : Window
 
     private void RefreshAttachmentsList(OrderAttachmentMetadata selected)
     {
-        AttachmentsList.ItemsSource = card.Attachments.ToArray();
+        AttachmentsList.ItemsSource = null;
+        AttachmentsList.ItemsSource = card.Attachments;
         AttachmentsList.SelectedItem = selected;
     }
 
