@@ -200,6 +200,44 @@ public sealed class GarmentViewDescriptionLayoutTests
     }
 
     [Fact]
+    public void TwoViewDescriptionCapacityKeepsLegacyImageReservationAtSeventyMillimetreRendering()
+    {
+        var geometry =
+            GarmentViewDescriptionLayout.GetReferenceGeometry(
+                DescriptionLayoutTarget.LaterPageTwoViews);
+        var renderedImageHeight =
+            GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(geometry);
+        var legacyReservedImageHeight =
+            PdfStyles.GetDrawingImageHeight(
+                PdfStyles.GetDrawingRowHeight(1)) *
+            0.75;
+        var expectedTextHeight =
+            geometry.PdfDrawingCellHeight -
+            PdfStyles.DrawingTitleHeight -
+            7d -
+            PdfStyles.DrawingCellPadding * 2d -
+            legacyReservedImageHeight -
+            PdfStyles.DrawingDescriptionTopGap;
+        var textHeightUsingRenderedImage =
+            geometry.PdfDrawingCellHeight -
+            PdfStyles.DrawingTitleHeight -
+            7d -
+            PdfStyles.DrawingCellPadding * 2d -
+            renderedImageHeight -
+            PdfStyles.DrawingDescriptionTopGap;
+
+        Assert.Equal(
+            70d / 25.4d * 72d,
+            renderedImageHeight,
+            precision: 3);
+        Assert.Equal(
+            expectedTextHeight,
+            GarmentViewDescriptionLayout.GetPdfTextHeight(geometry),
+            precision: 3);
+        Assert.True(expectedTextHeight < textHeightUsingRenderedImage);
+    }
+
+    [Fact]
     public void PlopsaThreeViewPageAcceptsManualLinesUntilPhysicalBottom()
     {
         var first = OrderTestData.CreateGarment(2, "Strona 1");
