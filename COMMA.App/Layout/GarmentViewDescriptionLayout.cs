@@ -519,7 +519,7 @@ public static class GarmentViewDescriptionLayout
             PdfStyles.DrawingTitleHeight -
             PdfDrawingTopGap -
             PdfStyles.DrawingCellPadding * 2d -
-            GetPdfRenderedImageHeight(geometry) -
+            GetPdfReservedImageHeight(geometry) -
             descriptionTopGap);
     }
 
@@ -586,6 +586,34 @@ public static class GarmentViewDescriptionLayout
     {
         return GetPdfRenderedImageWidth(geometry) *
                PreviewScale;
+    }
+
+    private static double GetPdfReservedImageHeight(
+        DescriptionTargetGeometry geometry)
+    {
+        if (GetLayoutKind(geometry.Target) != DescriptionLayoutKind.TwoViews)
+            return GetPdfRenderedImageHeight(geometry);
+
+        var maximumHeight = GetTwoViewReservedImageHeight();
+        var availableWidth = Math.Min(
+            Math.Max(
+                1,
+                geometry.PdfDrawingCellWidth -
+                PdfStyles.DrawingCellPadding * 2d),
+            maximumHeight);
+
+        return Math.Max(
+            1,
+            Math.Min(
+                maximumHeight,
+                availableWidth / geometry.ImageAspectRatio));
+    }
+
+    private static double GetTwoViewReservedImageHeight()
+    {
+        return PdfStyles.GetDrawingImageHeight(
+                   PdfStyles.GetDrawingRowHeight(1)) *
+               0.75;
     }
 
     public static DescriptionLayoutKind GetLayoutKind(
