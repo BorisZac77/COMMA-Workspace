@@ -29,7 +29,7 @@ public partial class MainWindow : Window
             OnOpened;
 
         Title =
-            "COMMA Workspace — v4.0.0";
+            "COMMA Workspace — v4.1.0";
 
         NormalizeDrawingsButton.Click +=
             OnNormalizeDrawingsButtonClick;

@@ -27,6 +27,20 @@ public sealed class ApplicationBrandingTests
                 (string?)element.Attribute("Text") ==
                 "COMMA Workspace 4.1");
 
+        var windowCodeBehind = File.ReadAllText(
+            GetRepositoryPath(
+                "COMMA.App",
+                "Views",
+                "MainWindow.axaml.cs"));
+        Assert.Contains(
+            "COMMA Workspace — v4.1.0",
+            windowCodeBehind,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "COMMA Workspace — v4.0.0",
+            windowCodeBehind,
+            StringComparison.Ordinal);
+
         var projectDocument = XDocument.Load(
             GetRepositoryPath("COMMA.App", "COMMA.App.csproj"));
         AssertProjectProperty(projectDocument, "Version", "4.1.0");
