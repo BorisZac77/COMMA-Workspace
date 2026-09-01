@@ -5,17 +5,19 @@
 - LAST_ACTOR: Codex
 - NEXT_ACTOR: Safe worker
 - BRANCH: workspace-4.0
-- HEAD: f2441572c5c721a4f366cb8f02710c4b94e93b0b
+- HEAD: 5e7ae6cb4a935c292c6c7adac3df0380208e3737
+- IMPLEMENTATION_COMMIT: 5e7ae6cb4a935c292c6c7adac3df0380208e3737
 
 ## Stan
-Naprawa kolejności załączników jest gotowa. Obsługa obu strzałek po udanym `Move` ustawia jawnie nowy indeks zaznaczenia, dzięki czemu przeniesiony załącznik pozostaje wybrany, a aktywność strzałek odpowiada jego pozycji. Test regresji sprawdza kolejność trzech różnych obiektów, pola `Order` oraz pierwszą i ostatnią pozycję.
+Naprawa kolejności załączników znajduje się już w commicie `5e7ae6c` (`Fix attachment reordering controls`) na `workspace-4.0` i `origin/workspace-4.0`. Po udanym `Move` obsługa obu strzałek ustawia jawnie nowy indeks zaznaczenia; test regresji sprawdza trzy różne obiekty, ruch w obu kierunkach, pola `Order` oraz granice kolekcji.
 
-## Walidacja
+## Ponowna walidacja
 - Testy: PASS, 169/169.
-- Build Release: PASS, 0 ostrzeżeń i 0 błędów.
+- Restore rozwiązania: PASS; odtworzył brakujący lokalny assets file projektu `COMMA.DrawingsGenerator`.
+- Build Release z `--no-restore -m:1`: PASS, 0 ostrzeżeń i 0 błędów.
 - `git diff --check`: PASS.
-- Zmienione ścieżki należą wyłącznie do `ALLOWED_PATHS_JSON`.
-- Commit i push nie zostały wykonane.
+- Zmienione ścieżki robocze: wyłącznie `.ai/report.md` i `.ai/handoff.md`, obie dozwolone przez `ALLOWED_PATHS_JSON`.
+- `main` pozostaje na `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
 
 ## Następny krok
-Safe worker powinien sprawdzić diff i wyniki walidacji, a następnie wykonać commit `Fix attachment reordering controls` oraz push zgodnie z automatycznym przepływem zadania.
+Safe worker powinien zweryfikować końcowy diff raportowy. W tej sesji nie wykonano nowego commitu ani pushu; implementacji nie należy dublować, ponieważ commit `5e7ae6c` jest już obecny na zdalnej gałęzi.
