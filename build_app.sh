@@ -2,7 +2,9 @@
 
 set -e
 
-APP_NAME="COMMA Workspace 4.0.app"
+export AVALONIA_TELEMETRY_OPTOUT=1
+
+APP_NAME="COMMA Workspace 4.1.app"
 PUBLISH_DIR="COMMA.App/bin/Release/net10.0/osx-arm64/publish"
 TEMP_APP_DIR="/tmp/COMMA_Workspace_Build"
 APP_PATH="$TEMP_APP_DIR/$APP_NAME"
@@ -44,13 +46,13 @@ cat > "$APP_PATH/Contents/Info.plist" <<EOF
 <dict>
 
 <key>CFBundleName</key>
-<string>COMMA Workspace 4.0</string>
+<string>COMMA Workspace 4.1</string>
 
 <key>CFBundleIconFile</key>
 <string>COMMAWorkspace</string>
 
 <key>CFBundleDisplayName</key>
-<string>COMMA Workspace 4.0</string>
+<string>COMMA Workspace 4.1</string>
 
 <key>CFBundleIdentifier</key>
 <string>com.comma.workspace</string>
@@ -62,16 +64,20 @@ cat > "$APP_PATH/Contents/Info.plist" <<EOF
 <string>APPL</string>
 
 <key>CFBundleVersion</key>
-<string>4.0.0</string>
+<string>4.1.0</string>
 
 <key>CFBundleShortVersionString</key>
-<string>4.0.0</string>
+<string>4.1.0</string>
 
 </dict>
 </plist>
 EOF
 
 chmod +x "$APP_PATH/Contents/MacOS/COMMA.App"
+
+echo "=== SIGN APP ==="
+
+codesign --force --deep --sign - "$APP_PATH"
 
 echo "=== COPY TO DESKTOP ==="
 
