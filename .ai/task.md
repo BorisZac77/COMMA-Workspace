@@ -1,16 +1,16 @@
 # Aktualne zadanie
 
-- TASK_ID: ATTACHMENT-REORDER-006
+- TASK_ID: ATTACHMENT-PREVIEW-REORDER-007
 - STATUS: READY
 - PROJECT: COMMA Workspace 4.1
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: 5f0a157db013b9b6a2d9ea3638821081f3dee217
+- BASE_HEAD_BEFORE_QUEUE: db1316d8e8198fd854133a48ac730b1da0f95e0f
 - AUTO_COMMIT_PUSH: YES
-- COMMIT_MESSAGE: Fix attachment reordering controls
-- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", "COMMA.App/Views/AttachmentsWindow.axaml", "COMMA.App/Views/AttachmentsWindow.axaml.cs", "COMMA.App/Services/Attachments/OrderAttachmentManager.cs", "COMMA.App.Tests/OrderAttachmentTests.cs"]
+- COMMIT_MESSAGE: Refresh attachment preview after reordering
+- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", "COMMA.App/Views/AttachmentsWindow.axaml", "COMMA.App/Views/AttachmentsWindow.axaml.cs", "COMMA.App.Tests/OrderAttachmentTests.cs"]
 
 ## Cel
-Naprawić zmianę kolejności załączników przyciskami strzałek góra/dół w oknie ZAŁĄCZNIKI. Użytkownik potwierdził, że błąd występuje w aplikacjach 4.0 i 4.1.
+Naprawić natychmiastowe odświeżanie widocznej kolejności załączników w oknie ZAŁĄCZNIKI po użyciu strzałek góra/dół. Użytkownik potwierdził, że kolejność jest poprawnie zapisywana i widoczna później w PDF, ale lista/podgląd w otwartym oknie aplikacji nadal pokazuje starą kolejność.
 
 ## Ważna kontrola HEAD
 Commit kolejkujący to zadanie będzie bezpośrednim potomkiem `BASE_HEAD_BEFORE_QUEUE`. Nie wymagaj równości bieżącego HEAD z wartością bazową. Za prawidłowy stan początkowy uznaj bieżący commit kolejkujący, jeżeli `BASE_HEAD_BEFORE_QUEUE` jest jego bezpośrednim rodzicem, a zmiany w commicie kolejkującym dotyczą wyłącznie `.ai/task.md`, `.ai/report.md` i `.ai/handoff.md`.
@@ -18,14 +18,15 @@ Commit kolejkujący to zadanie będzie bezpośrednim potomkiem `BASE_HEAD_BEFORE
 ## Wymagania
 1. Potwierdź właściwy katalog, repozytorium, gałąź, czysty worktree i prawidłową relację HEAD opisaną wyżej.
 2. Potwierdź, że `main` nadal wskazuje `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
-3. Odtwórz problem dla co najmniej trzech załączników o różnych nazwach.
-4. Ustal rzeczywistą przyczynę w przepływie ListBox → obsługa kliknięcia → kolekcja załączników. Nie zakładaj z góry, że sama metoda `Move` jest błędna.
-5. Po kliknięciu ↑ wybrany załącznik ma przesunąć się dokładnie o jedną pozycję wyżej; po kliknięciu ↓ dokładnie o jedną pozycję niżej.
-6. Po przesunięciu zaznaczenie ma pozostać na przeniesionym załączniku, a stany aktywności obu strzałek mają odpowiadać jego nowej pozycji.
-7. Kolekcja i pola `Order` muszą mieć tę samą, znormalizowaną kolejność, używaną później w zapisie i PDF.
-8. Zachowaj dotychczasowe dodawanie, usuwanie, limity i zawartość załączników bez innych zmian interfejsu.
-9. Dodaj test regresji, który sprawdza faktyczną kolejność obiektów po ruchu w górę i w dół, pola `Order` oraz zachowanie na pierwszej i ostatniej pozycji. Jeśli środowisko testowe pozwala, obejmij też przepływ przycisków i utrzymanie zaznaczenia.
-10. Wybierz najprostszą poprawkę mieszczącą się w allowliście.
+3. Odtwórz problem dla co najmniej trzech załączników o różnych nazwach w otwartym oknie ZAŁĄCZNIKI.
+4. Ustal rzeczywistą przyczynę: kolekcja `Attachments` i PDF zmieniają kolejność, lecz widoczny `ListBox` nie odświeża pozycji. Sprawdź przepływ `ObservableCollection.Move` → powiadomienie kolekcji → `ItemsSource`/widok ListBox → zaznaczenie.
+5. Po kliknięciu ↑ lub ↓ widoczny wiersz ma natychmiast przesunąć się dokładnie o jedną pozycję, bez zamykania i ponownego otwierania okna.
+6. Zaznaczenie ma pozostać na przeniesionym załączniku, a stany obu strzałek mają odpowiadać jego nowej widocznej pozycji.
+7. Zachowaj poprawne zachowanie warstwy danych: kolejność kolekcji i pola `Order` nadal muszą być zgodne z PDF i zapisem.
+8. Nie zmieniaj generatora PDF, formatu danych, dodawania/usuwania załączników, limitów ani wyglądu innych części aplikacji.
+9. Zastosuj najprostszą, deterministyczną poprawkę odświeżenia widoku. Nie dodawaj nowego frameworka testowego ani dużej infrastruktury.
+10. Rozszerz regresję tak, aby obejmowała również zachowanie wymagane przez widok. Jeżeli bieżący projekt nie umożliwia uruchomienia Avalonia Headless, wydziel minimalną logikę możliwą do testowania lub dodaj najprostszy sensowny test kontraktu bez rozbudowy infrastruktury.
+11. Po zakończeniu ustaw w `.ai/handoff.md` dokładnie jeden wpis `- STATUS: COMPLETED`, aby bezpieczny worker mógł wykonać commit i push.
 
 ## Walidacja
 - `dotnet test "COMMA Workspace 4.0.sln"` — wszystkie testy PASS.
@@ -36,6 +37,6 @@ Commit kolejkujący to zadanie będzie bezpośrednim potomkiem `BASE_HEAD_BEFORE
 ## Zakazy
 - Nie zmieniaj `main`.
 - Nie zmieniaj COMMA WMS ani KOMI Animation Lab.
-- Nie dodawaj nowych funkcji poza naprawą kolejności załączników.
-- Nie zmieniaj wyglądu pozostałych części aplikacji.
+- Nie zmieniaj generatora PDF ani formatu zapisu.
+- Nie dodawaj funkcji poza naprawą odświeżania widocznej kolejności załączników.
 - Nie wykonuj resetu, rebase ani force push.

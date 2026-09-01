@@ -1,23 +1,14 @@
 # Stan przekazania
 
-- TASK_ID: ATTACHMENT-REORDER-006
-- STATUS: COMPLETED
-- LAST_ACTOR: Codex
-- NEXT_ACTOR: Safe worker
+- TASK_ID: ATTACHMENT-PREVIEW-REORDER-007
+- STATUS: READY
+- LAST_ACTOR: ChatGPT
+- NEXT_ACTOR: Automatic Codex worker
 - BRANCH: workspace-4.0
-- HEAD: 5e7ae6cb4a935c292c6c7adac3df0380208e3737
-- IMPLEMENTATION_COMMIT: 5e7ae6cb4a935c292c6c7adac3df0380208e3737
+- EXPECTED_HEAD_BEFORE_TASK: db1316d8e8198fd854133a48ac730b1da0f95e0f
 
 ## Stan
-Naprawa kolejności załączników znajduje się już w commicie `5e7ae6c` (`Fix attachment reordering controls`) na `workspace-4.0` i `origin/workspace-4.0`. Po udanym `Move` obsługa obu strzałek ustawia jawnie nowy indeks zaznaczenia; test regresji sprawdza trzy różne obiekty, ruch w obu kierunkach, pola `Order` oraz granice kolekcji.
-
-## Ponowna walidacja
-- Testy: PASS, 169/169.
-- Restore rozwiązania: PASS; odtworzył brakujący lokalny assets file projektu `COMMA.DrawingsGenerator`.
-- Build Release z `--no-restore -m:1`: PASS, 0 ostrzeżeń i 0 błędów.
-- `git diff --check`: PASS.
-- Zmienione ścieżki robocze: wyłącznie `.ai/report.md` i `.ai/handoff.md`, obie dozwolone przez `ALLOWED_PATHS_JSON`.
-- `main` pozostaje na `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+Kolejność załączników jest poprawnie zmieniana w danych i PDF, lecz widoczna lista w otwartym oknie aplikacji pozostaje w starej kolejności.
 
 ## Następny krok
-Safe worker powinien zweryfikować końcowy diff raportowy. W tej sesji nie wykonano nowego commitu ani pushu; implementacji nie należy dublować, ponieważ commit `5e7ae6c` jest już obecny na zdalnej gałęzi.
+Automatic Codex worker ma zdiagnozować odświeżanie ListBox po `ObservableCollection.Move`, zastosować najmniejszą poprawkę, uruchomić pełne testy i build oraz zakończyć handoff statusem COMPLETED.
