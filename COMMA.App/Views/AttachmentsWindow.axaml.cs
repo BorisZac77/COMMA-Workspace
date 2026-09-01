@@ -132,21 +132,24 @@ public partial class AttachmentsWindow : Window
 
     private void OnMoveUpButtonClick(object? sender, RoutedEventArgs e)
     {
-        if (AttachmentsList.SelectedItem is not OrderAttachmentMetadata selected)
-            return;
-
-        manager.Move(selected, -1, card.Attachments);
-        AttachmentsList.SelectedItem = selected;
-        UpdateButtonStates();
+        MoveSelectedAttachment(-1);
     }
 
     private void OnMoveDownButtonClick(object? sender, RoutedEventArgs e)
     {
+        MoveSelectedAttachment(1);
+    }
+
+    private void MoveSelectedAttachment(int offset)
+    {
         if (AttachmentsList.SelectedItem is not OrderAttachmentMetadata selected)
             return;
 
-        manager.Move(selected, 1, card.Attachments);
-        AttachmentsList.SelectedItem = selected;
+        var oldIndex = card.Attachments.IndexOf(selected);
+        if (!manager.Move(selected, offset, card.Attachments))
+            return;
+
+        AttachmentsList.SelectedIndex = oldIndex + offset;
         UpdateButtonStates();
     }
 

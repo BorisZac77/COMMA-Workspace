@@ -234,6 +234,40 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void Move_ReordersObjectsNormalizesOrderAndStopsAtCollectionEdges()
+    {
+        using var manager = new OrderAttachmentManager();
+        var alpha = new OrderAttachmentMetadata { Name = "alpha.pdf", Order = 0 };
+        var bravo = new OrderAttachmentMetadata { Name = "bravo.png", Order = 1 };
+        var charlie = new OrderAttachmentMetadata { Name = "charlie.jpg", Order = 2 };
+        var attachments = new ObservableCollection<OrderAttachmentMetadata>
+        {
+            alpha,
+            bravo,
+            charlie
+        };
+
+        Assert.True(manager.Move(bravo, -1, attachments));
+        Assert.Equal(
+            ["bravo.png", "alpha.pdf", "charlie.jpg"],
+            attachments.Select(item => item.Name));
+        Assert.Equal([0, 1, 2], attachments.Select(item => item.Order));
+
+        Assert.True(manager.Move(bravo, 1, attachments));
+        Assert.Equal(
+            ["alpha.pdf", "bravo.png", "charlie.jpg"],
+            attachments.Select(item => item.Name));
+        Assert.Equal([0, 1, 2], attachments.Select(item => item.Order));
+
+        Assert.False(manager.Move(alpha, -1, attachments));
+        Assert.False(manager.Move(charlie, 1, attachments));
+        Assert.Equal(
+            ["alpha.pdf", "bravo.png", "charlie.jpg"],
+            attachments.Select(item => item.Name));
+        Assert.Equal([0, 1, 2], attachments.Select(item => item.Order));
+    }
+
+    [Fact]
     public void ClearCurrentOrder_RemovesMetadataAndManagedCopies()
     {
         using var directory = new TemporaryDirectory();

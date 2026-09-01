@@ -1,14 +1,21 @@
 # Stan przekazania
 
 - TASK_ID: ATTACHMENT-REORDER-006
-- STATUS: READY
-- LAST_ACTOR: ChatGPT
-- NEXT_ACTOR: Automatic Codex worker
+- STATUS: COMPLETED
+- LAST_ACTOR: Codex
+- NEXT_ACTOR: Safe worker
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: 5f0a157db013b9b6a2d9ea3638821081f3dee217
+- HEAD: f2441572c5c721a4f366cb8f02710c4b94e93b0b
 
 ## Stan
-Użytkownik potwierdził w aplikacjach 4.0 i 4.1, że strzałki góra/dół w oknie załączników nie zmieniają kolejności dodanych plików. Zadanie ma naprawić ten przepływ bez innych zmian funkcjonalnych.
+Naprawa kolejności załączników jest gotowa. Obsługa obu strzałek po udanym `Move` ustawia jawnie nowy indeks zaznaczenia, dzięki czemu przeniesiony załącznik pozostaje wybrany, a aktywność strzałek odpowiada jego pozycji. Test regresji sprawdza kolejność trzech różnych obiektów, pola `Order` oraz pierwszą i ostatnią pozycję.
+
+## Walidacja
+- Testy: PASS, 169/169.
+- Build Release: PASS, 0 ostrzeżeń i 0 błędów.
+- `git diff --check`: PASS.
+- Zmienione ścieżki należą wyłącznie do `ALLOWED_PATHS_JSON`.
+- Commit i push nie zostały wykonane.
 
 ## Następny krok
-Automatic Codex worker ma odtworzyć problem, ustalić przyczynę, wdrożyć minimalną poprawkę, dodać test regresji oraz wykonać pełne testy i build.
+Safe worker powinien sprawdzić diff i wyniki walidacji, a następnie wykonać commit `Fix attachment reordering controls` oraz push zgodnie z automatycznym przepływem zadania.
