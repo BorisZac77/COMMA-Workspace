@@ -1,20 +1,14 @@
 # Stan przekazania
 
-- TASK_ID: ATTACHMENT-PREVIEW-REORDER-007
-- STATUS: COMPLETED
-- LAST_ACTOR: Codex
-- NEXT_ACTOR: Safe validation worker
+- TASK_ID: ATTACHMENT-PREVIEW-BINDING-008
+- STATUS: READY
+- LAST_ACTOR: ChatGPT
+- NEXT_ACTOR: Automatic Codex worker
 - BRANCH: workspace-4.0
-- HEAD_BEFORE_TASK: 72fea9f9c9b2f1f816c83aaefedbb6ce0d3331e8
+- EXPECTED_HEAD_BEFORE_TASK: dec95aeee80c3e4f1ec684b56d4a36ae444eae64
 
 ## Stan
-Poprawka odświeża widoczne źródło `AttachmentsList` z aktualnej migawki kolekcji natychmiast po udanym `Move`, następnie przywraca zaznaczenie na przeniesionym załączniku i aktualizuje stany strzałek. Kolejność danych i pola `Order` pozostają obsługiwane przez dotychczasowy manager.
-
-## Walidacja
-- Build Release: PASS, 0 ostrzeżeń, 0 błędów.
-- Projekty i assembly testów: kompilacja PASS.
-- Wykonanie VSTest: zablokowane przez sandbox (`SocketException (13): Permission denied` przy otwieraniu lokalnego TCP); wymaga ponowienia przez bezpiecznego workera.
-- Commit i push nie zostały wykonane.
+Widoczna kolejność jest odświeżana, ale bieżące użycie migawki `ToArray()` może odłączyć ListBox od późniejszych zmian kolekcji.
 
 ## Następny krok
-Bezpieczny worker powinien uruchomić pełne `dotnet test "COMMA Workspace 4.0.sln"` poza ograniczeniem lokalnego IPC, zweryfikować końcowy diff i wykonać commit/push komunikatem `Refresh attachment preview after reordering`.
+Automatic Codex worker ma zachować natychmiastowy ruch widocznych wierszy i ponownie przypiąć żywą obserwowalną kolekcję, następnie wykonać testy i build.
