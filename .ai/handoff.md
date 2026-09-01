@@ -1,10 +1,10 @@
 # Stan przekazania
 
-- TASK_ID: INTEGRATION-002
-- STATUS: COMPLETED
-- LAST_ACTOR: Codex
-- NEXT_ACTOR: ChatGPT
+- TASK_ID: INTEGRATION-003
+- STATUS: READY
+- LAST_ACTOR: ChatGPT
+- NEXT_ACTOR: Automatic Codex worker
 - BRANCH: workspace-4.0
 
 ## Następny krok
-ChatGPT ma potwierdzić odbiór zakończonego `INTEGRATION-002`. LaunchAgent `pl.comma.workspace4.codex-worker` jest zainstalowany, aktywny co 60 sekund i ma zasiany stan `INTEGRATION-002`, więc nie uruchomi ponownie zadania instalacyjnego.
+LaunchAgent ma samodzielnie odebrać i wykonać `INTEGRATION-003`; użytkownik nie wykonuje żadnej czynności w Riderze.
