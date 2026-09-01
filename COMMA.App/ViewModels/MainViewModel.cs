@@ -214,6 +214,32 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             newCard.Notes =
                 previousCard.Notes;
 
+            newCard.ProductionEntries.Clear();
+
+            foreach (var entry in previousCard.ProductionEntries)
+            {
+                var copiedEntry =
+                    new ProductionEntry(entry.Number)
+                    {
+                        LogoName = entry.LogoName,
+                        Dimension = entry.Dimension
+                    };
+
+                foreach (var colour in entry.Colours)
+                {
+                    copiedEntry.Colours.Add(
+                        new ProductionColourEntry(colour.Number)
+                        {
+                            Value = colour.Value
+                        });
+
+                    copiedEntry.Colours[^1].Number =
+                        colour.Number;
+                }
+
+                newCard.ProductionEntries.Add(copiedEntry);
+            }
+
             foreach (var attachment in previousCard.Attachments)
             {
                 newCard.Attachments.Add(

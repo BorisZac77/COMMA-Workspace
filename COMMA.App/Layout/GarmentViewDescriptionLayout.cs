@@ -527,9 +527,7 @@ public static class GarmentViewDescriptionLayout
         DescriptionTargetGeometry geometry)
     {
         var layout = GetLayoutKind(geometry.Target);
-        var layoutMaximum = layout == DescriptionLayoutKind.TwoViews
-            ? GetTwoViewMaximumImageHeight()
-            : PdfStyles.MultiDrawingMaximumHeight;
+        var layoutMaximum = PdfStyles.DrawingMaximumHeight;
         var descriptionTopGap = layout == DescriptionLayoutKind.TwoViews
             ? PdfStyles.DrawingDescriptionTopGap
             : PdfStyles.MultiDrawingDescriptionTopGap;
@@ -970,13 +968,6 @@ public static class GarmentViewDescriptionLayout
         }
 
         return lineCount;
-    }
-
-    private static double GetTwoViewMaximumImageHeight()
-    {
-        return PdfStyles.GetDrawingImageHeight(
-                   PdfStyles.GetDrawingRowHeight(1)) *
-               0.75;
     }
 
     private static int GetCommonPrefixLength(

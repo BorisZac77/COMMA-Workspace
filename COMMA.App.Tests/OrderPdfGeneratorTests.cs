@@ -14,6 +14,47 @@ namespace COMMA.App.Tests;
 
 public sealed class OrderPdfGeneratorTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void Pdf_DrawingImagesStayWithinSeventyMillimetresAndKeepAspectRatio(
+        int drawingCount)
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath($"drawing-height-{drawingCount}.pdf");
+        var imagePath = CreateDrawingFixture(directory, 400, 200);
+        var garment = CreateGarment(drawingCount, $"Garment {drawingCount}");
+
+        foreach (var drawing in garment.Drawings)
+            drawing.FullPath = imagePath;
+
+        var pages = OrderPageLayoutEngine.BuildPages([garment]);
+
+        OrderPdfGenerator.Generate(
+            outputPath,
+            new ProductionCard { OrderName = "DRAWING HEIGHT" },
+            pages);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        var images = pages
+            .SelectMany((pagePlan, index) =>
+                GetDrawingImageBounds(
+                    pdf.GetPage(index + 1),
+                    pagePlan.Placements.Sum(placement => placement.DrawingCount)))
+            .ToList();
+        var maximumHeight = 70d / 25.4d * 72d;
+
+        Assert.Equal(drawingCount, images.Count);
+
+        foreach (var image in images)
+        {
+            Assert.InRange(image.Height, 1, maximumHeight + 0.5d);
+            Assert.Equal(2d, image.Width / image.Height, precision: 2);
+        }
+    }
+
     [Fact]
     public void EmptyOrderNumber_DoesNotBlockV4PackageAndFirstPageShowsOneOfOne()
     {
@@ -1343,6 +1384,28 @@ public sealed class OrderPdfGeneratorTests
 
         canvas.Clear(SKColors.White);
         canvas.DrawRect(new SKRect(20, 20, 180, 180), paint);
+        canvas.Flush();
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+
+        return path;
+    }
+
+    private static string CreateDrawingFixture(
+        TemporaryDirectory directory,
+        int width,
+        int height)
+    {
+        var path = directory.GetPath($"drawing-fixture-{width}x{height}.png");
+        using var bitmap = new SKBitmap(
+            width,
+            height,
+            SKColorType.Rgba8888,
+            SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Black);
         canvas.Flush();
 
         using var image = SKImage.FromBitmap(bitmap);

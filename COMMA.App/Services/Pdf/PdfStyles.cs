@@ -129,9 +129,12 @@ public static class PdfStyles
 
     public const float DrawingDescriptionLineHeight = 1.1f;
 
-    // 70 mm w punktach QuestPDF. Dotyczy wyłącznie układu 3–4 rysunków.
-    public const float MultiDrawingMaximumHeight =
+    // 70 mm w punktach QuestPDF. Dotyczy wszystkich układów rysunków.
+    public const float DrawingMaximumHeight =
         70f / 25.4f * 72f;
+
+    public const float MultiDrawingMaximumHeight =
+        DrawingMaximumHeight;
 
     public const float MultiDrawingImageAreaMinimumHeight =
         MultiDrawingMaximumHeight

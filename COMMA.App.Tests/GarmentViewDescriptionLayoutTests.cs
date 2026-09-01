@@ -931,6 +931,35 @@ public sealed class GarmentViewDescriptionLayoutTests
                 4));
     }
 
+    [Theory]
+    [InlineData(DescriptionLayoutTarget.FirstPageOneView)]
+    [InlineData(DescriptionLayoutTarget.FirstPageTwoViews)]
+    [InlineData(DescriptionLayoutTarget.LaterPageOneView)]
+    [InlineData(DescriptionLayoutTarget.LaterPageTwoViews)]
+    [InlineData(DescriptionLayoutTarget.LaterPageThreeViews)]
+    [InlineData(DescriptionLayoutTarget.LaterPageFourViews)]
+    public void EveryDrawingLayoutLimitsSquareImagesToSeventyMillimetres(
+        DescriptionLayoutTarget target)
+    {
+        var geometry =
+            GarmentViewDescriptionLayout.GetReferenceGeometry(target);
+        var expectedMaximumHeight = 70d / 25.4d * 72d;
+
+        Assert.Equal(
+            expectedMaximumHeight,
+            GarmentViewDescriptionLayout.GetPdfMaximumImageHeight(geometry),
+            precision: 3);
+        Assert.Equal(
+            expectedMaximumHeight,
+            GarmentViewDescriptionLayout.GetPdfRenderedImageHeight(geometry),
+            precision: 3);
+        Assert.Equal(
+            expectedMaximumHeight,
+            GarmentViewDescriptionLayout.GetPreviewMaximumImageHeight(geometry) /
+            (620d / PdfStyles.PageWidth),
+            precision: 3);
+    }
+
     [Fact]
     public void ReferenceLayoutsExposeDifferentDynamicLineCapacities()
     {

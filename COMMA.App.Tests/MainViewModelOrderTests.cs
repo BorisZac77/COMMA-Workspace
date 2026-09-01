@@ -30,6 +30,71 @@ public sealed class MainViewModelOrderTests
     }
 
     [Fact]
+    public void SelectingAnotherProductPreservesIndependentProductionEntries()
+    {
+        var viewModel = new MainViewModel();
+        var previousCard = new ProductionCard();
+        previousCard.ProductionEntries[0].LogoName = "Haft na piersi";
+        previousCard.ProductionEntries[0].Dimension = "80 x 35 mm";
+        previousCard.ProductionEntries[0].Colours.Add(
+            new ProductionColourEntry(1) { Value = "Nici granatowe" });
+        previousCard.ProductionEntries[0].Colours.Add(
+            new ProductionColourEntry(2) { Value = "Nici białe" });
+        previousCard.ProductionEntries[1].LogoName = "Logo na plecach";
+        previousCard.ProductionEntries[1].Dimension = "240 x 120 mm";
+        previousCard.ProductionEntries[1].Colours.Add(
+            new ProductionColourEntry(1) { Value = "Pantone 186 C" });
+        previousCard.ProductionEntries[1].Colours.Add(
+            new ProductionColourEntry(2) { Value = "Pantone Black C" });
+        viewModel.ProductionCard = previousCard;
+
+        viewModel.SelectedProduct = new Product
+        {
+            Code = "NEW",
+            Name = "Nowy rodzaj odzieży"
+        };
+
+        var copiedCard = Assert.IsType<ProductionCard>(viewModel.ProductionCard);
+        Assert.NotSame(previousCard, copiedCard);
+        Assert.Equal(previousCard.ProductionEntries.Count, copiedCard.ProductionEntries.Count);
+
+        for (var entryIndex = 0;
+             entryIndex < previousCard.ProductionEntries.Count;
+             entryIndex++)
+        {
+            var previousEntry = previousCard.ProductionEntries[entryIndex];
+            var copiedEntry = copiedCard.ProductionEntries[entryIndex];
+
+            Assert.NotSame(previousEntry, copiedEntry);
+            Assert.Equal(previousEntry.Number, copiedEntry.Number);
+            Assert.Equal(previousEntry.LogoName, copiedEntry.LogoName);
+            Assert.Equal(previousEntry.Dimension, copiedEntry.Dimension);
+            Assert.NotSame(previousEntry.Colours, copiedEntry.Colours);
+            Assert.Equal(
+                previousEntry.Colours.Select(colour => (colour.Number, colour.Value)),
+                copiedEntry.Colours.Select(colour => (colour.Number, colour.Value)));
+
+            for (var colourIndex = 0;
+                 colourIndex < previousEntry.Colours.Count;
+                 colourIndex++)
+            {
+                Assert.NotSame(
+                    previousEntry.Colours[colourIndex],
+                    copiedEntry.Colours[colourIndex]);
+            }
+        }
+
+        copiedCard.ProductionEntries[0].LogoName = "Zmienione logo";
+        copiedCard.ProductionEntries[0].Colours[0].Value = "Zmienione nici";
+        copiedCard.ProductionEntries[0].Colours.Add(
+            new ProductionColourEntry(3) { Value = "Nowy kolor" });
+
+        Assert.Equal("Haft na piersi", previousCard.ProductionEntries[0].LogoName);
+        Assert.Equal("Nici granatowe", previousCard.ProductionEntries[0].Colours[0].Value);
+        Assert.Equal(2, previousCard.ProductionEntries[0].Colours.Count);
+    }
+
+    [Fact]
     public void DescriptionDialogCheckIgnoresNewControlledTextAndIdentifiesExistingOverflow()
     {
         var viewModel = new MainViewModel();
