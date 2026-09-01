@@ -108,7 +108,7 @@ public static class PdfStyles
     // 3 kolory są blisko siebie,
     // 10 kolorów wygląda kompaktowo,
     // a przy większej liczbie wysokość zmniejszy się automatycznie.
-    public const float ColourCompactRowHeight = 10f;
+    public const float ColourCompactRowHeight = 12f;
 
     // =========================================================
     // SEKCJA 3 — RYSUNKI
@@ -171,12 +171,15 @@ public static class PdfStyles
 
     public const float LoggingNumberFontSize = 8f;
 
+    public const float ColourEntryFontSize = 10f;
+
     // Wymiar logo większy niż wcześniej
     public const float LoggingDimensionFontSize = 8.5f;
 
-    // Rysunki — bez zmian
+    // Rysunki
     public const float DrawingTitleFontSize = 8f;
     public const float DrawingPlacementFontSize = 5.5f;
+    public const float DrawingDescriptionFontSize = 10f;
 
     // =========================================================
     // LICZBA PÓL

@@ -740,6 +740,112 @@ public sealed class OrderPdfGeneratorTests
     }
 
     [Fact]
+    public void Pdf_TypicalColoursAndShortDrawingDescriptionUseTenPointText()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("ten-point-content.pdf");
+        var card = new ProductionCard
+        {
+            OrderNumber = "ZL-FONT-10",
+            OrderName = "TEN POINT CONTENT"
+        };
+        var colourValues = new[]
+        {
+            "1050",
+            "20202",
+            "3303",
+            "44004",
+            "5505"
+        };
+        card.ProductionEntries[0].ColoursNotes =
+            string.Join('\n', colourValues);
+        var denseColourValues = Enumerable.Range(1, 33)
+            .Select(index => $"DENSE-{index:00}")
+            .ToArray();
+        card.ProductionEntries[1].ColoursNotes =
+            string.Join('\n', denseColourValues);
+        var garment = CreateGarment(1, "Font test garment");
+        const string description = "KRÓTKI OPIS POD RYSUNKIEM";
+        garment.ViewDescriptions.Front = description;
+        var pages = OrderPageLayoutEngine.BuildPages([garment]);
+
+        OrderPdfGenerator.Generate(outputPath, card, pages);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        var page = pdf.GetPage(1);
+
+        for (var index = 0; index < colourValues.Length; index++)
+        {
+            var numberLetters = GetTextLetters(page, $"{index + 1}.");
+            var valueLetters = GetTextLetters(page, colourValues[index]);
+
+            Assert.All(
+                numberLetters,
+                letter => Assert.Equal(
+                    PdfStyles.ColourEntryFontSize,
+                    letter.PointSize,
+                    precision: 1));
+            Assert.All(
+                numberLetters,
+                letter => Assert.Contains(
+                    "Bold",
+                    letter.FontName,
+                    StringComparison.OrdinalIgnoreCase));
+            Assert.All(
+                valueLetters,
+                letter => Assert.Equal(
+                    PdfStyles.ColourEntryFontSize,
+                    letter.PointSize,
+                    precision: 1));
+            Assert.All(
+                valueLetters,
+                letter => Assert.DoesNotContain(
+                    "Bold",
+                    letter.FontName,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        var contentTop =
+            page.Height -
+            PdfStyles.PageMargin -
+            PdfStyles.OuterBorderWidth -
+            PdfStyles.PagePadding;
+        var coloursAreaTop =
+            contentTop -
+            PdfStyles.HeaderHeight -
+            PdfStyles.SectionGap -
+            PdfStyles.LoggingTitleHeight -
+            PdfStyles.LoggingEntriesHeight -
+            PdfStyles.ColoursTitleHeight;
+        var coloursAreaBottom =
+            coloursAreaTop - PdfStyles.ColoursAreaHeight;
+
+        foreach (var denseValue in denseColourValues)
+        {
+            var valueLetters = GetTextLetters(page, denseValue);
+
+            Assert.All(
+                valueLetters,
+                letter =>
+                {
+                    Assert.InRange(
+                        letter.PointSize,
+                        0.1,
+                        PdfStyles.ColourEntryFontSize - 0.1);
+                    Assert.InRange(
+                        (letter.BoundingBox.Bottom + letter.BoundingBox.Top) / 2d,
+                        coloursAreaBottom,
+                        coloursAreaTop);
+                });
+        }
+
+        AssertTextPointSize(
+            page,
+            description,
+            PdfStyles.DrawingDescriptionFontSize);
+    }
+
+    [Fact]
     public void Pdf_RendersDescriptionsForMatchingGarmentsAndViewsWithAdaptiveFonts()
     {
         using var directory = new TemporaryDirectory();

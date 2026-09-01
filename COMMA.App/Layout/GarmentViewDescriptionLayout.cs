@@ -12,7 +12,8 @@ namespace COMMA.App.Layout;
 
 public static class GarmentViewDescriptionLayout
 {
-    public const float PdfLargeFontSize = 11f;
+    public const float PdfLargeFontSize =
+        PdfStyles.DrawingDescriptionFontSize;
     public const float PdfMediumFontSize = 10f;
     public const float PdfMinimumFontSize = 9f;
 

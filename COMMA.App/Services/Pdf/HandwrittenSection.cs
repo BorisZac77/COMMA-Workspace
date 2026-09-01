@@ -305,7 +305,7 @@ public static class HandwrittenSection
         var fontSize =
             colourCount switch
             {
-                <= 10 => 8.5f,
+                <= 10 => PdfStyles.ColourEntryFontSize,
                 <= 12 => 8f,
                 <= 15 => 7.5f,
                 <= 18 => 7f,
