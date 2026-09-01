@@ -1,6 +1,6 @@
 # Raport Codexa
 
-- TASK_ID: WINDOWS-ZIP-4.1-005
+- TASK_ID: ATTACHMENT-REORDER-006
 - STATUS: PENDING
 - STARTED_AT:
 - COMPLETED_AT:
@@ -10,13 +10,16 @@
 - HEAD_AFTER:
 
 ## Cel
-Przygotować i zweryfikować samodzielny pakiet COMMA Workspace 4.1 dla Windows x64 bez zmian w kodzie.
+Naprawić niedziałające przesuwanie załączników strzałkami góra/dół.
 
-## Wykonanie
-Oczekuje na automatyczne wykonanie.
+## Kontrole wstępne
+Oczekują na automatyczne wykonanie.
 
-## Walidacja
-Oczekuje na publikację win-x64 i kontrolę integralności ZIP-a.
+## Wykonane zmiany
+Oczekuje na diagnozę i prostą poprawkę.
+
+## Testy
+Oczekują na wykonanie.
 
 ## Problemy lub ryzyka
 Brak zgłoszonych przed rozpoczęciem.

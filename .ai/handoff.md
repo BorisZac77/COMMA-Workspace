@@ -1,14 +1,14 @@
 # Stan przekazania
 
-- TASK_ID: WINDOWS-ZIP-4.1-005
+- TASK_ID: ATTACHMENT-REORDER-006
 - STATUS: READY
 - LAST_ACTOR: ChatGPT
 - NEXT_ACTOR: Automatic Codex worker
 - BRANCH: workspace-4.0
-- EXPECTED_HEAD_BEFORE_TASK: 0e1737d54c9ce80b171771aeadf2ec04daecc931
+- BASE_HEAD_BEFORE_QUEUE: 5f0a157db013b9b6a2d9ea3638821081f3dee217
 
 ## Stan
-Kod COMMA Workspace 4.1 jest zweryfikowany testami 168/168. Należy przygotować samodzielny pakiet Windows x64 i sprawdzić integralność ZIP-a bez zmian w kodzie.
+Użytkownik potwierdził w aplikacjach 4.0 i 4.1, że strzałki góra/dół w oknie załączników nie zmieniają kolejności dodanych plików. Zadanie ma naprawić ten przepływ bez innych zmian funkcjonalnych.
 
 ## Następny krok
-Automatic Codex worker ma opublikować win-x64, utworzyć i zweryfikować ZIP, spróbować zapisać go na Pulpicie oraz zaktualizować raport.
+Automatic Codex worker ma odtworzyć problem, ustalić przyczynę, wdrożyć minimalną poprawkę, dodać test regresji oraz wykonać pełne testy i build.
