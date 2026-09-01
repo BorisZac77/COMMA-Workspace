@@ -1,14 +1,21 @@
 # Stan przekazania
 
 - TASK_ID: ATTACHMENT-PREVIEW-PAGE-ORDER-009
-- STATUS: READY
-- LAST_ACTOR: ChatGPT
-- NEXT_ACTOR: Automatic Codex worker
+- STATUS: COMPLETED
+- LAST_ACTOR: Codex
+- NEXT_ACTOR: Safe validation worker
 - BRANCH: workspace-4.0
-- EXPECTED_HEAD_BEFORE_TASK: 33bd6a38935fc92bdb4ffe3a4e5b2a7b2eff41ed
+- HEAD_WITH_UNCOMMITTED_CHANGES: 8aa66c6125b853bd94a9b0d306ee70f3519957ae
 
 ## Stan
-Lista załączników i końcowy PDF mają poprawną kolejność, lecz fizyczne strony podglądu pozostają w starej kolejności po ruchu. Potwierdzony przypadek: Lolands jest ostatni na liście, ale nadal pojawia się na stronie 3/6 zamiast od 4/6.
+Poprawka i regresja są gotowe. Podgląd buduje fizyczne strony w kolejności żywej kolekcji `ProductionCard.Attachments`; po przesunięciu Lolands na koniec strona `3 / 6` zachowuje swój indeks i pokazuje Jacobs, a trzy strony Lolands zajmują pozycje `4 / 6`-`6 / 6`.
+
+## Walidacja
+- Pełne testy: PASS, 171/171.
+- Build Release: PASS, 0 ostrzeżeń i 0 błędów.
+- `git diff --check`: PASS.
+- Zakres zmian: wyłącznie dozwolone pliki.
+- `main` pozostał na `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
 
 ## Następny krok
-Automatic Codex worker ma naprawić źródło kolejności stron podglądu, dodać regresję 1+1+3 stron, wykonać testy i build oraz opublikować commit na gałęzi workspace-4.0.
+Safe validation worker może zweryfikować diff, a następnie wykonać commit i push zgodnie z kolejką. Codex nie wykonał commita ani pushu.

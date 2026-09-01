@@ -303,8 +303,7 @@ public partial class MainViewModel
 
         if (ProductionCard is { } card)
         {
-            foreach (var attachment in card.Attachments
-                         .OrderBy(item => item.Order))
+            foreach (var attachment in card.Attachments)
             {
                 var pageCount = string.Equals(
                     attachment.Extension,

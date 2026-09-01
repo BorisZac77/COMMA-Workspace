@@ -268,6 +268,56 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void PreviewPages_FollowLiveAttachmentOrderAfterMovingMultiPagePdfToEnd()
+    {
+        using var directory = new TemporaryDirectory();
+        using var viewModel = new MainViewModel
+        {
+            ProductionCard = new ProductionCard()
+        };
+        var janPath = directory.GetPath("Jan Witdouck.pdf");
+        var lolandsPath = directory.GetPath("Lolands.pdf");
+        var jacobsPath = directory.GetPath("Jacobs.pdf");
+        CreatePdf(janPath, 1);
+        CreatePdf(lolandsPath, 3);
+        CreatePdf(jacobsPath, 1);
+        viewModel.Garments.Add(
+            OrderTestData.CreateGarment(1, "Preview card"));
+        InvokeRebuildOrderPages(viewModel);
+
+        Assert.Empty(viewModel.AttachmentManager.AddFiles(
+            [janPath, lolandsPath, jacobsPath],
+            viewModel.ProductionCard.Attachments));
+        Assert.Equal(6, viewModel.PreviewPhysicalPageCount);
+        viewModel.NextPreviewPageCommand.Execute(null);
+        viewModel.NextPreviewPageCommand.Execute(null);
+        Assert.Equal("3 / 6", viewModel.PreviewPageNumberText);
+
+        var lolands = viewModel.ProductionCard.Attachments[1];
+        Assert.True(viewModel.AttachmentManager.Move(
+            lolands,
+            1,
+            viewModel.ProductionCard.Attachments));
+
+        Assert.Equal(2, viewModel.PreviewPageIndex);
+        Assert.Equal("3 / 6", viewModel.PreviewPageNumberText);
+        Assert.Equal(
+            [
+                ("Jan Witdouck.pdf", 0),
+                ("Jacobs.pdf", 0),
+                ("Lolands.pdf", 0),
+                ("Lolands.pdf", 1),
+                ("Lolands.pdf", 2)
+            ],
+            GetAttachmentPreviewPagePlan(viewModel));
+        Assert.Equal(
+            ["Jan Witdouck.pdf", "Jacobs.pdf", "Lolands.pdf"],
+            viewModel.ProductionCard.Attachments.Select(item => item.Name));
+        Assert.Equal([0, 1, 2],
+            viewModel.ProductionCard.Attachments.Select(item => item.Order));
+    }
+
+    [Fact]
     public void AttachmentsWindow_RebindsVisibleOrderAndKeepsMovedItemSelected()
     {
         var viewsDirectory = Path.GetFullPath(
@@ -503,6 +553,42 @@ public sealed class OrderAttachmentTests
         File.WriteAllBytes(jpg, Convert.FromBase64String(JpegBase64));
         File.WriteAllBytes(jpeg, Convert.FromBase64String(JpegBase64));
         return [pdf, png, jpg, jpeg];
+    }
+
+    private static void InvokeRebuildOrderPages(MainViewModel viewModel)
+    {
+        var method = typeof(MainViewModel).GetMethod(
+            "RebuildOrderPages",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method.Invoke(viewModel, null);
+    }
+
+    private static (string Name, int PageIndex)[] GetAttachmentPreviewPagePlan(
+        MainViewModel viewModel)
+    {
+        var field = typeof(MainViewModel).GetField(
+            "attachmentPreviewPages",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        var pages = Assert.IsAssignableFrom<System.Collections.IEnumerable>(
+            field.GetValue(viewModel));
+
+        return pages.Cast<object>()
+            .Select(page =>
+            {
+                var pageType = page.GetType();
+                var attachmentProperty = pageType.GetProperty("Attachment");
+                var pageIndexProperty = pageType.GetProperty("PageIndex");
+                Assert.NotNull(attachmentProperty);
+                Assert.NotNull(pageIndexProperty);
+                var attachment = Assert.IsType<OrderAttachmentMetadata>(
+                    attachmentProperty.GetValue(page));
+                var pageIndex = Assert.IsType<int>(
+                    pageIndexProperty.GetValue(page));
+                return (attachment.Name, pageIndex);
+            })
+            .ToArray();
     }
 
     private static void CreatePdf(string path, int pageCount)
