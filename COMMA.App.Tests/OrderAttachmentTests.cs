@@ -268,6 +268,59 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void AttachmentsWindow_RebindsVisibleOrderAndKeepsMovedItemSelected()
+    {
+        var viewsDirectory = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "..", "..", "..", "..",
+                "COMMA.App", "Views"));
+        var xaml = XDocument.Load(
+            Path.Combine(viewsDirectory, "AttachmentsWindow.axaml"));
+        var codeBehind = File.ReadAllText(
+            Path.Combine(viewsDirectory, "AttachmentsWindow.axaml.cs"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var attachmentsList = Assert.Single(
+            xaml.Descendants(),
+            element =>
+                element.Name.LocalName == "ListBox" &&
+                (string?)element.Attribute(x + "Name") == "AttachmentsList");
+
+        Assert.Equal(
+            "{Binding Attachments}",
+            (string?)attachmentsList.Attribute("ItemsSource"));
+        Assert.Contains(
+            "AttachmentsList.ItemsSource = card.Attachments.ToArray();",
+            codeBehind,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "AttachmentsList.SelectedItem = selected;",
+            codeBehind,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "AttachmentsList.SelectedIndex = oldIndex + offset;",
+            codeBehind,
+            StringComparison.Ordinal);
+
+        var moveIndex = codeBehind.IndexOf(
+            "manager.Move(selected, offset, card.Attachments)",
+            StringComparison.Ordinal);
+        var refreshIndex = codeBehind.IndexOf(
+            "RefreshAttachmentsList(selected);",
+            StringComparison.Ordinal);
+        var rebindIndex = codeBehind.IndexOf(
+            "AttachmentsList.ItemsSource = card.Attachments.ToArray();",
+            StringComparison.Ordinal);
+        var selectionIndex = codeBehind.IndexOf(
+            "AttachmentsList.SelectedItem = selected;",
+            StringComparison.Ordinal);
+
+        Assert.True(moveIndex >= 0 && moveIndex < refreshIndex);
+        Assert.True(refreshIndex < rebindIndex);
+        Assert.True(rebindIndex < selectionIndex);
+    }
+
+    [Fact]
     public void ClearCurrentOrder_RemovesMetadataAndManagedCopies()
     {
         using var directory = new TemporaryDirectory();

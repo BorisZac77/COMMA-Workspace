@@ -145,12 +145,17 @@ public partial class AttachmentsWindow : Window
         if (AttachmentsList.SelectedItem is not OrderAttachmentMetadata selected)
             return;
 
-        var oldIndex = card.Attachments.IndexOf(selected);
         if (!manager.Move(selected, offset, card.Attachments))
             return;
 
-        AttachmentsList.SelectedIndex = oldIndex + offset;
+        RefreshAttachmentsList(selected);
         UpdateButtonStates();
+    }
+
+    private void RefreshAttachmentsList(OrderAttachmentMetadata selected)
+    {
+        AttachmentsList.ItemsSource = card.Attachments.ToArray();
+        AttachmentsList.SelectedItem = selected;
     }
 
     private void UpdateButtonStates()
