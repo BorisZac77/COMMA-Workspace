@@ -3,17 +3,40 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace COMMA.App.Services.Attachments;
 
 public sealed class OrderAttachmentContentStore : IDisposable
 {
+    private const int SourceOpenAttemptCount = 3;
+    private static readonly TimeSpan SourceOpenRetryDelay =
+        TimeSpan.FromMilliseconds(75);
+
     private readonly string rootPath;
+    private readonly Func<string, FileMode, FileAccess, FileShare, Stream>
+        openSourceStream;
+    private readonly Action<TimeSpan> waitBeforeRetry;
     private readonly Dictionary<Guid, string> paths = new();
     private bool disposed;
 
     public OrderAttachmentContentStore()
+        : this(
+            static (path, mode, access, share) =>
+                new FileStream(path, mode, access, share),
+            Thread.Sleep)
     {
+    }
+
+    internal OrderAttachmentContentStore(
+        Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
+        Action<TimeSpan> waitBeforeRetry)
+    {
+        ArgumentNullException.ThrowIfNull(openSourceStream);
+        ArgumentNullException.ThrowIfNull(waitBeforeRetry);
+
+        this.openSourceStream = openSourceStream;
+        this.waitBeforeRetry = waitBeforeRetry;
         rootPath = Path.Combine(
             Path.GetTempPath(),
             $"comma-workspace-attachments-{Guid.NewGuid():N}");
@@ -25,11 +48,7 @@ public sealed class OrderAttachmentContentStore : IDisposable
         string sourcePath,
         string extension)
     {
-        using var source = new FileStream(
-            sourcePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read);
+        using var source = OpenSourceWithRetry(sourcePath);
         return ImportStream(id, source, extension);
     }
 
@@ -161,6 +180,42 @@ public sealed class OrderAttachmentContentStore : IDisposable
         catch
         {
         }
+    }
+
+    private Stream OpenSourceWithRetry(string sourcePath)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return openSourceStream(
+                    sourcePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+            }
+            catch (IOException exception) when (
+                IsFileSharingViolation(exception) &&
+                attempt < SourceOpenAttemptCount)
+            {
+                waitBeforeRetry(SourceOpenRetryDelay);
+            }
+            catch (IOException exception) when (
+                IsFileSharingViolation(exception))
+            {
+                throw new IOException(
+                    $"Nie można odczytać pliku „{Path.GetFileName(sourcePath)}”, " +
+                    "ponieważ jest używany przez inny program. Zamknij program " +
+                    "korzystający z pliku i spróbuj ponownie.",
+                    exception);
+            }
+        }
+    }
+
+    private static bool IsFileSharingViolation(IOException exception)
+    {
+        var errorCode = exception.HResult & 0xFFFF;
+        return errorCode is 32 or 33;
     }
 }
 

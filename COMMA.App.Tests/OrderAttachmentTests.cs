@@ -103,6 +103,71 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void ContentStore_RetriesSharingViolationWithBroadFileSharing()
+    {
+        var expected = "attachment-content"u8.ToArray();
+        var attempts = 0;
+        var delays = new List<TimeSpan>();
+        var requestedShares = new List<FileShare>();
+        using var store = CreateContentStore(
+            (_, mode, access, share) =>
+            {
+                attempts++;
+                Assert.Equal(FileMode.Open, mode);
+                Assert.Equal(FileAccess.Read, access);
+                requestedShares.Add(share);
+
+                if (attempts < 3)
+                    throw new IOException("sharing violation", unchecked((int)0x80070020));
+
+                return new MemoryStream(expected, writable: false);
+            },
+            delays.Add);
+        var id = Guid.NewGuid();
+
+        var stored = store.ImportFile(id, "shared.pdf", ".pdf");
+
+        Assert.Equal(3, attempts);
+        Assert.Equal(2, delays.Count);
+        Assert.All(delays, delay => Assert.True(delay > TimeSpan.Zero));
+        Assert.All(
+            requestedShares,
+            share => Assert.Equal(FileShare.ReadWrite | FileShare.Delete, share));
+        Assert.True(store.Contains(id));
+        Assert.Equal(expected.LongLength, stored.Length);
+        Assert.Equal(GetSha256(expected), stored.Sha256);
+    }
+
+    [Fact]
+    public void Manager_PersistentSharingViolationLeavesNoContentOrMetadata()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = directory.GetPath("Vandeputte-10.pdf");
+        File.WriteAllText(sourcePath, "source exists for manager checks");
+        var attempts = 0;
+        using var store = CreateContentStore(
+            (_, _, _, _) =>
+            {
+                attempts++;
+                throw new IOException("lock violation", unchecked((int)0x80070021));
+            },
+            _ => { });
+        using var manager = new OrderAttachmentManager();
+        manager.ReplaceContentStore(store);
+        var attachments = new ObservableCollection<OrderAttachmentMetadata>();
+
+        var exception = Assert.Throws<IOException>(
+            () => manager.AddFile(sourcePath, attachments));
+
+        Assert.Equal(3, attempts);
+        Assert.Contains("Vandeputte-10.pdf", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Zamknij program", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(attachments);
+        Assert.Empty(GetStoredContentPaths(store));
+        Assert.Empty(GetContentStoreFiles(store));
+    }
+
+    [Fact]
     public void Manager_RejectsUnsupportedFalseExtensionCorruptAndEncryptedFiles()
     {
         using var directory = new TemporaryDirectory();
@@ -553,6 +618,44 @@ public sealed class OrderAttachmentTests
         File.WriteAllBytes(jpg, Convert.FromBase64String(JpegBase64));
         File.WriteAllBytes(jpeg, Convert.FromBase64String(JpegBase64));
         return [pdf, png, jpg, jpeg];
+    }
+
+    private static OrderAttachmentContentStore CreateContentStore(
+        Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
+        Action<TimeSpan> waitBeforeRetry)
+    {
+        var constructor = typeof(OrderAttachmentContentStore).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [
+                typeof(Func<string, FileMode, FileAccess, FileShare, Stream>),
+                typeof(Action<TimeSpan>)
+            ],
+            modifiers: null);
+        Assert.NotNull(constructor);
+        return Assert.IsType<OrderAttachmentContentStore>(
+            constructor.Invoke([openSourceStream, waitBeforeRetry]));
+    }
+
+    private static IReadOnlyDictionary<Guid, string> GetStoredContentPaths(
+        OrderAttachmentContentStore store)
+    {
+        var field = typeof(OrderAttachmentContentStore).GetField(
+            "paths",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        return Assert.IsAssignableFrom<IReadOnlyDictionary<Guid, string>>(
+            field.GetValue(store));
+    }
+
+    private static string[] GetContentStoreFiles(OrderAttachmentContentStore store)
+    {
+        var field = typeof(OrderAttachmentContentStore).GetField(
+            "rootPath",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        var rootPath = Assert.IsType<string>(field.GetValue(store));
+        return Directory.GetFiles(rootPath);
     }
 
     private static void InvokeRebuildOrderPages(MainViewModel viewModel)
