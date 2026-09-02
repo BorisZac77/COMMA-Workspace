@@ -1,42 +1,31 @@
 # Aktualne zadanie
 
-- TASK_ID: ATTACHMENT-WINDOWS-NETWORK-LOCK-013
+- TASK_ID: PACKAGE-WINDOWS-4.1D-014
 - STATUS: READY
-- PROJECT: COMMA Workspace 4.1
+- PROJECT: COMMA Workspace 4.1D
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: 554596af6a1f226963418a0e950820ef7d1debde
+- BASE_HEAD_BEFORE_QUEUE: 0d550501b028dc6b3b8caea5bd05eb4d1339dc05
 - AUTO_COMMIT_PUSH: YES
-- COMMIT_MESSAGE: Extend Windows network attachment retry
-- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", "COMMA.App/Services/Attachments/OrderAttachmentContentStore.cs", "COMMA.App/Services/Attachments/OrderAttachmentManager.cs", "COMMA.App/Views/AttachmentsWindow.axaml.cs", "COMMA.App.Tests/OrderAttachmentTests.cs"]
-
-## Zgłoszony problem
-
-Na rzeczywistym komputerze Windows pakiet 4.1C nadal nie może dodać pliku `Vandeputte-10.pdf`. Plik jest wybierany z biblioteki na dysku mapowanym `Z:`, a aplikacja pokazuje komunikat, że jest używany przez inny program. Poprzednia poprawka rozpoznaje ERROR_SHARING_VIOLATION, lecz wykonuje tylko trzy próby co 75 ms, czyli kończy się po około 0,15 sekundy.
+- COMMIT_MESSAGE: Package validated Windows 4.1D build
+- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md"]
 
 ## Cel
 
-Zapewnić skuteczny, ograniczony czasowo import plików PDF/JPG/PNG na Windows z dysków lokalnych i mapowanych, kiedy blokada udostępniania jest przejściowa i może trwać kilka sekund. Nie próbować obchodzić trwałej blokady systemowej i nie zmieniać innych funkcji.
+Utworzyć na Pulpicie nowy, samodzielny pakiet Windows x64 zawierający opublikowaną poprawkę importu załączników z dysków mapowanych Windows (commit `5549ab44e7667d5d277343d023ff4686c88db801`).
 
 ## Wymagania
 
-1. Przed zmianami wykonaj wszystkie kontrole z AGENTS.md i `.ai/context.md`; potwierdź czysty worktree, `workspace-4.0`, relację HEAD oraz niezmieniony `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
-2. Przeanalizuj cały przepływ od `IStorageFile`/wyboru pliku przez `AttachmentsWindow`, `OrderAttachmentManager` i `OrderAttachmentContentStore`. Zmień tylko elementy konieczne do usunięcia zgłoszonej przyczyny.
-3. Ponawiaj całą próbę otwarcia i skopiowania źródła po ERROR_SHARING_VIOLATION/LOCK_VIOLATION, także gdy błąd nastąpi w trakcie odczytu. Każda nieudana próba ma usuwać częściowy plik.
-4. Okno ponawiania ma być ograniczone, ale wyraźnie dłuższe niż obecne 0,15 s: łącznie co najmniej 5 sekund i nie więcej niż 10 sekund. Po wyczerpaniu prób pokaż obecny czytelny komunikat po polsku.
-5. Nie duplikuj załącznika, nie pozostawiaj plików `.part`, nie zmieniaj limitów, kolejności, metadanych, formatu PDF ani działania macOS.
-6. Dodaj deterministyczne testy:
-   - kilka kolejnych błędów udostępniania przy otwieraniu, potem sukces,
-   - błąd udostępniania podczas częściowego odczytu, potem sukces,
-   - wyczerpanie całego okna prób i poprawny komunikat,
-   - brak pozostałości `.part` i tylko jeden poprawny załącznik po sukcesie.
-   Testy nie mogą realnie czekać 5–10 sekund; użyj wstrzykiwanego mechanizmu oczekiwania/zegara.
-7. Uruchom pełne `dotnet test "COMMA Workspace 4.0.sln"`, build Release oraz `git diff --check`.
-8. Zaktualizuj `.ai/report.md` i `.ai/handoff.md` dokładnym wynikiem. Ustaw handoff `COMPLETED` wyłącznie po zaliczeniu wszystkich testów i builda.
-9. Po poprawnej walidacji worker może wykonać commit i push zgodnie z `AUTO_COMMIT_PUSH`.
+1. Przed działaniem przeczytaj AGENTS.md i wszystkie pliki w `.ai`. Potwierdź właściwy worktree, gałąź `workspace-4.0`, czysty status, relację historii oraz niezmieniony `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+2. Nie zmieniaj kodu ani plików projektu. Dozwolone są wyłącznie `.ai/report.md` i `.ai/handoff.md`.
+3. Potwierdź, że commit `5549ab44e7667d5d277343d023ff4686c88db801` jest przodkiem bieżącego HEAD.
+4. W katalogu tymczasowym opublikuj `COMMA.App` dla `win-x64` jako self-contained Release. Nie usuwaj wcześniejszych paczek ani aplikacji.
+5. Utwórz dokładnie `/Users/Boris/Desktop/COMMA Workspace 4.1D Windows x64.zip`. Archiwum ma zawierać jeden katalog główny `COMMA Workspace 4.1D Windows x64` z `COMMA.App.exe` i wszystkimi zależnościami.
+6. Zweryfikuj archiwum poleceniem `unzip -t`, sprawdź obecność `COMMA.App.exe` oraz zapisz rozmiar ZIP-a i wynik kontroli w raporcie.
+7. Nie twórz ani nie zmieniaj paczki macOS, nie uruchamiaj aplikacji Windows na Macu, nie modyfikuj `main`, COMMA WMS ani KOMI.
+8. Ustaw `COMPLETED` w handoffie wyłącznie po udanym publish, kontroli ZIP-a i kontroli ścieżek. Następnie worker ma wykonać commit i push.
 
 ## Zakazy
 
-- Nie twórz jeszcze ZIP-a Windows; osobny pakiet testowy powstanie dopiero po opublikowaniu i walidacji poprawki.
-- Nie zmieniaj `main`, COMMA WMS ani KOMI Animation Lab.
+- Nie usuwaj żadnych istniejących plików z Pulpitu.
+- Nie zmieniaj kodu, plików projektu, konfiguracji ani poprzednich archiwów.
 - Nie wykonuj resetu, rebase ani force push.
-- Nie dodawaj nowych funkcji interfejsu.
