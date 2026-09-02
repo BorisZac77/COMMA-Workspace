@@ -9,8 +9,8 @@ namespace COMMA.App.Services.Attachments;
 
 public sealed class OrderAttachmentContentStore : IDisposable
 {
-    private const int SourceOpenAttemptCount = 3;
-    private static readonly TimeSpan SourceOpenRetryDelay =
+    private const int SourceReadAttemptCount = 3;
+    private static readonly TimeSpan SourceReadRetryDelay =
         TimeSpan.FromMilliseconds(75);
 
     private readonly string rootPath;
@@ -48,8 +48,28 @@ public sealed class OrderAttachmentContentStore : IDisposable
         string sourcePath,
         string extension)
     {
-        using var source = OpenSourceWithRetry(sourcePath);
-        return ImportStream(id, source, extension);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var source = OpenSource(sourcePath);
+                return ImportStream(id, source, extension);
+            }
+            catch (IOException exception) when (
+                IsFileSharingViolation(exception) &&
+                attempt < SourceReadAttemptCount)
+            {
+                Remove(id);
+                waitBeforeRetry(SourceReadRetryDelay);
+            }
+            catch (IOException exception)
+            {
+                Remove(id);
+                throw new IOException(
+                    GetUserFacingIoMessage(sourcePath, exception),
+                    exception);
+            }
+        }
     }
 
     public StoredAttachmentContent ImportStream(
@@ -182,41 +202,45 @@ public sealed class OrderAttachmentContentStore : IDisposable
         }
     }
 
-    private Stream OpenSourceWithRetry(string sourcePath)
+    internal static string GetUserFacingIoMessage(
+        string sourcePath,
+        IOException exception)
     {
-        for (var attempt = 1; ; attempt++)
+        var fileName = Path.GetFileName(sourcePath);
+        if (IsFileSharingViolation(exception))
         {
-            try
-            {
-                return openSourceStream(
-                    sourcePath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete);
-            }
-            catch (IOException exception) when (
-                IsFileSharingViolation(exception) &&
-                attempt < SourceOpenAttemptCount)
-            {
-                waitBeforeRetry(SourceOpenRetryDelay);
-            }
-            catch (IOException exception) when (
-                IsFileSharingViolation(exception))
-            {
-                throw new IOException(
-                    $"Nie można odczytać pliku „{Path.GetFileName(sourcePath)}”, " +
-                    "ponieważ jest używany przez inny program. Zamknij program " +
-                    "korzystający z pliku i spróbuj ponownie.",
-                    exception);
-            }
+            return $"Nie można odczytać pliku „{fileName}”, ponieważ jest " +
+                   "używany przez inny program. Zamknij program korzystający " +
+                   "z pliku i spróbuj ponownie.";
         }
+
+        return $"Nie można odczytać pliku „{fileName}” z powodu błędu " +
+               "wejścia/wyjścia. Spróbuj ponownie.";
     }
 
     private static bool IsFileSharingViolation(IOException exception)
     {
-        var errorCode = exception.HResult & 0xFFFF;
-        return errorCode is 32 or 33;
+        for (Exception? current = exception;
+             current != null;
+             current = current.InnerException)
+        {
+            if (current is IOException ioException)
+            {
+                var errorCode = ioException.HResult & 0xFFFF;
+                if (errorCode is 32 or 33)
+                    return true;
+            }
+        }
+
+        return false;
     }
+
+    private Stream OpenSource(string sourcePath) =>
+        openSourceStream(
+            sourcePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
 }
 
 public readonly record struct StoredAttachmentContent(

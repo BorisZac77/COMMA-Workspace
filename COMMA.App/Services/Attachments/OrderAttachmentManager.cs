@@ -24,6 +24,13 @@ public sealed class OrderAttachmentManager : IDisposable
             {
                 AddFile(filePath, attachments);
             }
+            catch (IOException exception)
+            {
+                errors.Add(
+                    OrderAttachmentContentStore.GetUserFacingIoMessage(
+                        filePath,
+                        exception));
+            }
             catch (Exception exception)
             {
                 errors.Add(exception.Message);
@@ -51,20 +58,6 @@ public sealed class OrderAttachmentManager : IDisposable
                 filePath);
         }
 
-        var sourceLength = new FileInfo(filePath).Length;
-        if (sourceLength > OrderAttachmentLimits.MaximumFileBytes)
-        {
-            throw new InvalidDataException(
-                $"Plik „{Path.GetFileName(filePath)}” przekracza limit 50 MB.");
-        }
-
-        if (attachments.Sum(item => item.Length) + sourceLength >
-            OrderAttachmentLimits.MaximumTotalBytes)
-        {
-            throw new InvalidDataException(
-                "Łączny rozmiar załączników przekracza limit 200 MB.");
-        }
-
         var extension =
             OrderAttachmentValidator.NormalizeExtension(
                 Path.GetExtension(filePath));
@@ -73,6 +66,13 @@ public sealed class OrderAttachmentManager : IDisposable
 
         try
         {
+            if (attachments.Sum(item => item.Length) + stored.Length >
+                OrderAttachmentLimits.MaximumTotalBytes)
+            {
+                throw new InvalidDataException(
+                    "Łączny rozmiar załączników przekracza limit 200 MB.");
+            }
+
             using var content = ContentStore.OpenRead(id);
             var validated = OrderAttachmentValidator.Validate(filePath, content);
             var totalPdfPages = attachments.Sum(item => item.PdfPageCount ?? 0) +

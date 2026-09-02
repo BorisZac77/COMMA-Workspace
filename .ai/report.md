@@ -1,46 +1,48 @@
 # Raport Codexa
 
-- TASK_ID: ATTACHMENT-WINDOWS-FILE-LOCK-010
+- TASK_ID: ATTACHMENT-WINDOWS-RAW-IO-011
 - STATUS: COMPLETED
-- STARTED_AT: 2026-09-02 12:03:00 +0200
-- COMPLETED_AT: 2026-09-02 12:17:07 +0200
+- STARTED_AT: 2026-09-02 12:20:00 +0200
+- COMPLETED_AT: 2026-09-02 12:48:12 +0200
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: 0fc28e98feb3e0066b4060e221de56bcb894a532
-- HEAD_AFTER: 0fc28e98feb3e0066b4060e221de56bcb894a532
+- HEAD_BEFORE: 084c0436530653de2b6f1911472bb867728b9f01
+- HEAD_AFTER: 084c0436530653de2b6f1911472bb867728b9f01
 
 ## Cel
-Naprawić import załączników PDF/JPG/PNG na Windows, gdy plik jest współdzielony przez inny proces albo krótko zablokowany, bez osłabienia atomowości importu.
+Usunąć surowy komunikat Windows z importu `Vandeputte-10.pdf`, objąć ograniczonym retry także błąd blokady podczas odczytu źródła i zachować atomowe sprzątanie nieudanego importu.
 
 ## Kontrole wstępne
 - `pwd` i `git rev-parse --show-toplevel`: `/Users/Boris/RiderProjects/COMMA Workspace 4.0`.
 - Gałąź: `workspace-4.0`.
 - Worktree przed rozpoczęciem: czysty.
-- HEAD kolejki: `0fc28e98feb3e0066b4060e221de56bcb894a532`.
-- `BASE_HEAD_BEFORE_QUEUE` (`3b15ebd4ca0274527257f186629b2680afd3173d`) jest przodkiem HEAD.
+- HEAD: `084c0436530653de2b6f1911472bb867728b9f01`.
+- `BASE_HEAD_BEFORE_QUEUE` (`0be9283cb79ca31baf3eab705ed8c90edd5c2e26`) jest przodkiem HEAD.
 - `main`: `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`, bez zmian.
 
 ## Diagnoza
-Potwierdzono diagnozę z zadania. `OrderAttachmentContentStore.ImportFile` otwierał źródło z `FileShare.Read`, co na Windows mogło kolidować z dostępem istniejącego procesu do zapisu lub usunięcia nawet wtedy, gdy ten proces zezwalał innym na odczyt. Brakowało też ograniczonego retry dla błędów Windows `ERROR_SHARING_VIOLATION` i `ERROR_LOCK_VIOLATION`.
+- `OrderAttachmentManager.AddFile` pobierał `new FileInfo(filePath).Length` przed wejściem do chronionego importu. Ta dodatkowa operacja na wybranym pliku mogła przekazać surowy `IOException` do `AddFiles`.
+- `OrderAttachmentContentStore.OpenSourceWithRetry` ponawiał wyłącznie samo otwarcie. `IOException` o kodzie Windows 32 lub 33 zgłoszony później przez `source.Read(...)` uruchamiał sprzątanie `.part`, ale nie retry ani polskiego komunikatu.
+- Kopiowanie do `.part`, zapis skrótu, flush, atomowe przeniesienie, rejestracja magazynowej ścieżki, walidacja kopii i utworzenie metadanych odbywały się w poprawnej kolejności. Luka dotyczyła granic retry i prezentacji błędu, nie końcowej atomowości.
 
 ## Wykonane zmiany
-- Źródło jest otwierane wyłącznie do odczytu z `FileShare.ReadWrite | FileShare.Delete`, co zachowuje zgodność z procesami dopuszczającymi współdzielony odczyt, zapis i usunięcie.
-- Dodano maksymalnie 3 próby otwarcia z dwoma opóźnieniami po 75 ms, wyłącznie dla kodów Windows 32 i 33. Pozostałe błędy zachowują dotychczasowe wyjątki i nie są ponawiane.
-- Po trwałej blokadzie zwracany jest polski komunikat z nazwą pliku i sugestią zamknięcia programu korzystającego z pliku.
-- Mechanizm importu do pliku `.part`, sprzątanie po błędzie oraz dodawanie wpisu magazynu dopiero po atomowym przeniesieniu pozostały bez zmian.
-- Dodano deterministyczne testy z kontrolowaną fabryką strumienia: udany import po przejściowych blokadach, dokładne flagi współdzielenia, limit retry oraz brak plików, wpisu magazynu i metadanych po trwałej blokadzie.
-- Nie zmieniono obsługi wielokrotnego wyboru, limitów, kolejności, podglądu, generatora PDF ani interfejsu poza treścią istniejącego błędu.
+- Usunięto wstępny odczyt `FileInfo.Length`. Limit pojedynczego pliku nadal jest egzekwowany podczas kopiowania, a limit sumy jest sprawdzany na faktycznej długości zakończonego importu. W razie przekroczenia zawartość jest usuwana przed utworzeniem metadanych.
+- Ograniczone retry (maksymalnie 3 próby, dwa opóźnienia po 75 ms) obejmuje teraz pełną próbę: otwarcie źródła, odczyt i atomowy import. Ponawiane są tylko błędy sharing/lock Windows 32 i 33.
+- Po trwałej blokadzie zwracany jest polski komunikat z nazwą pliku i poleceniem zamknięcia programu korzystającego z pliku. Pozostałe `IOException` mają odrębny polski komunikat o błędzie wejścia/wyjścia.
+- `AddFiles` normalizuje każdy pozostały `IOException` przed przekazaniem treści do okna, więc surowy tekst systemowy nie jest prezentowany użytkownikowi.
+- Dodano deterministyczną regresję `AddFiles`: kontrolowany strumień zapisuje fragment `.part`, następnie zgłasza dokładny `ERROR_SHARING_VIOLATION`; test weryfikuje 3 próby, pełną polską treść komunikatu i brak `.part`, magazynowej zawartości oraz metadanych.
+- Nie zmieniono formatu karty, generatora PDF, limitów, kolejności, podglądu ani wyglądu interfejsu.
 
-## Testy
-- `dotnet test "COMMA Workspace 4.0.sln"` — PASS: 173/173 testy, 0 niepowodzeń, 0 pominiętych.
-- `dotnet test "COMMA Workspace 4.0.sln" -c Release --no-restore -m:1` — PASS: 173/173 testy.
-- Nowe testy regresji w Release — PASS: 2/2.
-- `dotnet build "COMMA Workspace 4.0.sln" -c Release --no-restore -m:1` — PASS: 0 ostrzeżeń, 0 błędów.
-- `git diff --check` — PASS przed aktualizacją plików `.ai`; powtórzony w kontroli końcowej.
+## Walidacja
+- `AVALONIA_TELEMETRY_OPTOUT=1 dotnet build "COMMA Workspace 4.0.sln" -c Release --no-restore -m:1` — PASS, 0 ostrzeżeń, 0 błędów; skompilowano również `COMMA.App.Tests`.
+- `dotnet test "COMMA Workspace 4.0.sln"` — BLOCKED przez sandbox przed uruchomieniem testów: MSBuild nie może utworzyć named pipe (`System.Net.Sockets.SocketException (13): Permission denied`).
+- Próba jednowęzłowa testów Release z wyłączoną telemetrią — test assembly zbudowana poprawnie, następnie BLOCKED przez sandbox: VSTest nie może otworzyć lokalnego `TcpListener` (`System.Net.Sockets.SocketException (13): Permission denied`). Żaden test nie został uruchomiony.
+- Pierwsza próba jednowęzłowa bez opt-out telemetrii była dodatkowo zablokowana zapisem Avalonia poza workspace do `~/Library/Application Support/AvaloniaUI/BuildServices/buildtasks.log`; użycie oficjalnego `AVALONIA_TELEMETRY_OPTOUT=1` usunęło tę blokadę bez rozszerzania uprawnień.
+- `git diff --check` — PASS przed aktualizacją raportu; powtórzony w kontroli końcowej.
 - Zmienione ścieżki — wyłącznie z `ALLOWED_PATHS_JSON`.
 
 ## Problemy lub ryzyka
-Pierwsza dodatkowa próba testów bez `-m:1` została zablokowana przez sandbox przy tworzeniu named pipe MSBuild (`SocketException (13): Permission denied`). Pierwsza próba Debug z `--no-restore -m:1` ujawniła nieaktualne zasoby (`WithDeveloperTools`), a pierwszy wymagany build brak `COMMA.DrawingsGenerator/obj/project.assets.json`. Standardowy restore brakującego projektu z lokalnego cache usunął oba problemy. Następnie dokładna komenda testowa oraz wymagany build przeszły w całości; nie pozostała blokada walidacji.
+Sandbox uniemożliwia komunikację procesów VSTest zarówno przez named pipe, jak i lokalne gniazdo TCP. Kod produkcyjny i testy kompilują się w Release, ale testy wymagają ponownego uruchomienia przez safe validation worker w środowisku zezwalającym VSTest na lokalną komunikację.
 
 ## Podsumowanie
-Import załączników toleruje współdzielony dostęp Windows i krótkie blokady, ale nie omija trwałej blokady wyłącznej. Trwały konflikt kończy się zrozumiałym komunikatem, a magazyn i kolekcja metadanych pozostają czyste. Nie wykonano commita ani pushu; HEAD pozostał bez zmian zgodnie z poleceniem użytkownika.
+Retry obejmuje teraz błąd blokady występujący podczas właściwego odczytu, a nie tylko otwarcia źródła. Nieudana próba usuwa częściowy plik i stan magazynu, a okno otrzymuje polski komunikat zależny od rodzaju błędu. Nie wykonano commita ani pushu zgodnie z poleceniem użytkownika.

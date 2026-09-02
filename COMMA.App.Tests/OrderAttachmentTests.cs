@@ -168,6 +168,39 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void Manager_AddFilesRetriesReadSharingViolationAndReturnsPolishErrorAfterCleanup()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = directory.GetPath("Vandeputte-10.pdf");
+        File.WriteAllText(sourcePath, "source exists for manager checks");
+        var attempts = 0;
+        var delays = new List<TimeSpan>();
+        using var store = CreateContentStore(
+            (_, _, _, _) =>
+            {
+                attempts++;
+                return new SharingViolationReadStream();
+            },
+            delays.Add);
+        using var manager = new OrderAttachmentManager();
+        manager.ReplaceContentStore(store);
+        var attachments = new ObservableCollection<OrderAttachmentMetadata>();
+
+        var errors = manager.AddFiles([sourcePath], attachments);
+
+        var error = Assert.Single(errors);
+        Assert.Equal(3, attempts);
+        Assert.Equal(2, delays.Count);
+        Assert.Contains("Vandeputte-10.pdf", error, StringComparison.Ordinal);
+        Assert.Contains("używany przez inny program", error, StringComparison.Ordinal);
+        Assert.Contains("Zamknij program", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("process cannot access", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(attachments);
+        Assert.Empty(GetStoredContentPaths(store));
+        Assert.Empty(GetContentStoreFiles(store));
+    }
+
+    [Fact]
     public void Manager_RejectsUnsupportedFalseExtensionCorruptAndEncryptedFiles()
     {
         using var directory = new TemporaryDirectory();
@@ -656,6 +689,29 @@ public sealed class OrderAttachmentTests
         Assert.NotNull(field);
         var rootPath = Assert.IsType<string>(field.GetValue(store));
         return Directory.GetFiles(rootPath);
+    }
+
+    private sealed class SharingViolationReadStream : MemoryStream
+    {
+        private bool returnedPartialContent;
+
+        public SharingViolationReadStream()
+            : base("partial attachment content"u8.ToArray(), writable: false)
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (!returnedPartialContent)
+            {
+                returnedPartialContent = true;
+                return base.Read(buffer, offset, count);
+            }
+
+            throw new IOException(
+                "The process cannot access the file because it is being used by another process.",
+                unchecked((int)0x80070020));
+        }
     }
 
     private static void InvokeRebuildOrderPages(MainViewModel viewModel)
