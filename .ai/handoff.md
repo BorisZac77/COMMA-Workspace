@@ -1,17 +1,23 @@
 # Stan przekazania
 
 - TASK_ID: ATTACHMENT-WINDOWS-NETWORK-LOCK-013
-- STATUS: BLOCKED_VALIDATION
+- STATUS: COMPLETED
 - LAST_ACTOR: Codex
-- NEXT_ACTOR: Safe validation worker
+- NEXT_ACTOR: Packaging worker
 - BRANCH: workspace-4.0
+- HEAD: 5549ab44e7667d5d277343d023ff4686c88db801
 
 ## Stan
 
-Wdrożono 5-sekundowe okno ponawiania pełnej operacji otwarcia i kopiowania na Windows (21 prób, 20 × 250 ms) dla ERROR_SHARING_VIOLATION/LOCK_VIOLATION, z czyszczeniem częściowych plików. Zachowano dotychczasowe zachowanie macOS. Dodano deterministyczne testy wymaganych scenariuszy. Build Release przechodzi bez ostrzeżeń i błędów, a `git diff --check` przechodzi.
+Poprawka importu załączników z dysków mapowanych Windows została opublikowana. Pełna operacja otwarcia i kopiowania jest ponawiana do 5 sekund dla ERROR_SHARING_VIOLATION/LOCK_VIOLATION, a częściowe pliki są czyszczone między próbami. Zachowanie macOS nie zmieniło się.
 
-Pełny `dotnet test` nie rozpoczął wykonywania testów, ponieważ sandbox blokuje lokalny socket VSTest (`SocketException (13): Permission denied` przy `TcpListener.Start`).
+## Walidacja
+
+- Testy lokalne: PASS, 174/174, bez pominięć.
+- Build Release: PASS, 0 ostrzeżeń, 0 błędów.
+- `git diff --check`: PASS.
+- `main`: niezmieniony, `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
 
 ## Następny krok
 
-Bezpieczny worker ma uruchomić pełne `dotnet test "COMMA Workspace 4.0.sln"` w środowisku pozwalającym na komunikację VSTest. Po zaliczeniu pełnych testów może ustawić handoff `COMPLETED`, wykonać commit `Extend Windows network attachment retry` i push zgodnie z kolejką. Nie tworzyć jeszcze ZIP-a Windows.
+Można utworzyć świeży samodzielny ZIP Windows zawierający commit `5549ab44e7667d5d277343d023ff4686c88db801`, a następnie zweryfikować archiwum i obecność `COMMA.App.exe`. Nie zmieniać kodu aplikacji.
