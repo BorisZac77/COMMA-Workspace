@@ -103,7 +103,7 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
-    public void ContentStore_RetriesSharingViolationWithBroadFileSharing()
+    public void ContentStore_RetriesSeveralOpenSharingViolationsThenSucceeds()
     {
         var expected = "attachment-content"u8.ToArray();
         var attempts = 0;
@@ -117,19 +117,22 @@ public sealed class OrderAttachmentTests
                 Assert.Equal(FileAccess.Read, access);
                 requestedShares.Add(share);
 
-                if (attempts < 3)
+                if (attempts < 6)
                     throw new IOException("sharing violation", unchecked((int)0x80070020));
 
                 return new MemoryStream(expected, writable: false);
             },
-            delays.Add);
+            delays.Add,
+            sourceReadAttemptCount: 21,
+            sourceReadRetryDelay: TimeSpan.FromMilliseconds(250));
         var id = Guid.NewGuid();
 
         var stored = store.ImportFile(id, "shared.pdf", ".pdf");
 
-        Assert.Equal(3, attempts);
-        Assert.Equal(2, delays.Count);
-        Assert.All(delays, delay => Assert.True(delay > TimeSpan.Zero));
+        Assert.Equal(6, attempts);
+        Assert.Equal(5, delays.Count);
+        Assert.All(delays, delay =>
+            Assert.Equal(TimeSpan.FromMilliseconds(250), delay));
         Assert.All(
             requestedShares,
             share => Assert.Equal(FileShare.ReadWrite | FileShare.Delete, share));
@@ -139,36 +142,7 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
-    public void Manager_PersistentSharingViolationLeavesNoContentOrMetadata()
-    {
-        using var directory = new TemporaryDirectory();
-        var sourcePath = directory.GetPath("Vandeputte-10.pdf");
-        File.WriteAllText(sourcePath, "source exists for manager checks");
-        var attempts = 0;
-        using var store = CreateContentStore(
-            (_, _, _, _) =>
-            {
-                attempts++;
-                throw new IOException("lock violation", unchecked((int)0x80070021));
-            },
-            _ => { });
-        using var manager = new OrderAttachmentManager();
-        manager.ReplaceContentStore(store);
-        var attachments = new ObservableCollection<OrderAttachmentMetadata>();
-
-        var exception = Assert.Throws<IOException>(
-            () => manager.AddFile(sourcePath, attachments));
-
-        Assert.Equal(3, attempts);
-        Assert.Contains("Vandeputte-10.pdf", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Zamknij program", exception.Message, StringComparison.Ordinal);
-        Assert.Empty(attachments);
-        Assert.Empty(GetStoredContentPaths(store));
-        Assert.Empty(GetContentStoreFiles(store));
-    }
-
-    [Fact]
-    public void Manager_AddFilesRetriesReadSharingViolationAndReturnsPolishErrorAfterCleanup()
+    public void Manager_ExhaustsFiveSecondSharingViolationWindowWithPolishError()
     {
         using var directory = new TemporaryDirectory();
         var sourcePath = directory.GetPath("Vandeputte-10.pdf");
@@ -179,9 +153,11 @@ public sealed class OrderAttachmentTests
             (_, _, _, _) =>
             {
                 attempts++;
-                return new SharingViolationReadStream();
+                throw new IOException("lock violation", unchecked((int)0x80070021));
             },
-            delays.Add);
+            delays.Add,
+            sourceReadAttemptCount: 21,
+            sourceReadRetryDelay: TimeSpan.FromMilliseconds(250));
         using var manager = new OrderAttachmentManager();
         manager.ReplaceContentStore(store);
         var attachments = new ObservableCollection<OrderAttachmentMetadata>();
@@ -189,15 +165,58 @@ public sealed class OrderAttachmentTests
         var errors = manager.AddFiles([sourcePath], attachments);
 
         var error = Assert.Single(errors);
-        Assert.Equal(3, attempts);
-        Assert.Equal(2, delays.Count);
+        Assert.Equal(21, attempts);
+        Assert.Equal(20, delays.Count);
+        Assert.Equal(
+            TimeSpan.FromSeconds(5),
+            delays.Aggregate(TimeSpan.Zero, (sum, delay) => sum + delay));
         Assert.Contains("Vandeputte-10.pdf", error, StringComparison.Ordinal);
         Assert.Contains("używany przez inny program", error, StringComparison.Ordinal);
         Assert.Contains("Zamknij program", error, StringComparison.Ordinal);
-        Assert.DoesNotContain("process cannot access", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "lock violation",
+            error,
+            StringComparison.OrdinalIgnoreCase);
         Assert.Empty(attachments);
         Assert.Empty(GetStoredContentPaths(store));
         Assert.Empty(GetContentStoreFiles(store));
+    }
+
+    [Fact]
+    public void Manager_RetriesPartialReadThenAddsOneCleanAttachment()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = directory.GetPath("network-image.png");
+        File.WriteAllText(sourcePath, "source exists for manager checks");
+        var attempts = 0;
+        var delays = new List<TimeSpan>();
+        using var store = CreateContentStore(
+            (_, _, _, _) =>
+            {
+                attempts++;
+                return attempts == 1
+                    ? new SharingViolationReadStream()
+                    : new MemoryStream(
+                        Convert.FromBase64String(PngBase64),
+                        writable: false);
+            },
+            delays.Add,
+            sourceReadAttemptCount: 21,
+            sourceReadRetryDelay: TimeSpan.FromMilliseconds(250));
+        using var manager = new OrderAttachmentManager();
+        manager.ReplaceContentStore(store);
+        var attachments = new ObservableCollection<OrderAttachmentMetadata>();
+
+        var errors = manager.AddFiles([sourcePath], attachments);
+
+        Assert.Empty(errors);
+        Assert.Equal(2, attempts);
+        Assert.Single(delays);
+        var attachment = Assert.Single(attachments);
+        Assert.True(store.Contains(attachment.Id));
+        var storedFile = Assert.Single(GetContentStoreFiles(store));
+        Assert.False(storedFile.EndsWith(".part", StringComparison.Ordinal));
+        Assert.Equal(Convert.FromBase64String(PngBase64), File.ReadAllBytes(storedFile));
     }
 
     [Fact]
@@ -655,19 +674,29 @@ public sealed class OrderAttachmentTests
 
     private static OrderAttachmentContentStore CreateContentStore(
         Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
-        Action<TimeSpan> waitBeforeRetry)
+        Action<TimeSpan> waitBeforeRetry,
+        int sourceReadAttemptCount,
+        TimeSpan sourceReadRetryDelay)
     {
         var constructor = typeof(OrderAttachmentContentStore).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,
             binder: null,
             [
                 typeof(Func<string, FileMode, FileAccess, FileShare, Stream>),
-                typeof(Action<TimeSpan>)
+                typeof(Action<TimeSpan>),
+                typeof(int),
+                typeof(TimeSpan)
             ],
             modifiers: null);
         Assert.NotNull(constructor);
         return Assert.IsType<OrderAttachmentContentStore>(
-            constructor.Invoke([openSourceStream, waitBeforeRetry]));
+            constructor.Invoke(
+            [
+                openSourceStream,
+                waitBeforeRetry,
+                sourceReadAttemptCount,
+                sourceReadRetryDelay
+            ]));
     }
 
     private static IReadOnlyDictionary<Guid, string> GetStoredContentPaths(

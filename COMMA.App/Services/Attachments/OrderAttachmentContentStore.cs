@@ -9,14 +9,19 @@ namespace COMMA.App.Services.Attachments;
 
 public sealed class OrderAttachmentContentStore : IDisposable
 {
-    private const int SourceReadAttemptCount = 3;
-    private static readonly TimeSpan SourceReadRetryDelay =
+    private const int DefaultSourceReadAttemptCount = 3;
+    private const int WindowsSourceReadAttemptCount = 21;
+    private static readonly TimeSpan DefaultSourceReadRetryDelay =
         TimeSpan.FromMilliseconds(75);
+    private static readonly TimeSpan WindowsSourceReadRetryDelay =
+        TimeSpan.FromMilliseconds(250);
 
     private readonly string rootPath;
     private readonly Func<string, FileMode, FileAccess, FileShare, Stream>
         openSourceStream;
     private readonly Action<TimeSpan> waitBeforeRetry;
+    private readonly int sourceReadAttemptCount;
+    private readonly TimeSpan sourceReadRetryDelay;
     private readonly Dictionary<Guid, string> paths = new();
     private bool disposed;
 
@@ -24,19 +29,33 @@ public sealed class OrderAttachmentContentStore : IDisposable
         : this(
             static (path, mode, access, share) =>
                 new FileStream(path, mode, access, share),
-            Thread.Sleep)
+            Thread.Sleep,
+            OperatingSystem.IsWindows()
+                ? WindowsSourceReadAttemptCount
+                : DefaultSourceReadAttemptCount,
+            OperatingSystem.IsWindows()
+                ? WindowsSourceReadRetryDelay
+                : DefaultSourceReadRetryDelay)
     {
     }
 
     internal OrderAttachmentContentStore(
         Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
-        Action<TimeSpan> waitBeforeRetry)
+        Action<TimeSpan> waitBeforeRetry,
+        int sourceReadAttemptCount,
+        TimeSpan sourceReadRetryDelay)
     {
         ArgumentNullException.ThrowIfNull(openSourceStream);
         ArgumentNullException.ThrowIfNull(waitBeforeRetry);
+        ArgumentOutOfRangeException.ThrowIfLessThan(sourceReadAttemptCount, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(
+            sourceReadRetryDelay,
+            TimeSpan.Zero);
 
         this.openSourceStream = openSourceStream;
         this.waitBeforeRetry = waitBeforeRetry;
+        this.sourceReadAttemptCount = sourceReadAttemptCount;
+        this.sourceReadRetryDelay = sourceReadRetryDelay;
         rootPath = Path.Combine(
             Path.GetTempPath(),
             $"comma-workspace-attachments-{Guid.NewGuid():N}");
@@ -57,10 +76,10 @@ public sealed class OrderAttachmentContentStore : IDisposable
             }
             catch (IOException exception) when (
                 IsFileSharingViolation(exception) &&
-                attempt < SourceReadAttemptCount)
+                attempt < sourceReadAttemptCount)
             {
                 Remove(id);
-                waitBeforeRetry(SourceReadRetryDelay);
+                waitBeforeRetry(sourceReadRetryDelay);
             }
             catch (IOException exception)
             {

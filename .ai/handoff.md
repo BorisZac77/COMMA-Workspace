@@ -1,15 +1,17 @@
 # Stan przekazania
 
 - TASK_ID: ATTACHMENT-WINDOWS-NETWORK-LOCK-013
-- STATUS: READY
-- LAST_ACTOR: ChatGPT
-- NEXT_ACTOR: Automatic Codex worker
+- STATUS: BLOCKED_VALIDATION
+- LAST_ACTOR: Codex
+- NEXT_ACTOR: Safe validation worker
 - BRANCH: workspace-4.0
 
 ## Stan
 
-Pakiet 4.1C nadal nie importuje pliku Vandeputte-10.pdf na Windows z lokalizacji sieciowej/mapowanej Z:. Komunikat potwierdza ERROR_SHARING_VIOLATION. Obecne ponawianie trwa łącznie tylko około 0,15 sekundy.
+Wdrożono 5-sekundowe okno ponawiania pełnej operacji otwarcia i kopiowania na Windows (21 prób, 20 × 250 ms) dla ERROR_SHARING_VIOLATION/LOCK_VIOLATION, z czyszczeniem częściowych plików. Zachowano dotychczasowe zachowanie macOS. Dodano deterministyczne testy wymaganych scenariuszy. Build Release przechodzi bez ostrzeżeń i błędów, a `git diff --check` przechodzi.
+
+Pełny `dotnet test` nie rozpoczął wykonywania testów, ponieważ sandbox blokuje lokalny socket VSTest (`SocketException (13): Permission denied` przy `TcpListener.Start`).
 
 ## Następny krok
 
-Worker ma wdrożyć ograniczone czasowo, odporne ponawianie całej operacji odczytu, dodać deterministyczne testy opóźnionej blokady i wykonać pełną walidację. Nowy ZIP będzie utworzony dopiero po zakończeniu poprawki.
+Bezpieczny worker ma uruchomić pełne `dotnet test "COMMA Workspace 4.0.sln"` w środowisku pozwalającym na komunikację VSTest. Po zaliczeniu pełnych testów może ustawić handoff `COMPLETED`, wykonać commit `Extend Windows network attachment retry` i push zgodnie z kolejką. Nie tworzyć jeszcze ZIP-a Windows.
