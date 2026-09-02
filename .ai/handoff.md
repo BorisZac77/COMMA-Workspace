@@ -1,22 +1,22 @@
 # Stan przekazania
 
-- TASK_ID: ATTACHMENT-WINDOWS-RAW-IO-011
+- TASK_ID: ATTACHMENT-WINDOWS-RAW-IO-011-VALIDATE
 - STATUS: COMPLETED
 - LAST_ACTOR: Codex
 - NEXT_ACTOR: Safe validation worker
 - BRANCH: workspace-4.0
-- HEAD_WITH_UNCOMMITTED_CHANGES: 084c0436530653de2b6f1911472bb867728b9f01
+- HEAD_WITH_UNCOMMITTED_CHANGES: c80833f9df69a011623964e06d4da88a95b9a49d
 
 ## Stan
-Poprawka i regresja są gotowe. Retry obejmuje pełne otwarcie i kopiowanie źródła, `AddFiles` nie przepuszcza surowych komunikatów `IOException`, a nieudana częściowa próba nie pozostawia `.part`, zawartości magazynowej ani metadanych.
+Końcowa walidacja opublikowanej poprawki z commitu `f690beb184133d814b744ad931d78829906b1bf4` zakończyła się powodzeniem. Nie zmieniono kodu aplikacji; lokalne zmiany obejmują wyłącznie pliki raportowe dozwolone przez zadanie.
 
 ## Walidacja
-- Build Release: PASS, 0 ostrzeżeń i 0 błędów; test assembly również się kompiluje.
-- Pełne testy: BLOCKED przez sandbox (`SocketException (13)`) przy named pipe MSBuild.
-- Jednowęzłowe testy Release: BLOCKED po kompilacji przez sandbox przy lokalnym `TcpListener` VSTest.
-- `git diff --check`: PASS także po aktualizacji plików `.ai`.
-- Zakres zmian: wyłącznie dozwolone pliki.
+- Pełne testy: PASS — 174/174, 0 niepowodzeń, 0 pominiętych; 4 min 12 s.
+- Build Release z `--no-restore -m:1`: PASS — 0 ostrzeżeń, 0 błędów; 00:00:27.25.
+- `git diff --check`: PASS.
+- Zakres zmian: wyłącznie `.ai/report.md` i `.ai/handoff.md`.
+- HEAD `c80833f9df69a011623964e06d4da88a95b9a49d` zawiera commit poprawki `f690beb184133d814b744ad931d78829906b1bf4` i przed zmianami raportowymi był zgodny z `origin/workspace-4.0`.
 - `main` pozostał na `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
 
 ## Następny krok
-Safe validation worker powinien uruchomić `dotnet test "COMMA Workspace 4.0.sln"` poza ograniczeniem lokalnej komunikacji VSTest, zweryfikować diff, a następnie wykonać commit i push. Codex nie wykonał commita ani pushu.
+Safe validation worker powinien zweryfikować dwa zmienione pliki raportowe, a następnie wykonać jeden commit i push na `workspace-4.0`. Codex nie wykonał commita ani pushu zgodnie z bezpośrednim poleceniem użytkownika.
