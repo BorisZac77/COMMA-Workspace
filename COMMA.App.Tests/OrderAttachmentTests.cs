@@ -220,6 +220,32 @@ public sealed class OrderAttachmentTests
     }
 
     [Fact]
+    public void ContentStore_DisposesTemporaryDestinationBeforeMove()
+    {
+        var destinationDisposed = false;
+        var moveCalled = false;
+        var content = "attachment-content"u8.ToArray();
+        using var store = CreateContentStore(
+            (_, _, _, _) => new MemoryStream(content, writable: false),
+            _ => { },
+            sourceReadAttemptCount: 1,
+            sourceReadRetryDelay: TimeSpan.Zero,
+            _ => new DisposeTrackingStream(() => destinationDisposed = true),
+            (_, _) =>
+            {
+                moveCalled = true;
+                Assert.True(destinationDisposed);
+            });
+
+        var stored = store.ImportStream(Guid.NewGuid(), new MemoryStream(content), ".pdf");
+
+        Assert.True(moveCalled);
+        Assert.True(destinationDisposed);
+        Assert.Equal(content.LongLength, stored.Length);
+        Assert.Equal(GetSha256(content), stored.Sha256);
+    }
+
+    [Fact]
     public void Manager_ExhaustsFiveSecondSharingViolationWindowWithPolishError()
     {
         using var directory = new TemporaryDirectory();
@@ -777,6 +803,39 @@ public sealed class OrderAttachmentTests
             ]));
     }
 
+    private static OrderAttachmentContentStore CreateContentStore(
+        Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
+        Action<TimeSpan> waitBeforeRetry,
+        int sourceReadAttemptCount,
+        TimeSpan sourceReadRetryDelay,
+        Func<string, Stream> openTemporaryDestination,
+        Action<string, string> moveFile)
+    {
+        var constructor = typeof(OrderAttachmentContentStore).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [
+                typeof(Func<string, FileMode, FileAccess, FileShare, Stream>),
+                typeof(Action<TimeSpan>),
+                typeof(int),
+                typeof(TimeSpan),
+                typeof(Func<string, Stream>),
+                typeof(Action<string, string>)
+            ],
+            modifiers: null);
+        Assert.NotNull(constructor);
+        return Assert.IsType<OrderAttachmentContentStore>(
+            constructor.Invoke(
+            [
+                openSourceStream,
+                waitBeforeRetry,
+                sourceReadAttemptCount,
+                sourceReadRetryDelay,
+                openTemporaryDestination,
+                moveFile
+            ]));
+    }
+
     private static IReadOnlyDictionary<Guid, string> GetStoredContentPaths(
         OrderAttachmentContentStore store)
     {
@@ -818,6 +877,24 @@ public sealed class OrderAttachmentTests
             throw new IOException(
                 "The process cannot access the file because it is being used by another process.",
                 unchecked((int)0x80070020));
+        }
+    }
+
+    private sealed class DisposeTrackingStream : MemoryStream
+    {
+        private readonly Action onDispose;
+
+        public DisposeTrackingStream(Action onDispose)
+        {
+            this.onDispose = onDispose;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+
+            if (disposing)
+                onDispose();
         }
     }
 

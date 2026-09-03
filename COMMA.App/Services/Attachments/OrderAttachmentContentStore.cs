@@ -19,6 +19,8 @@ public sealed class OrderAttachmentContentStore : IDisposable
     private readonly string rootPath;
     private readonly Func<string, FileMode, FileAccess, FileShare, Stream>
         openSourceStream;
+    private readonly Func<string, Stream> openTemporaryDestination;
+    private readonly Action<string, string> moveFile;
     private readonly Action<TimeSpan> waitBeforeRetry;
     private readonly int sourceReadAttemptCount;
     private readonly TimeSpan sourceReadRetryDelay;
@@ -35,7 +37,9 @@ public sealed class OrderAttachmentContentStore : IDisposable
                 : DefaultSourceReadAttemptCount,
             OperatingSystem.IsWindows()
                 ? WindowsSourceReadRetryDelay
-                : DefaultSourceReadRetryDelay)
+                : DefaultSourceReadRetryDelay,
+            OpenTemporaryDestination,
+            File.Move)
     {
     }
 
@@ -44,9 +48,28 @@ public sealed class OrderAttachmentContentStore : IDisposable
         Action<TimeSpan> waitBeforeRetry,
         int sourceReadAttemptCount,
         TimeSpan sourceReadRetryDelay)
+        : this(
+            openSourceStream,
+            waitBeforeRetry,
+            sourceReadAttemptCount,
+            sourceReadRetryDelay,
+            OpenTemporaryDestination,
+            File.Move)
+    {
+    }
+
+    internal OrderAttachmentContentStore(
+        Func<string, FileMode, FileAccess, FileShare, Stream> openSourceStream,
+        Action<TimeSpan> waitBeforeRetry,
+        int sourceReadAttemptCount,
+        TimeSpan sourceReadRetryDelay,
+        Func<string, Stream> openTemporaryDestination,
+        Action<string, string> moveFile)
     {
         ArgumentNullException.ThrowIfNull(openSourceStream);
         ArgumentNullException.ThrowIfNull(waitBeforeRetry);
+        ArgumentNullException.ThrowIfNull(openTemporaryDestination);
+        ArgumentNullException.ThrowIfNull(moveFile);
         ArgumentOutOfRangeException.ThrowIfLessThan(sourceReadAttemptCount, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(
             sourceReadRetryDelay,
@@ -54,6 +77,8 @@ public sealed class OrderAttachmentContentStore : IDisposable
 
         this.openSourceStream = openSourceStream;
         this.waitBeforeRetry = waitBeforeRetry;
+        this.openTemporaryDestination = openTemporaryDestination;
+        this.moveFile = moveFile;
         this.sourceReadAttemptCount = sourceReadAttemptCount;
         this.sourceReadRetryDelay = sourceReadRetryDelay;
         rootPath = Path.Combine(
@@ -111,33 +136,36 @@ public sealed class OrderAttachmentContentStore : IDisposable
         try
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            using var destination = new FileStream(
-                temporaryPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None);
             var buffer = new byte[81920];
             long length = 0;
 
-            while (true)
             {
-                var read = source.Read(buffer, 0, buffer.Length);
-                if (read == 0)
-                    break;
+                using var destination = openTemporaryDestination(temporaryPath);
 
-                length += read;
-                if (length > OrderAttachmentLimits.MaximumFileBytes)
+                while (true)
                 {
-                    throw new InvalidDataException(
-                        "Załącznik przekracza maksymalny rozmiar 50 MB.");
+                    var read = source.Read(buffer, 0, buffer.Length);
+                    if (read == 0)
+                        break;
+
+                    length += read;
+                    if (length > OrderAttachmentLimits.MaximumFileBytes)
+                    {
+                        throw new InvalidDataException(
+                            "Załącznik przekracza maksymalny rozmiar 50 MB.");
+                    }
+
+                    destination.Write(buffer, 0, read);
+                    hash.AppendData(buffer, 0, read);
                 }
 
-                destination.Write(buffer, 0, read);
-                hash.AppendData(buffer, 0, read);
+                if (destination is FileStream fileStream)
+                    fileStream.Flush(flushToDisk: true);
+                else
+                    destination.Flush();
             }
 
-            destination.Flush(flushToDisk: true);
-            File.Move(temporaryPath, destinationPath);
+            moveFile(temporaryPath, destinationPath);
             paths[id] = destinationPath;
 
             return new StoredAttachmentContent(
@@ -260,6 +288,13 @@ public sealed class OrderAttachmentContentStore : IDisposable
             FileMode.Open,
             FileAccess.Read,
             FileShare.ReadWrite | FileShare.Delete);
+
+    private static Stream OpenTemporaryDestination(string temporaryPath) =>
+        new FileStream(
+            temporaryPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None);
 }
 
 public readonly record struct StoredAttachmentContent(
