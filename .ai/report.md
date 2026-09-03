@@ -1,50 +1,40 @@
 # Raport Codexa
 
-- TASK_ID: PACKAGE-WINDOWS-4.1D-014
+- TASK_ID: ATTACHMENT-WINDOWS-LOCAL-STAGE-015
 - STATUS: COMPLETED
-- STARTED_AT: 2026-09-02T16:45:00+0200
-- COMPLETED_AT: 2026-09-02T16:53:10+0200
+- STARTED_AT: 2026-09-03T11:20:00+0200
+- COMPLETED_AT: 2026-09-03T11:32:45+0200
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: 86b3d8e583dd0212e27327aa5fcac4dc636e40c8
-- HEAD_AFTER: 86b3d8e583dd0212e27327aa5fcac4dc636e40c8
+- HEAD_BEFORE: 23d2614a5829a4a8b80df357f3a7fa2c3e170532
+- HEAD_AFTER: 23d2614a5829a4a8b80df357f3a7fa2c3e170532
 
-## Cel
+## Zrealizowany zakres
 
-Przygotować i zweryfikować samodzielny pakiet Windows x64 COMMA Workspace 4.1D zawierający poprawkę importu załączników z dysków mapowanych Windows z commita `5549ab44e7667d5d277343d023ff4686c88db801`.
+- Dodano `WindowsAttachmentSourceStager`, który wyłącznie na Windows tworzy unikalną lokalną kopię tymczasową z zachowaniem rozszerzenia przez Windows Shell `SHFileOperation`.
+- Okno załączników przekazuje do managera wyłącznie staging-copy i usuwa utworzone pliki w `finally` realizowanym przez `using`, także gdy import zwróci błąd lub rzuci wyjątek.
+- Poza Windows zachowano pierwotne ścieżki i nie uruchamia się kopiowanie.
+- Dodano deterministyczne testy braku stagingu poza Windows, delegowania kopiowania i unikalności lokalnej ścieżki oraz sprzątania po udanym i nieudanym imporcie.
+- `OrderAttachmentContentStore` nie został zmieniony; nie dodano retry ani nie zmieniono istniejącego komunikatu o blokadzie pliku.
 
-## Kontrole wstępne
+## Kontrole i walidacja
 
-- Worktree i repozytorium: `/Users/Boris/RiderProjects/COMMA Workspace 4.0` — PASS.
-- Gałąź: `workspace-4.0` — PASS.
-- Początkowy status Git: czysty — PASS.
-- Bieżący HEAD: `86b3d8e583dd0212e27327aa5fcac4dc636e40c8`.
-- `BASE_HEAD_BEFORE_QUEUE` `0d550501b028dc6b3b8caea5bd05eb4d1339dc05` jest przodkiem HEAD — PASS.
-- Commit poprawki `5549ab44e7667d5d277343d023ff4686c88db801` jest przodkiem HEAD — PASS.
-- `main` pozostał dokładnie na `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a` — PASS.
+- Worktree: PASS — `/Users/Boris/RiderProjects/COMMA Workspace 4.0`.
+- Gałąź: PASS — `workspace-4.0`; początkowy status był czysty.
+- `BASE_HEAD_BEFORE_QUEUE` `e0a41bffcb3857d6d847acaedc7ad2ec2168c696` jest przodkiem HEAD — PASS.
+- `main` pozostaje `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a` — PASS.
+- `dotnet build COMMA.App.Tests/COMMA.App.Tests.csproj --configuration Release --no-restore` — PASS, 0 warnings / 0 errors.
+- `dotnet build "COMMA Workspace 4.0.sln" --configuration Release --no-restore` — PASS, 0 warnings / 0 errors.
+- Wymagane pojedyncze `dotnet test "COMMA Workspace 4.0.sln" --no-restore` — BLOCKED przed uruchomieniem przypadków: Debug build `COMMA.App` kończy się błędem `CS1061` dla istniejącego `AppBuilder.WithDeveloperTools` w `COMMA.App/Program.cs:23`. Plik ten nie znajduje się na allowliście, więc nie został zmieniony; test runner nie został ponowiony.
+- `git diff --check` — PASS.
+- Zakres zmian mieści się w `ALLOWED_PATHS_JSON`: `.ai/report.md`, `.ai/handoff.md`, `COMMA.App/Services/Attachments/WindowsAttachmentSourceStager.cs`, `COMMA.App/Views/AttachmentsWindow.axaml.cs`, `COMMA.App.Tests/OrderAttachmentTests.cs`.
 
-## Publikacja i pakiet
+## Blokada
 
-- `COMMA.App` opublikowano ponownie w katalogu tymczasowym jako Release, `win-x64`, self-contained — PASS.
-- Świeży publish zawiera `COMMA.App.exe` — PASS.
-- Docelowe archiwum `/Users/Boris/Desktop/COMMA Workspace 4.1D Windows x64.zip` powstało po commicie kolejkującym zadanie. Nie zostało usunięte ani nadpisane podczas ponownej walidacji.
-- Assembly w archiwum zawiera identyfikator bieżącego HEAD `86b3d8e583dd0212e27327aa5fcac4dc636e40c8`, który zawiera wymaganą poprawkę.
-- Porównanie ze świeżym publishem potwierdziło identyczne zależności i zasoby. Różnice własnych DLL/PDB ograniczają się do metadanych debug zawierających inną ścieżkę katalogu publish.
-- Archiwum zawiera dokładnie jeden katalog główny `COMMA Workspace 4.1D Windows x64` — PASS.
-- `COMMA Workspace 4.1D Windows x64/COMMA.App.exe` jest obecny — PASS.
-- Liczba wpisów ZIP: 283.
-- Rozmiar ZIP: 98 686 492 bajty.
-- SHA-256 ZIP: `9facbfd050a8df5affe3bdb6a182b4076f5198d99c909f69e04e2ca88b567d07`.
+Pełne testy nie mogły wystartować z powodu błędu Debug poza dozwolonym zakresem. Z tego powodu status pozostaje `BLOCKED`, mimo pomyślnej kompilacji Release. Nie wykonano commit ani push zgodnie z poleceniem użytkownika.
 
-## Walidacja
+## Końcowa walidacja po zatwierdzonej korekcie Debug
 
-- `unzip -t "/Users/Boris/Desktop/COMMA Workspace 4.1D Windows x64.zip"` — PASS, brak błędów danych skompresowanych.
-- Build testów w konfiguracji Release — PASS.
-- Uruchomienie przypadków przez VSTest — BLOCKED BY SANDBOX: host testowy nie mógł otworzyć lokalnego gniazda TCP (`SocketException (13): Permission denied`). Nie jest to niepowodzenie przypadku testowego; przypadki nie wystartowały.
-- Testy zadania pakietowego (publish, EXE, pojedynczy katalog główny, integralność ZIP, identyfikator HEAD) — PASS.
-- Końcowa kontrola ścieżek repozytorium: zmieniono wyłącznie `.ai/report.md` i `.ai/handoff.md` — PASS.
-- Nie uruchamiano aplikacji Windows, nie zmieniano pakietu macOS, `main`, COMMA WMS ani KOMI.
-
-## Podsumowanie
-
-Pakiet Windows x64 jest kompletny i zweryfikowany. Worker może zwalidować dozwolone ścieżki, a następnie wykonać commit i push.
+- Usunięto nieobsługiwany `WithDeveloperTools` z `Program.cs`; nie dodawano pakietów.
+- `dotnet test "COMMA Workspace 4.0.sln" --no-restore`: PASS — 177/177.
+- Release build rozwiązania: PASS.

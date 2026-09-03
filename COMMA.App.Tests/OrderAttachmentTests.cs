@@ -28,6 +28,84 @@ public sealed class OrderAttachmentTests
         "/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAAqADAAQAAAABAAAAAgAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8AAEQgAAgACAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/bAEMAAgICAgICAwICAwUDAwMFBgUFBQUGCAYGBgYGCAoICAgICAgKCgoKCgoKCgwMDAwMDA4ODg4ODw8PDw8PDw8PD//bAEMBAgICBAQEBwQEBxALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/dAAQAAf/aAAwDAQACEQMRAD8A8Xooor/Qw/hc/9k=";
 
     [Fact]
+    public void WindowsSourceStager_DoesNotStageOutsideWindows()
+    {
+        var copyCalls = 0;
+        var stager = new WindowsAttachmentSourceStager(
+            () => false,
+            (_, _) => copyCalls++,
+            Path.GetTempPath);
+        var sourcePath = "/network/attachment.pdf";
+
+        using var stagedSources = stager.Stage([sourcePath]);
+
+        Assert.Equal([sourcePath], stagedSources.Paths);
+        Assert.Equal(0, copyCalls);
+    }
+
+    [Fact]
+    public void WindowsSourceStager_UsesShellCopyWithUniqueLocalPdfDestination()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = directory.GetPath("Vandeputte-10.pdf");
+        var copies = new List<(string Source, string Destination)>();
+        var stager = new WindowsAttachmentSourceStager(
+            () => true,
+            (source, destination) =>
+            {
+                copies.Add((source, destination));
+                File.WriteAllText(destination, "staged");
+            },
+            () => directory.GetPath("local-temp"));
+
+        using var first = stager.Stage([sourcePath]);
+        using var second = stager.Stage([sourcePath]);
+
+        Assert.Equal(2, copies.Count);
+        Assert.All(copies, copy => Assert.Equal(sourcePath, copy.Source));
+        Assert.All(copies, copy => Assert.EndsWith(".pdf", copy.Destination));
+        Assert.NotEqual(first.Paths[0], second.Paths[0]);
+        Assert.All(copies, copy => Assert.StartsWith(directory.Path, copy.Destination));
+    }
+
+    [Fact]
+    public void WindowsSourceStager_CleansStagedFileAfterSuccessfulAndFailedImport()
+    {
+        using var directory = new TemporaryDirectory();
+        var sourcePath = directory.GetPath("attachment.png");
+        File.WriteAllBytes(sourcePath, Convert.FromBase64String(PngBase64));
+        var stager = new WindowsAttachmentSourceStager(
+            () => true,
+            (source, destination) => File.WriteAllBytes(destination, File.ReadAllBytes(source)),
+            () => directory.GetPath("local-temp"));
+
+        string successfulStagedPath;
+        using (var stagedSources = stager.Stage([sourcePath]))
+        {
+            successfulStagedPath = stagedSources.Paths[0];
+            using var manager = new OrderAttachmentManager();
+            Assert.Empty(manager.AddFiles(stagedSources.Paths, new ObservableCollection<OrderAttachmentMetadata>()));
+            Assert.True(File.Exists(successfulStagedPath));
+        }
+
+        string failedStagedPath;
+        using (var stagedSources = stager.Stage([sourcePath]))
+        {
+            failedStagedPath = stagedSources.Paths[0];
+            using var manager = new OrderAttachmentManager();
+            var attachments = new ObservableCollection<OrderAttachmentMetadata>
+            {
+                new() { Length = OrderAttachmentLimits.MaximumTotalBytes }
+            };
+            Assert.NotEmpty(manager.AddFiles(stagedSources.Paths, attachments));
+            Assert.True(File.Exists(failedStagedPath));
+        }
+
+        Assert.False(File.Exists(successfulStagedPath));
+        Assert.False(File.Exists(failedStagedPath));
+    }
+
+    [Fact]
     public void AttachmentFolder_DoesNotChangePdfOutputStartOrDestinationFolder()
     {
         using var directory = new TemporaryDirectory();

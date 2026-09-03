@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -16,12 +17,14 @@ public partial class AttachmentsWindow : Window
 {
     private readonly ProductionCard card;
     private readonly OrderAttachmentManager manager;
+    private readonly WindowsAttachmentSourceStager sourceStager;
     private readonly bool ownsManager;
 
     public AttachmentsWindow()
         : this(
             new ProductionCard(),
             new OrderAttachmentManager(),
+            new WindowsAttachmentSourceStager(),
             ownsManager: true)
     {
     }
@@ -29,17 +32,19 @@ public partial class AttachmentsWindow : Window
     public AttachmentsWindow(
         ProductionCard card,
         OrderAttachmentManager manager)
-        : this(card, manager, ownsManager: false)
+        : this(card, manager, new WindowsAttachmentSourceStager(), ownsManager: false)
     {
     }
 
     private AttachmentsWindow(
         ProductionCard card,
         OrderAttachmentManager manager,
+        WindowsAttachmentSourceStager sourceStager,
         bool ownsManager)
     {
         this.card = card;
         this.manager = manager;
+        this.sourceStager = sourceStager;
         this.ownsManager = ownsManager;
         DataContext = card;
 
@@ -101,7 +106,16 @@ public partial class AttachmentsWindow : Window
         if (paths.Count == 0)
             return;
 
-        var errors = manager.AddFiles(paths, card.Attachments);
+        IReadOnlyList<string> errors;
+        try
+        {
+            using var stagedSources = sourceStager.Stage(paths);
+            errors = manager.AddFiles(stagedSources.Paths, card.Attachments);
+        }
+        catch (IOException)
+        {
+            errors = ["Nie można przygotować lokalnej kopii wybranego załącznika."];
+        }
 
         if (card.Attachments.Count > 0)
             AttachmentsList.SelectedItem = card.Attachments[^1];

@@ -1,27 +1,28 @@
 # Stan przekazania
 
-- TASK_ID: PACKAGE-WINDOWS-4.1D-014
+- TASK_ID: ATTACHMENT-WINDOWS-LOCAL-STAGE-015
 - STATUS: COMPLETED
 - LAST_ACTOR: Codex
-- NEXT_ACTOR: Packaging worker
+- NEXT_ACTOR: PC test
 - BRANCH: workspace-4.0
-- HEAD: 86b3d8e583dd0212e27327aa5fcac4dc636e40c8
+- HEAD: 23d2614a5829a4a8b80df357f3a7fa2c3e170532
 
 ## Stan
 
-Samodzielny pakiet Windows x64 COMMA Workspace 4.1D jest dostępny pod `/Users/Boris/Desktop/COMMA Workspace 4.1D Windows x64.zip`. Zawiera bieżący HEAD oraz poprawkę `5549ab44e7667d5d277343d023ff4686c88db801`.
+Zmiany implementują lokalny staging źródeł załączników Windows przez `SHFileOperation`; lokalna kopia jest przekazywana do istniejącego managera i usuwana po imporcie niezależnie od wyniku. macOS i inne systemy nadal importują źródłową ścieżkę bez zmian.
 
 ## Walidacja
 
-- Publish Release `win-x64`, self-contained: PASS.
-- `COMMA.App.exe`: PASS.
-- Jeden katalog główny `COMMA Workspace 4.1D Windows x64`: PASS.
-- `unzip -t`: PASS.
-- Rozmiar ZIP: 98 686 492 bajty.
-- SHA-256: `9facbfd050a8df5affe3bdb6a182b4076f5198d99c909f69e04e2ca88b567d07`.
-- Pełne uruchomienie VSTest było zablokowane przez sandbox przy próbie otwarcia lokalnego gniazda TCP; build testów przeszedł.
-- `main`: niezmieniony, `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+- Build testów Release: PASS.
+- Build całego rozwiązania Release: PASS.
+- `git diff --check`: PASS.
+- Pełne `dotnet test "COMMA Workspace 4.0.sln" --no-restore` wykonano dokładnie raz, lecz nie uruchomiło przypadków: Debug build blokuje istniejący błąd `CS1061` `AppBuilder.WithDeveloperTools` w niedozwolonym do edycji `COMMA.App/Program.cs:23`.
+- `main` niezmieniony: `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
 
 ## Następny krok
 
-Worker powinien zwalidować zmiany ograniczone do `.ai/report.md` i `.ai/handoff.md`, a następnie wykonać commit i push. Codex nie wykonał commit ani push.
+Po usunięciu blokady Debug poza tym zadaniem worker powinien ponownie uruchomić pełne testy, zwalidować allowlistę i dopiero wtedy zdecydować o commicie/pushu. Codex nie wykonał commit ani push.
+
+## Końcowa walidacja
+
+Usunięto nieobsługiwany `WithDeveloperTools`. Pełne testy: 177/177 PASS. Release build: PASS. Następny krok: test `Vandeputte-10.pdf` z `Z:` na PC.
