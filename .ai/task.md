@@ -1,44 +1,49 @@
 # Aktualne zadanie
 
-- TASK_ID: WORKER-BLOCKED-RECOVERY-016
+- TASK_ID: PACKAGE-WINDOWS-4.1E-PC-TEST-017
 - STATUS: READY
-- PROJECT: COMMA Workspace automation
+- PROJECT: COMMA Workspace 4.1E Windows test package
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: 3ff9879
+- BASE_HEAD_BEFORE_QUEUE: 99317c5ceb8d285c11ec0f6f33ab2c628d781620
 - AUTO_COMMIT_PUSH: YES
-- COMMIT_MESSAGE: Add safe blocked-task recovery to Workspace worker
-- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", ".ai/automation/worker.sh"]
+- COMMIT_MESSAGE: Package Windows attachment staging test build
+- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md"]
 
 ## Cel
 
-Usprawnić bezpieczny worker COMMA Workspace tak, aby zadanie zakończone przez Codexa statusem BLOCKED nie powodowało ciągłego logowania błędu „repository is dirty” i nie wymagało wielu ręcznych komend. Zachować rygorystyczną ochronę cudzych zmian i ograniczyć niekontrolowane ponowne uruchomienia Codexa zużywające kredyty.
+Przygotować świeży, samodzielny pakiet Windows x64 COMMA Workspace 4.1E wyłącznie do rzeczywistego testu poprawki importu załącznika z mapowanego dysku `Z:`. Pakiet musi zawierać implementację z commita `3ff9879`, która używa Windows Shell do lokalnego stagingu wybranego pliku, importuje kopię lokalną i ją sprząta.
 
 ## Wymagania
 
-1. Przed działaniem przeczytaj w całości AGENTS.md oraz wszystkie pliki .ai. Potwierdź właściwy worktree, gałąź workspace-4.0, czysty status, relację historii i niezmieniony main = 4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a.
-2. Zmień wyłącznie .ai/automation/worker.sh oraz raport i handoff.
-3. Zachowaj domyślną zasadę: worker nie może automatycznie wykonywać zwykłego zadania na zastanym brudnym repozytorium.
-4. Gdy uruchomiony przez worker Codex zakończy się poprawnie procesowo, ale .ai/handoff.md ma STATUS: BLOCKED:
-   - zwaliduj, że wszystkie zmienione i nowe ścieżki mieszczą się w ALLOWED_PATHS_JSON oraz nie są ścieżkami blokowanymi;
-   - zapisz poza repozytorium, w STATE_DIR, bezpieczny znacznik z TASK_ID, gałęzią, HEAD oraz deterministycznym fingerprintem dokładnego stanu zmian;
-   - nie wykonuj commit ani push;
-   - zakończ cykl kontrolowanym statusem i jednoznacznym komunikatem „blocked task preserved; waiting for approved recovery”.
-5. W kolejnych cyklach, jeśli repozytorium jest brudne i istnieje dokładnie pasujący znacznik BLOCKED (TASK_ID, gałąź, HEAD i fingerprint bez zmian), nie uruchamiaj Codexa ponownie, nie zużywaj kolejnych kredytów i nie spamuj błędem. Zaloguj krótki stan oczekiwania i zakończ kodem 0.
-6. Dodaj jawny tryb --resume-blocked. Może on wznowić zadanie dokładnie jeden raz tylko wtedy, gdy:
-   - znacznik BLOCKED istnieje i pasuje do TASK_ID, gałęzi oraz HEAD;
-   - lokalny .ai/task.md jest identyczny z wersją w HEAD, aby lokalna zmiana allowlisty nie mogła rozszerzyć uprawnień;
-   - wszystkie zastane zmiany nadal przechodzą walidację względem zaufanej allowlisty zadania;
-   - nie ma konfliktów ani ścieżek blokowanych.
-   W razie niespełnienia któregokolwiek warunku zatrzymaj się bez zmian, resetu, stash, rebase lub force push.
-7. Po udanym wznowieniu stosuj istniejący mechanizm: wymagaj STATUS: COMPLETED, ponownie waliduj ścieżki, stage tylko zwalidowane pliki, commit/push zgodnie z zadaniem i oznacz TASK_ID jako handled. Usuń znacznik BLOCKED dopiero po udanym push.
-8. Rozszerz --self-test o deterministyczne przypadki: obce brudne repo nadal odrzucone; poprawny marker rozpoznany; zmiana HEAD/TASK_ID/fingerprint odrzucona; niezmieniony BLOCKED nie uruchamia Codexa; brak możliwości lokalnego rozszerzenia allowlisty.
-9. Uruchom bash -n .ai/automation/worker.sh oraz .ai/automation/worker.sh --self-test. Nie uruchamiaj testów aplikacji i nie zmieniaj jej kodu.
-10. Sprawdź git diff --check oraz allowlistę. Ustaw COMPLETED wyłącznie po pomyślnych testach, aby safe worker wykonał commit i push.
+1. Przed działaniem przeczytaj w całości `AGENTS.md` i wszystkie pliki w `.ai`. Potwierdź właściwy worktree, gałąź `workspace-4.0`, czysty status, relację historii oraz niezmieniony `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+2. Potwierdź, że commit `3ff9879` jest przodkiem bieżącego HEAD i że bieżące źródła nadal zawierają `WindowsAttachmentSourceStager` używający Windows Shell `SHFileOperation`.
+3. Nie zmieniaj żadnego kodu aplikacji, testów, projektów, pakietów ani konfiguracji. Dozwolone zmiany repozytorium to wyłącznie `.ai/report.md` i `.ai/handoff.md`.
+4. Wykonaj świeży publish `COMMA.App` jako Release, `win-x64`, self-contained, do nowego katalogu tymczasowego poza repozytorium. Nie używaj starego katalogu publish.
+5. Utwórz na Pulpicie dokładnie nowy pakiet:
+   `/Users/Boris/Desktop/COMMA Workspace 4.1E Windows x64.zip`
+   z jednym katalogiem głównym:
+   `COMMA Workspace 4.1E Windows x64/`
+   i plikiem:
+   `COMMA Workspace 4.1E Windows x64/COMMA.App.exe`.
+6. Nie nadpisuj ani nie usuwaj wcześniejszych pakietów, w szczególności wersji 4.1D. Jeżeli docelowy plik 4.1E już istnieje i nie można bezpiecznie potwierdzić, że pochodzi z tego zadania, zatrzymaj się jako BLOCKED zamiast go nadpisywać.
+7. Zweryfikuj integralność ZIP przez `unzip -t`, dokładnie jeden katalog główny, obecność `COMMA.App.exe`, rozmiar, liczbę wpisów i SHA-256. Potwierdź, że opublikowany pakiet pochodzi z bieżącego HEAD i zawiera commit `3ff9879`.
+8. Nie uruchamiaj aplikacji Windows na macOS i nie próbuj symulować dostępu do `Z:`. Nie wykonuj kolejnych eksperymentów z `FileStream`, `File.Copy`, retry ani komunikatami błędów.
+9. Nie uruchamiaj pełnego `dotnet test` ponownie — testy implementacji przeszły wcześniej 177/177. W tym zadaniu wykonaj wyłącznie Release publish oraz walidację pakietu.
+10. Zaktualizuj raport i handoff z dokładną ścieżką ZIP, rozmiarem, SHA-256, liczbą wpisów i wynikiem kontroli. Ustaw `COMPLETED` tylko jeśli pakiet jest gotowy i zweryfikowany; `NEXT_ACTOR: PC test`.
+11. Po pomyślnym przygotowaniu pakietu safe worker ma wykonać commit i push wyłącznie raportu oraz handoffu.
+
+## Kryterium odbioru na PC
+
+1. Rozpakuj 4.1E do nowego lokalnego folderu na PC i uruchom `COMMA.App.exe`.
+2. Otwórz zlecenie i wybierz `DODAJ`.
+3. Wybierz ten sam `Vandeputte-10.pdf` bezpośrednio z mapowanego dysku `Z:`.
+4. Sukces oznacza: załącznik zostaje dodany bez komunikatu o użyciu przez inny program i można go później otworzyć.
+5. Do czasu wykonania tego testu nie wolno opisywać poprawki jako potwierdzonej na PC.
 
 ## Zakazy
 
-- Nie zmieniaj COMMA.App, COMMA.Core, COMMA.App.Tests, COMMA WMS ani KOMI.
-- Nie zmieniaj main.
+- Nie zmieniaj `main`, COMMA WMS ani KOMI.
+- Nie zmieniaj kodu COMMA Workspace.
 - Nie używaj resetu, stash, rebase, cherry-pick ani force push.
-- Nie zezwalaj na automatyczne wznowienie niezmienionego zadania BLOCKED.
-- Nie twórz ZIP-a ani aplikacji.
+- Nie usuwaj i nie nadpisuj istniejących paczek.
+- Nie twórz pakietu macOS.
