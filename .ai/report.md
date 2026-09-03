@@ -1,30 +1,39 @@
 # Raport Codexa
 
-- TASK_ID: ATTACHMENT-WINDOWS-CLOSE-BEFORE-MOVE-018
+- TASK_ID: PACKAGE-WINDOWS-4.1F-PC-TEST-019
 - STATUS: COMPLETED
-- STARTED_AT: 2026-09-03T14:00:00+0200
-- COMPLETED_AT: 2026-09-03T14:05:29+0200
+- STARTED_AT: 2026-09-03T14:35:13+0200
+- COMPLETED_AT: 2026-09-03T14:36:19+0200
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: df2f3182914555cb7e0c9f709cd255022b390c5c
-- HEAD_AFTER: df2f3182914555cb7e0c9f709cd255022b390c5c
+- HEAD_BEFORE: f17a4e8f372e3cf5eb8c96b6060689b1d638ac90
+- HEAD_AFTER: f17a4e8f372e3cf5eb8c96b6060689b1d638ac90
 
 ## Wykonane zmiany
 
-- `OrderAttachmentContentStore.ImportStream` zamyka strumień docelowego pliku `.part` po zapisie i `Flush(flushToDisk: true)`, przed wywołaniem operacji przeniesienia.
-- Dodano minimalne wewnętrzne delegaty fabryki strumienia docelowego i przeniesienia, używające w produkcji nadal `FileStream` z `FileShare.None` oraz `File.Move`.
-- Dodano deterministyczny test regresyjny ze śledzonym strumieniem: operacja move potwierdza, że dispose strumienia docelowego nastąpił wcześniej. Test nie zależy od Windows, `Z:`, sieci ani semantyki rename systemu plików.
-- Zachowano istniejące retry, limity, SHA-256, atomowe przejście `.part` do pliku docelowego, aktualizację `paths` po move oraz sprzątanie błędów.
+- Nie zmieniono kodu, testów, konfiguracji ani istniejącego archiwum.
+- Zweryfikowano istniejący pakiet `/Users/Boris/Desktop/COMMA Workspace 4.1F Windows x64.zip` i zapisano jego metadane.
+- Odnotowano potwierdzony przez użytkownika rzeczywisty test PC z 2026-09-03: import załącznika bezpośrednio z mapowanego dysku `Z:` działa poprawnie; nie występuje wcześniejszy komunikat o użyciu pliku przez inny program.
+
+## Metadane pakietu
+
+- Archiwum: `/Users/Boris/Desktop/COMMA Workspace 4.1F Windows x64.zip`
+- SHA-256: `4c4b997c62ac3d6d1418c24801cc931ae3688c4e9349827e32a7d2a4455a62b6`
+- Rozmiar: `98,674,483` B
+- Zmodyfikowano: `2026-09-03T14:08:38+0200`
+- Liczba wpisów ZIP: `283`
+- Katalog główny: dokładnie jeden — `COMMA Workspace 4.1F Windows x64/`
+- Plik wykonywalny: dokładnie jeden — `COMMA Workspace 4.1F Windows x64/COMMA.App.exe`
+- Markery publikacji self-contained win-x64: obecne `COMMA.App.exe`, `COMMA.App.dll`, `COMMA.App.deps.json`, `COMMA.App.runtimeconfig.json`, `hostfxr.dll` i `coreclr.dll`.
 
 ## Kontrole i walidacja
 
 - Worktree: PASS — `/Users/Boris/RiderProjects/COMMA Workspace 4.0`.
 - Gałąź i czysty status początkowy: PASS — `workspace-4.0`, bez lokalnych zmian.
-- `main`: PASS — `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`, niezmieniony.
-- `b785193d5e999ae80f7164794e77165b3d87da99` oraz `3ff9879`: PASS — są przodkami bieżącego `HEAD`.
-- `dotnet test "COMMA Workspace 4.0.sln" --no-restore`: uruchomione dokładnie raz; BLOCKED przez sandbox przed startem testów. MSBuild zgłosił `System.Net.Sockets.SocketException (13): Permission denied` podczas tworzenia `NamedPipeServerStream`/`TcpListener`. Nie ponawiano.
-- `dotnet build "COMMA Workspace 4.0.sln" --configuration Release --no-restore`: PASS — 0 ostrzeżeń, 0 błędów.
-- `git diff --check`: PASS.
-- Allowlista zmian: PASS — tylko `.ai/report.md`, `.ai/handoff.md`, `COMMA.App/Services/Attachments/OrderAttachmentContentStore.cs` i `COMMA.App.Tests/OrderAttachmentTests.cs`.
+- `unzip -t`: PASS — brak błędów w skompresowanych danych.
+- Struktura ZIP: PASS — jeden oczekiwany katalog główny i jeden oczekiwany `COMMA.App.exe`.
+- Pochodzenie kodu: PASS — commity `3ff9879` (Windows Shell staging) i `1e6a913f15427f54761776144d6c9201d283d292` (dispose-before-move) istnieją i są przodkami bieżącego `HEAD` `f17a4e8f372e3cf5eb8c96b6060689b1d638ac90` (`Confirm Windows attachment PC test`).
+- Dodatkowych testów ani buildów nie uruchamiano, zgodnie z zakazem zadania.
+- Allowlista zmian: PASS — tylko `.ai/report.md` i `.ai/handoff.md`.
 
-Nie wykonano commita ani pushu; zgodnie z zadaniem wykona je safe worker po walidacji.
+Nie wykonano commita ani pushu zgodnie z bieżącą instrukcją użytkownika; wykona je safe worker po walidacji.
