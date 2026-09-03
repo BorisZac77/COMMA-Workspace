@@ -5,6 +5,28 @@ namespace COMMA.App.Tests;
 
 public sealed class OrderPageLayoutEngineTests
 {
+    [Fact]
+    public void PairedFirstPageLayout_IsUsedOnlyForTwoSingleViewGarmentsOnFirstPage()
+    {
+        var first = OrderTestData.CreateGarment(1, "First");
+        var second = OrderTestData.CreateGarment(1, "Second");
+        var pairedPage = OrderPageLayoutEngine.BuildPages([first, second])[0];
+
+        Assert.True(pairedPage.UsesPairedFirstPageGarmentLayout);
+
+        var twoViewGarment = OrderTestData.CreateGarment(2, "Two views");
+        Assert.False(OrderPageLayoutEngine.BuildPages([twoViewGarment])[0]
+            .UsesPairedFirstPageGarmentLayout);
+
+        var continuationPages = OrderPageLayoutEngine.BuildPages(
+        [
+            OrderTestData.CreateGarment(3, "Leading"),
+            OrderTestData.CreateGarment(1, "Second")
+        ]);
+
+        Assert.False(continuationPages[1].UsesPairedFirstPageGarmentLayout);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]

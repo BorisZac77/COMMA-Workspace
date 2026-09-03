@@ -160,6 +160,12 @@ public sealed class OrderPageLayout
         PageNumber == 1;
 
 
+    public bool UsesPairedFirstPageGarmentLayout =>
+        IsFirstPage &&
+        placements.Count == 2 &&
+        placements.All(placement => placement.DrawingCount == 1);
+
+
     public string PageNumberText =>
         TotalPages > 0
             ? $"{PageNumber}/{TotalPages}"

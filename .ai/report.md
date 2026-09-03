@@ -1,39 +1,27 @@
 # Raport Codexa
 
-- TASK_ID: PACKAGE-WINDOWS-4.1F-PC-TEST-019
+- TASK_ID: WORKSPACE-5-FIRST-PAGE-PAIR-LAYOUT-020
 - STATUS: COMPLETED
-- STARTED_AT: 2026-09-03T14:35:13+0200
-- COMPLETED_AT: 2026-09-03T14:36:19+0200
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: f17a4e8f372e3cf5eb8c96b6060689b1d638ac90
-- HEAD_AFTER: f17a4e8f372e3cf5eb8c96b6060689b1d638ac90
+- HEAD_BEFORE: d4f0d9d
+- HEAD_AFTER: d4f0d9d
 
 ## Wykonane zmiany
 
-- Nie zmieniono kodu, testów, konfiguracji ani istniejącego archiwum.
-- Zweryfikowano istniejący pakiet `/Users/Boris/Desktop/COMMA Workspace 4.1F Windows x64.zip` i zapisano jego metadane.
-- Odnotowano potwierdzony przez użytkownika rzeczywisty test PC z 2026-09-03: import załącznika bezpośrednio z mapowanego dysku `Z:` działa poprawnie; nie występuje wcześniejszy komunikat o użyciu pliku przez inny program.
-
-## Metadane pakietu
-
-- Archiwum: `/Users/Boris/Desktop/COMMA Workspace 4.1F Windows x64.zip`
-- SHA-256: `4c4b997c62ac3d6d1418c24801cc931ae3688c4e9349827e32a7d2a4455a62b6`
-- Rozmiar: `98,674,483` B
-- Zmodyfikowano: `2026-09-03T14:08:38+0200`
-- Liczba wpisów ZIP: `283`
-- Katalog główny: dokładnie jeden — `COMMA Workspace 4.1F Windows x64/`
-- Plik wykonywalny: dokładnie jeden — `COMMA Workspace 4.1F Windows x64/COMMA.App.exe`
-- Markery publikacji self-contained win-x64: obecne `COMMA.App.exe`, `COMMA.App.dll`, `COMMA.App.deps.json`, `COMMA.App.runtimeconfig.json`, `hostfxr.dll` i `coreclr.dll`.
+- Dodano jedną regułę `UsesPairedFirstPageGarmentLayout`: dotyczy wyłącznie pierwszej strony z dokładnie dwoma rozmieszczeniami po jednym rzucie.
+- Podgląd i PDF używają tej reguły, aby w tym przypadku utworzyć dwie równe kolumny na pełnej wysokości; pozostałe układy dwóch pozycji pozostały pionowe.
+- Geometria opisów w tym układzie odpowiada pełnej wysokości i szerokości `(dostępna szerokość - przerwa) / 2`, więc walidacja edytora odpowiada PDF.
+- Dodano testy reguły, geometrii i PDF dla pary na pierwszej stronie oraz zaktualizowano test brandingu.
+- Ustawiono nazwę, tytuł, wersje projektu i przyszłą nazwę pakietu macOS na COMMA Workspace 5.0 / 5.0.0.
 
 ## Kontrole i walidacja
 
-- Worktree: PASS — `/Users/Boris/RiderProjects/COMMA Workspace 4.0`.
-- Gałąź i czysty status początkowy: PASS — `workspace-4.0`, bez lokalnych zmian.
-- `unzip -t`: PASS — brak błędów w skompresowanych danych.
-- Struktura ZIP: PASS — jeden oczekiwany katalog główny i jeden oczekiwany `COMMA.App.exe`.
-- Pochodzenie kodu: PASS — commity `3ff9879` (Windows Shell staging) i `1e6a913f15427f54761776144d6c9201d283d292` (dispose-before-move) istnieją i są przodkami bieżącego `HEAD` `f17a4e8f372e3cf5eb8c96b6060689b1d638ac90` (`Confirm Windows attachment PC test`).
-- Dodatkowych testów ani buildów nie uruchamiano, zgodnie z zakazem zadania.
-- Allowlista zmian: PASS — tylko `.ai/report.md` i `.ai/handoff.md`.
+- Preflight: PASS — właściwy worktree, gałąź `workspace-4.0`, czysty status początkowy, `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`, a commit bazowy jest przodkiem HEAD.
+- Release build: PASS — `dotnet build "COMMA Workspace 4.0.sln" -c Release --no-restore`; 0 ostrzeżeń, 0 błędów.
+- Pełne `dotnet test "COMMA Workspace 4.0.sln" --no-restore`: uruchomione dokładnie raz. Wykryło nieaktualny tekst brandingu 4.1, który został poprawiony; nie zostało powtórzone.
+- Testy ukierunkowane po poprawce: zablokowane przez sandbox — `System.Net.Sockets.SocketException (13): Permission denied` przy tworzeniu Named Pipe przez MSBuild. Nie ponawiano ślepo.
+- `git diff --check`: PASS.
+- Allowlista: PASS — zmieniono wyłącznie ścieżki z `ALLOWED_PATHS_JSON`.
 
-Nie wykonano commita ani pushu zgodnie z bieżącą instrukcją użytkownika; wykona je safe worker po walidacji.
+Nie wykonano commita ani pushu zgodnie z instrukcją użytkownika; wykona je safe worker po walidacji.

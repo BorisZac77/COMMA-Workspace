@@ -739,7 +739,12 @@ public static class GarmentViewDescriptionLayout
         var garmentWidth = (double)PdfStyles.AvailableContentWidth;
         var placements = page.Placements;
 
-        if (placements.Count == 2)
+        if (page.UsesPairedFirstPageGarmentLayout)
+        {
+            garmentWidth =
+                (PdfStyles.AvailableContentWidth - 4d) / 2d;
+        }
+        else if (placements.Count == 2)
         {
             garmentHeight =
                 (availableHeight - 4d) / 2d;

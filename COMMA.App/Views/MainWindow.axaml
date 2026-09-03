@@ -15,7 +15,7 @@
         MinWidth="1350"
         MinHeight="620"
         Icon="/Assets/Icons/Pimp.ico"
-        Title="COMMA Workspace — v4.1.0">
+        Title="COMMA Workspace — v5.0.0">
 
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -170,7 +170,7 @@
                             VerticalAlignment="Center"
                             Spacing="2">
 
-                    <TextBlock Text="COMMA Workspace 4.1"
+                    <TextBlock Text="COMMA Workspace 5.0"
                                FontSize="24"
                                FontWeight="Bold"/>
 

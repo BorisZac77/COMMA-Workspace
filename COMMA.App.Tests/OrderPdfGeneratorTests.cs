@@ -14,6 +14,46 @@ namespace COMMA.App.Tests;
 
 public sealed class OrderPdfGeneratorTests
 {
+    [Fact]
+    public void Pdf_PairedFirstPageSingleViewGarmentsUseEqualSideBySideColumns()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("paired-first-page.pdf");
+        var imagePath = CreateDrawingFixture(directory, 400, 200);
+        var first = CreateGarment(1, "Left garment");
+        var second = CreateGarment(1, "Right garment");
+        const string leftDescription = "LEFT DESCRIPTION";
+        const string rightDescription = "RIGHT DESCRIPTION";
+        first.Drawings[0].FullPath = imagePath;
+        second.Drawings[0].FullPath = imagePath;
+        first.ViewDescriptions.Front = leftDescription;
+        second.ViewDescriptions.Front = rightDescription;
+        var pagePlan = OrderPageLayoutEngine.BuildPages([first, second]);
+
+        OrderPdfGenerator.Generate(
+            outputPath,
+            new ProductionCard { OrderName = "PAIRED FIRST PAGE" },
+            pagePlan);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        var page = pdf.GetPage(1);
+        var images = GetDrawingImageBounds(page, expectedDrawingCount: 2);
+
+        Assert.True(pagePlan[0].UsesPairedFirstPageGarmentLayout);
+        Assert.Equal(images[0].Top, images[1].Top, precision: 1);
+        Assert.True(images[0].Left < images[1].Left);
+        AssertDescriptionImmediatelyFollowsImage(page, leftDescription);
+        AssertDescriptionImmediatelyFollowsImage(page, rightDescription);
+        AssertDescriptionIsLeftAligned(
+            page,
+            leftDescription,
+            GetDrawingCellLeft(page, isRightColumn: false));
+        AssertDescriptionIsLeftAligned(
+            page,
+            rightDescription,
+            GetDrawingCellLeft(page, isRightColumn: true));
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]

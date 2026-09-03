@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using Avalonia.Controls;
+using COMMA.App.Controls;
 using COMMA.App.Layout;
 using COMMA.App.Services.Pdf;
 using COMMA.App.Tests.TestSupport;
@@ -8,6 +9,52 @@ namespace COMMA.App.Tests;
 
 public sealed class GarmentViewDescriptionLayoutTests
 {
+    [Fact]
+    public void Preview_PairedFirstPageLayoutCreatesTwoColumnsInsteadOfTwoRows()
+    {
+        var first = OrderTestData.CreateGarment(1, "First");
+        var second = OrderTestData.CreateGarment(1, "Second");
+        var page = OrderPageLayoutEngine.BuildPages([first, second])[0];
+        var buildPageLayout = typeof(GarmentPageSection).GetMethod(
+            "BuildPageLayout",
+            System.Reflection.BindingFlags.Static |
+            System.Reflection.BindingFlags.NonPublic);
+
+        var preview = Assert.IsType<Grid>(buildPageLayout!.Invoke(null, [page]));
+
+        Assert.Equal(2, preview.ColumnDefinitions.Count);
+        Assert.Empty(preview.RowDefinitions);
+        Assert.Equal(2, preview.Children.Count);
+    }
+
+    [Fact]
+    public void PairedFirstPageLayout_UsesTwoEqualFullHeightColumnsForDescriptionGeometry()
+    {
+        var first = OrderTestData.CreateGarment(1, "First");
+        var second = OrderTestData.CreateGarment(1, "Second");
+        var page = OrderPageLayoutEngine.BuildPages([first, second])[0];
+        var firstGeometry = page.Placements[0].Views[0].Geometry;
+        var secondGeometry = page.Placements[1].Views[0].Geometry;
+
+        Assert.True(page.UsesPairedFirstPageGarmentLayout);
+        Assert.Equal(
+            (PdfStyles.AvailableContentWidth - 4d) / 2d,
+            firstGeometry.PdfDrawingCellWidth,
+            precision: 3);
+        Assert.Equal(
+            firstGeometry.PdfDrawingCellWidth,
+            secondGeometry.PdfDrawingCellWidth,
+            precision: 3);
+        Assert.Equal(
+            GarmentViewDescriptionLayout.GetPageGarmentAreaHeight(true) - 21d,
+            firstGeometry.PdfDrawingCellHeight,
+            precision: 3);
+        Assert.Equal(
+            firstGeometry.PdfDrawingCellHeight,
+            secondGeometry.PdfDrawingCellHeight,
+            precision: 3);
+    }
+
     [Fact]
     public void PageTargetsUseActualFirstAndContinuationPageHeights()
     {

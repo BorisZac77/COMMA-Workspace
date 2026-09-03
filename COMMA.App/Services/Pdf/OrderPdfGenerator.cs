@@ -444,6 +444,18 @@ public static class OrderPdfGenerator
         float availableHeight,
         OrderPageLayout page)
     {
+        if (page.UsesPairedFirstPageGarmentLayout)
+        {
+            BuildGarmentPairRow(
+                container,
+                first,
+                second,
+                availableHeight,
+                page);
+
+            return;
+        }
+
         var garmentHeight =
             (availableHeight - GarmentGap) /
             2f;

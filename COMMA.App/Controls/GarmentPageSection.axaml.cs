@@ -211,6 +211,34 @@ public partial class GarmentPageSection : UserControl
         OrderPageGarmentPlacement second,
         OrderPageLayout page)
     {
+        if (page.UsesPairedFirstPageGarmentLayout)
+        {
+            var pairedGrid =
+                new Grid
+                {
+                    ColumnSpacing =
+                        6
+                };
+
+            pairedGrid.ColumnDefinitions.Add(
+                new ColumnDefinition(
+                    GridLength.Star));
+
+            pairedGrid.ColumnDefinitions.Add(
+                new ColumnDefinition(
+                    GridLength.Star));
+
+            var leftBox = CreateGarmentBox(first, page);
+            var rightBox = CreateGarmentBox(second, page);
+
+            Grid.SetColumn(leftBox, 0);
+            Grid.SetColumn(rightBox, 1);
+            pairedGrid.Children.Add(leftBox);
+            pairedGrid.Children.Add(rightBox);
+
+            return pairedGrid;
+        }
+
         var grid =
             new Grid
             {
