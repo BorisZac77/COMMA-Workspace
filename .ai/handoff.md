@@ -1,25 +1,39 @@
 # Stan przekazania
 
-- TASK_ID: WORKER-BLOCKED-RECOVERY-016
+- TASK_ID: PACKAGE-WINDOWS-4.1E-PC-TEST-017
 - STATUS: COMPLETED
 - LAST_ACTOR: Codex
-- NEXT_ACTOR: Safe worker
+- NEXT_ACTOR: PC test
 - BRANCH: workspace-4.0
-- HEAD: d88d0f9facf99dda19741e6099f261b00f646964
+- HEAD: 634d72b211d3925c37e17b436ebddbcab90b45b8
 
 ## Stan
 
-Worker zachowuje zwalidowane zmiany zadania BLOCKED w repozytorium i zapisuje w `STATE_DIR` atomowy znacznik dokładnego stanu. Kolejne zwykłe cykle nie uruchamiają Codexa ani nie raportują brudnego repozytorium, gdy znacznik nadal pasuje.
+Fresh Windows x64 self-contained publish został wykonany i tymczasowe archiwum ZIP zostało zweryfikowane, ale nie można było zapisać wymaganej nowej paczki na Pulpicie z powodu ograniczenia uprawnień środowiska: `Operation not permitted` dla `/Users/Boris/Desktop/COMMA Workspace 4.1E Windows x64.zip`.
 
-`--resume-blocked` jest świadomą, jednorazową akcją. Odrzuca stan ze zmienionym HEAD, TASK_ID, fingerprintem, `.ai/task.md`, konfliktem, ścieżką blokowaną lub ścieżką poza zaufaną allowlistą z HEAD. Po udanym pushu znacznik jest usuwany i TASK_ID zostaje oznaczony jako handled.
+Nie należy oznaczać poprawki jako potwierdzonej na PC. Nie utworzono docelowego ZIP, nie zmieniono kodu ani konfiguracji i nie wykonano commita/pushu.
 
-## Walidacja
+## Zweryfikowane dane tymczasowego archiwum
 
-- `bash -n .ai/automation/worker.sh`: PASS.
-- `.ai/automation/worker.sh --self-test`: PASS.
-- `git diff --check`: PASS.
-- `main`: `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a` — niezmieniony.
+- Tymczasowa ścieżka: `/private/tmp/comma-4.1e-win-x64.E8DJb5/COMMA Workspace 4.1E Windows x64.zip`.
+- Rozmiar: `98,688,922` B; SHA-256: `8eb208502052b76c28badf1c0a443f6761c4a54478db47f5ac722eec4efc0c64`; wpisy: `283`.
+- `unzip -t`: PASS; jeden katalog główny; `COMMA Workspace 4.1E Windows x64/COMMA.App.exe`: obecny dokładnie raz.
+- Źródła odpowiadają HEAD `634d72b211d3925c37e17b436ebddbcab90b45b8`, który zawiera `3ff9879` z `WindowsAttachmentSourceStager` i `SHFileOperation`.
 
 ## Następny krok
 
-Safe worker powinien zwalidować allowlistę, utworzyć commit i wykonać push zgodnie z metadanymi zadania. Nie wykonano ręcznie commita ani pushu.
+Zapewnić uprawnienie do utworzenia nowego pliku na Pulpicie lub ręcznie przenieść zweryfikowane archiwum tymczasowe pod dokładnie wymaganą nazwę, nie nadpisując istniejącego pliku. Następnie ponownie sprawdzić ZIP na docelowej ścieżce przed przekazaniem do PC testu.
+
+## Ręczne dokończenie pakietu
+
+Interaktywny Terminal utworzył docelowy pakiet:
+`/Users/Boris/Desktop/COMMA Workspace 4.1E Windows x64.zip`.
+
+- Release publish `win-x64`, self-contained: PASS.
+- Integralność ZIP: PASS.
+- Jeden katalog główny: PASS.
+- `COMMA.App.exe`: PASS.
+- Liczba wpisów: `283`.
+- Rozmiar: `98674206` bajtów.
+- SHA-256: `16e62841585e42a41527849d1aed3769e449809684feb94e92422557f07a62c6`.
+- Następny krok: test `Vandeputte-10.pdf` bezpośrednio z `Z:` na PC.
