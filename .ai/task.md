@@ -1,52 +1,69 @@
 # Aktualne zadanie
 
-- TASK_ID: PACKAGE-WINDOWS-4.1F-PC-TEST-019
+- TASK_ID: WORKSPACE-5-FIRST-PAGE-PAIR-LAYOUT-020
 - STATUS: READY
-- PROJECT: COMMA Workspace 4.1F Windows test package
+- PROJECT: COMMA Workspace 5.0
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: 1e6a913f15427f54761776144d6c9201d283d292
+- BASE_HEAD_BEFORE_QUEUE: 11912aa4b353b399851733981195622a4d174c2c
 - AUTO_COMMIT_PUSH: YES
-- COMMIT_MESSAGE: Package Windows close-before-move test build
-- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md"]
+- COMMIT_MESSAGE: Start Workspace 5.0 with paired first-page garments
+- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", "build_app.sh", "COMMA.App/COMMA.App.csproj", "COMMA.App/App.axaml", "COMMA.App/Views/MainWindow.axaml", "COMMA.App/Views/MainWindow.axaml.cs", "COMMA.App/Controls/GarmentPageSection.axaml.cs", "COMMA.App/Layout/OrderPageLayoutEngine.cs", "COMMA.App/Layout/GarmentViewDescriptionLayout.cs", "COMMA.App/Services/Pdf/OrderPdfGenerator.cs", "COMMA.App.Tests/ApplicationBrandingTests.cs", "COMMA.App.Tests/OrderPageLayoutEngineTests.cs", "COMMA.App.Tests/GarmentViewDescriptionLayoutTests.cs", "COMMA.App.Tests/OrderPdfGeneratorTests.cs"]
 
 ## Cel
 
-Przygotować świeży, samodzielny pakiet Windows x64 COMMA Workspace 4.1F do rzeczywistego testu importu załącznika bezpośrednio z mapowanego dysku `Z:`. Pakiet ma zawierać:
-- Windows Shell staging z commita `3ff9879`;
-- poprawkę dispose-before-move z commita `1e6a913f15427f54761776144d6c9201d283d292`.
+Rozpocząć COMMA Workspace 5.0 i poprawić pierwszą stronę karty dla dokładnie dwóch rodzajów odzieży z dokładnie jednym wybranym rzutem każdy. W tej jednej konfiguracji oba pola odzieży mają być ułożone obok siebie w dwóch równych kolumnach, aby pod każdym rysunkiem było więcej miejsca na jego opis.
 
-Pakiet został utworzony ręcznie w interaktywnym Terminalu, ponieważ sandbox workera nie ma uprawnienia zapisu na Pulpicie. Użytkownik wykonał rzeczywisty test na PC i potwierdził, że dodawanie załącznika bezpośrednio z mapowanego dysku `Z:` działa. Worker ma teraz wyłącznie zweryfikować istniejący pakiet, zapisać metadane oraz potwierdzenie odbioru w raporcie i handoffie.
+## Wymagania wstępne
 
-## Oczekiwany pakiet
+1. Przeczytaj w całości `AGENTS.md` i wszystkie pliki w `.ai`.
+2. Potwierdź worktree `/Users/Boris/RiderProjects/COMMA Workspace 4.0`, gałąź `workspace-4.0`, czysty status, relację historii oraz `main` dokładnie `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+3. Pracuj wyłącznie w ścieżkach z `ALLOWED_PATHS_JSON`. Nie zmieniaj COMMA WMS, KOMI, `main`, nazwy repozytorium, gałęzi ani katalogu lokalnego.
 
-- Ścieżka: `/Users/Boris/Desktop/COMMA Workspace 4.1F Windows x64.zip`
-- Jeden katalog główny: `COMMA Workspace 4.1F Windows x64/`
-- Plik wykonywalny: `COMMA Workspace 4.1F Windows x64/COMMA.App.exe`
-- Publish: Release, `win-x64`, self-contained
-- Źródło: dokładnie commit `1e6a913f15427f54761776144d6c9201d283d292`
+## Reguła układu 5.0
 
-## Wymagania końcowej walidacji
+1. Zdefiniuj jedną wspólną, testowalną regułę układu, używaną przez podgląd, generator PDF oraz obliczanie geometrii opisu:
+   - strona jest pierwszą stroną karty;
+   - strona ma dokładnie dwa rozmieszczenia odzieży;
+   - każde rozmieszczenie ma dokładnie jeden wybrany rzut.
+2. Tylko przy spełnieniu wszystkich trzech warunków:
+   - pierwsza odzież jest w lewej kolumnie;
+   - druga odzież jest w prawej kolumnie;
+   - kolumny mają równą szerokość i zachowują istniejącą przerwę;
+   - oba pola wykorzystują pełną dostępną wysokość sekcji odzieży;
+   - opis pozostaje bezpośrednio pod właściwym rysunkiem, wewnątrz jego kolumny.
+3. Podgląd w aplikacji i wynikowy PDF muszą mieć ten sam układ.
+4. Geometria używana przez edytor i walidację opisu musi odpowiadać rzeczywistej pełnej wysokości oraz połowie szerokości tej konfiguracji. Nie wolno dopuścić opisu, który później nie mieści się w PDF.
+5. Wszystkie pozostałe przypadki zachowują dokładnie dotychczasowy układ:
+   - dwie odzieże, gdy choć jedna ma więcej niż jeden rzut — nadal pionowo;
+   - dwie odzieże na późniejszej stronie — nadal pionowo;
+   - układy jednej, trzech i czterech odzieży — bez zmian;
+   - paginacja, kolejność odzieży i rzutów — bez zmian.
 
-1. Nie nadpisuj istniejącego ZIP-a 4.1F; jeżeli istnieje, zatrzymaj się.
-2. Sprawdź `unzip -t`, dokładnie jeden katalog główny, dokładnie jeden `COMMA.App.exe`, liczbę wpisów, rozmiar i SHA-256.
-3. Nie uruchamiaj kolejnych testów ani nie zmieniaj kodu.
-4. Safe worker ma wyłącznie zweryfikować istniejący pakiet, zaktualizować `.ai/report.md` i `.ai/handoff.md`, a następnie wykonać commit i push.
-5. Zapisz wynik rzeczywistego testu użytkownika: import załącznika bezpośrednio z `Z:` na PC działa poprawnie; wcześniejszy komunikat o użyciu pliku przez inny program nie występuje.
+## Nazwa i wersja aplikacji
 
-## Kryterium odbioru na PC
+1. Ustaw widoczną nazwę aplikacji na `COMMA Workspace 5.0`.
+2. Ustaw tytuł okna na `COMMA Workspace — v5.0.0`.
+3. Ustaw wersje projektu:
+   - `Version` i `InformationalVersion`: `5.0.0`;
+   - `AssemblyVersion` i `FileVersion`: `5.0.0.0`.
+4. Zaktualizuj skrypt macOS tak, aby przyszły pakiet nazywał się `COMMA Workspace 5.0.app` i miał spójne nazwy oraz wersję `5.0.0`.
+5. Nie zmieniaj wersji formatu danych, manifestu COMMA PDF v4, kompatybilności odczytu ani struktury istniejących kart. To jest wyłącznie wersja aplikacji.
 
-1. Rozpakuj 4.1F do nowego lokalnego folderu na PC.
-2. Uruchom `COMMA.App.exe`.
-3. Otwórz zlecenie, kliknij `DODAJ` i wybierz ten sam PDF bezpośrednio z `Z:`.
-4. Sukces: załącznik zostaje dodany bez komunikatu o użyciu przez inny program i można go otworzyć.
+## Testy
 
-## Zakazy
+Dodaj lub zaktualizuj deterministyczne testy, które potwierdzają:
 
-- Nie zmieniaj `main`, COMMA WMS ani KOMI.
-- Nie zmieniaj kodu aplikacji, testów, konfiguracji ani pakietów NuGet.
-- Nie twórz pakietu macOS.
-- Nie używaj resetu, stash, rebase, cherry-pick ani force push.
+1. Wspólna reguła zwraca `true` wyłącznie dla pierwszej strony z dwiema odzieżami po jednym rzucie.
+2. Geometria specjalnego układu ma pełną wysokość sekcji i połowę szerokości z uwzględnieniem przerwy; obie pozycje mają równą geometrię.
+3. Podgląd tworzy dwie kolumny w specjalnym przypadku, a nie dwa wiersze.
+4. PDF umieszcza dwie odzieże obok siebie i zachowuje pod każdym rysunkiem właściwy opis.
+5. Negatywne przypadki pozostają pionowe i bez regresji.
+6. Branding, tytuł okna, wersje projektu i przyszła nazwa macOS app są spójnie ustawione na 5.0.
 
-## Wynik rzeczywistego testu PC
+## Walidacja i zakończenie
 
-Użytkownik potwierdził 2026-09-03: „jest ok, dodawanie załączników na PC działa”. Kryterium odbioru dla importu bezpośrednio z mapowanego dysku `Z:` jest spełnione.
+1. Uruchom pełne `dotnet test "COMMA Workspace 4.0.sln" --no-restore` dokładnie raz oraz Release build rozwiązania. Jeśli runner zostanie obiektywnie zablokowany przez sandbox, nie ponawiaj ślepo; zapisz dokładny wynik i wykonaj dostępne kompilacje Release.
+2. Sprawdź `git diff --check` oraz ścisłą allowlistę.
+3. Zaktualizuj `.ai/report.md` i `.ai/handoff.md`.
+4. Przy pomyślnej dostępnej walidacji ustaw `COMPLETED`, wykonaj commit i push na `workspace-4.0`.
+5. Nie twórz jeszcze ZIP-a Windows ani aplikacji macOS. Pakowanie nastąpi dopiero po przeglądzie wyniku tej zmiany.
