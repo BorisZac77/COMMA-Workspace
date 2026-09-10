@@ -1470,11 +1470,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 outputDirectory,
                 $".comma-order-with-attachments-{Guid.NewGuid():N}.pdf");
 
-        var errorFile =
-            Path.Combine(
-                outputDirectory,
-                "Test-error.txt");
-
         try
         {
             if (File.Exists(temporaryPdfFile))
@@ -1485,9 +1480,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             if (File.Exists(temporaryComposedPdfFile))
                 File.Delete(temporaryComposedPdfFile);
-
-            if (File.Exists(errorFile))
-                File.Delete(errorFile);
 
             var pages =
                 OrderPages.ToList();
@@ -1592,33 +1584,60 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TryDeleteFile(
                 temporaryEmbeddedPdfFile);
 
+            var errorReportPath =
+                TryWritePdfErrorReport(exception);
+
+            SetPdfStatus(
+                errorReportPath is null
+                    ? "Nie udało się wygenerować PDF. " +
+                      $"{exception.GetType().Name}: {exception.Message}"
+                    : "Nie udało się wygenerować PDF. " +
+                      $"Raport błędu: {errorReportPath}");
+
+            Console.Error.WriteLine(
+                exception);
+        }
+    }
+
+    private static string? TryWritePdfErrorReport(
+        Exception exception)
+    {
+        try
+        {
+            var logsDirectory =
+                Path.Combine(
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.LocalApplicationData),
+                    "COMMA Workspace",
+                    "Logs");
+            Directory.CreateDirectory(logsDirectory);
+
+            var reportPath =
+                Path.GetFullPath(
+                    Path.Combine(
+                        logsDirectory,
+                        $"PDF-error-{DateTime.Now:yyyyMMdd-HHmmssfff}-{Guid.NewGuid():N}.txt"));
             var errorText =
-                $"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}" +
-                Environment.NewLine +
                 $"Typ błędu: {exception.GetType().FullName}" +
                 Environment.NewLine +
                 $"Komunikat: {exception.Message}" +
                 Environment.NewLine +
+                "Stack trace:" +
                 Environment.NewLine +
-                exception;
+                (exception.StackTrace ?? "(brak stack trace)");
 
-            try
-            {
-                File.WriteAllText(
-                    errorFile,
-                    errorText);
-            }
-            catch
-            {
-            }
+            File.WriteAllText(
+                reportPath,
+                errorText,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-            SetPdfStatus(
-                "Nie udało się wygenerować PDF. " +
-                "Szczegóły zapisano w folderze zapisu PDF " +
-                "w pliku Test-error.txt.");
-
-            Console.Error.WriteLine(
-                errorText);
+            return File.Exists(reportPath)
+                ? reportPath
+                : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 

@@ -219,18 +219,6 @@ public static class HandwrittenSection
         if (colours.Count == 0)
             return;
 
-        var availableHeight =
-            PdfStyles.ColoursAreaHeight
-            - PdfStyles.ColoursCellPadding * 2;
-
-        var compactRowHeight =
-            PdfStyles.ColourCompactRowHeight;
-
-        var rowHeight =
-            Math.Min(
-                compactRowHeight,
-                availableHeight / colours.Count);
-
         container
             .AlignTop()
             .Column(column =>
@@ -240,32 +228,25 @@ public static class HandwrittenSection
                     var value =
                         Safe(colour.Value);
 
-                    var fontSize =
-                        GetColourFontSize(
-                            colours.Count,
-                            value);
-
                     column.Item()
-                        .Height(rowHeight)
+                        .MinHeight(PdfStyles.ColourCompactRowHeight)
                         .Row(row =>
                         {
                             row.ConstantItem(
                                     PdfStyles.ColourNumberWidth)
                                 .AlignLeft()
-                                .AlignMiddle()
-                                .ScaleToFit()
+                                .AlignTop()
                                 .Text(
                                     $"{colour.Number}.")
-                                .FontSize(fontSize)
+                                .FontSize(PdfStyles.ColourEntryFontSize)
                                 .Bold();
 
                             row.RelativeItem()
                                 .PaddingLeft(2)
                                 .AlignLeft()
-                                .AlignMiddle()
-                                .ScaleToFit()
+                                .AlignTop()
                                 .Text(value)
-                                .FontSize(fontSize);
+                                .FontSize(PdfStyles.ColourEntryFontSize);
                         });
                 }
             });
@@ -296,34 +277,6 @@ public static class HandwrittenSection
             return minimumFontSize;
 
         return calculatedFontSize;
-    }
-
-    private static float GetColourFontSize(
-        int colourCount,
-        string value)
-    {
-        var fontSize =
-            colourCount switch
-            {
-                <= 10 => PdfStyles.ColourEntryFontSize,
-                <= 12 => 8f,
-                <= 15 => 7.5f,
-                <= 18 => 7f,
-                <= 22 => 6.5f,
-                <= 26 => 6f,
-                <= 32 => 5.5f,
-                _ => 5f
-            };
-
-        if (value.Length > 22)
-            fontSize -= 0.5f;
-
-        if (value.Length > 30)
-            fontSize -= 0.5f;
-
-        return Math.Max(
-            fontSize,
-            4f);
     }
 
     private static string Safe(

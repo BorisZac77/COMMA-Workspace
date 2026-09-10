@@ -1,26 +1,23 @@
 # Stan przekazania
 
-- TASK_ID: WORKSPACE-5-FIRST-PAGE-PAIR-LAYOUT-020
+- TASK_ID: PDF-PAIRED-FIRST-PAGE-VALIDATION-025
 - STATUS: COMPLETED
 - LAST_ACTOR: Codex
-- NEXT_ACTOR: safe worker
+- NEXT_ACTOR: operator
 - BRANCH: workspace-4.0
-- HEAD: d4f0d9d
+- HEAD: pending commit
 
 ## Stan
 
-Implementacja 5.0 dodaje wspólną regułę układu dla pierwszej strony z dokładnie dwiema pozycjami po jednym rzucie. Podgląd Avalonia, generator PDF i geometria opisu korzystają z `UsesPairedFirstPageGarmentLayout`. Tylko ta konfiguracja używa dwóch równych kolumn z zachowaniem przerwy i pełnej wysokości; dwa rozmieszczenia z rzutem wielokrotnym oraz strony późniejsze nadal używają pionowego układu.
+Zestaw poprawek PDF z zadań 023–025 jest kompletny. Cztery pozycje z długimi tytułami generują PDF dzięki większej wysokości tytułu wyłącznie w tym układzie. KOLORYSTYKA używa 10 pt, zawijania i nie używa `ScaleToFit`. Raporty błędów PDF trafiają jako unikalne pliki UTF-8 do `LocalApplicationData/COMMA Workspace/Logs`.
 
-Branding aplikacji i skrypt przyszłego pakowania macOS są ustawione na COMMA Workspace 5.0 / 5.0.0. Nie utworzono pakietu macOS ani ZIP-a Windows.
+Porażka testu pary na pierwszej stronie była błędem walidacji, nie generatora. Rzeczywiste obrazy i opisy obu kolumn mają identyczną translację 287,500 pt. Test sprawdza teraz semantycznie równość wymiarów, położenia, symetrię i translację rzeczywistych granic zamiast porównywać prawą kolumnę z błędnym teoretycznym początkiem nieuwzględniającym szczeliny.
 
 ## Walidacja
 
-- Preflight i allowlista: PASS.
-- `dotnet build "COMMA Workspace 4.0.sln" -c Release --no-restore`: PASS, 0 ostrzeżeń i 0 błędów.
-- Pełny test rozwiązania uruchomiono dokładnie raz; wskazał jeden nieaktualny tekst brandingu, który poprawiono.
-- Dalsze testy zostały obiektywnie zablokowane przez sandbox (`SocketException (13): Permission denied` podczas tworzenia Named Pipe przez MSBuild).
-- `git diff --check`: PASS.
+- Regresje ukierunkowane: PASS, 3/3.
+- Pełne testy: PASS, 184/184, exit code 0.
+- Release build: PASS, 0 ostrzeżeń i 0 błędów.
+- `git diff --check`, allowlista i niezmieniony `main`: PASS.
 
-## Następny krok
-
-Safe worker powinien sprawdzić końcowy diff i allowlistę, a następnie wykonać commit `Start Workspace 5.0 with paired first-page garments` oraz push, jeżeli jego polityka na to zezwala.
+Zadanie zezwala na commit `Validate paired page layout with four-garment PDF fix` i push na `workspace-4.0` po końcowej kontroli.

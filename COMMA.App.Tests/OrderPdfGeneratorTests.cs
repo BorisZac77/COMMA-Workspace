@@ -15,6 +15,58 @@ namespace COMMA.App.Tests;
 public sealed class OrderPdfGeneratorTests
 {
     [Fact]
+    public void Pdf_LaterPageWithFourSingleViewGarmentsAndDescriptionsGenerates()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("four-garments-later-page.pdf");
+        var leading = CreateGarment(2, "Leading garment");
+        var garmentNames = new[]
+        {
+            "Koszulka polo damska z krótkim rękawem do znakowania haftem",
+            "Koszulka polo męska z długim rękawem do znakowania haftem",
+            "Bluza polarowa damska zapinana na zamek z kieszeniami bocznymi",
+            "Kurtka softshell męska z kapturem oraz kieszeniami bocznymi"
+        };
+        var descriptions = new[]
+        {
+            "Haft HERNIK na lewej piersi.",
+            "Logo na piersi zgodnie z zaakceptowanym wzorem klienta.",
+            "Wielowierszowy opis:\nlogo z przodu na lewej piersi,\nzachować proporcje i kolorystykę.",
+            "Umieścić znak na przodzie odzieży bez zmiany szerokości wzoru."
+        };
+        var laterGarments = garmentNames
+            .Select(name => CreateGarment(1, name))
+            .ToList();
+
+        for (var index = 0; index < laterGarments.Count; index++)
+        {
+            laterGarments[index].ViewDescriptions.Front =
+                descriptions[index];
+        }
+
+        var pages = OrderPageLayoutEngine.BuildPages(
+            [leading, .. laterGarments]);
+
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(4, pages[1].Placements.Count);
+        Assert.All(
+            pages[1].Placements,
+            placement => Assert.Equal(1, placement.DrawingCount));
+
+        OrderPdfGenerator.Generate(
+            outputPath,
+            new ProductionCard
+            {
+                OrderNumber = "262454",
+                OrderName = "HERNIK- HAFT"
+            },
+            pages);
+
+        Assert.True(File.Exists(outputPath));
+        Assert.True(new FileInfo(outputPath).Length > 0);
+    }
+
+    [Fact]
     public void Pdf_PairedFirstPageSingleViewGarmentsUseEqualSideBySideColumns()
     {
         using var directory = new TemporaryDirectory();
@@ -40,18 +92,13 @@ public sealed class OrderPdfGeneratorTests
         var images = GetDrawingImageBounds(page, expectedDrawingCount: 2);
 
         Assert.True(pagePlan[0].UsesPairedFirstPageGarmentLayout);
-        Assert.Equal(images[0].Top, images[1].Top, precision: 1);
-        Assert.True(images[0].Left < images[1].Left);
+        AssertPairedDrawingCellsHaveEqualGeometry(
+            page,
+            images,
+            leftDescription,
+            rightDescription);
         AssertDescriptionImmediatelyFollowsImage(page, leftDescription);
         AssertDescriptionImmediatelyFollowsImage(page, rightDescription);
-        AssertDescriptionIsLeftAligned(
-            page,
-            leftDescription,
-            GetDrawingCellLeft(page, isRightColumn: false));
-        AssertDescriptionIsLeftAligned(
-            page,
-            rightDescription,
-            GetDrawingCellLeft(page, isRightColumn: true));
     }
 
     [Theory]
@@ -840,11 +887,6 @@ public sealed class OrderPdfGeneratorTests
         };
         card.ProductionEntries[0].ColoursNotes =
             string.Join('\n', colourValues);
-        var denseColourValues = Enumerable.Range(1, 33)
-            .Select(index => $"DENSE-{index:00}")
-            .ToArray();
-        card.ProductionEntries[1].ColoursNotes =
-            string.Join('\n', denseColourValues);
         var garment = CreateGarment(1, "Font test garment");
         const string description = "KRÓTKI OPIS POD RYSUNKIEM";
         garment.ViewDescriptions.Front = description;
@@ -886,44 +928,61 @@ public sealed class OrderPdfGeneratorTests
                     StringComparison.OrdinalIgnoreCase));
         }
 
-        var contentTop =
-            page.Height -
-            PdfStyles.PageMargin -
-            PdfStyles.OuterBorderWidth -
-            PdfStyles.PagePadding;
-        var coloursAreaTop =
-            contentTop -
-            PdfStyles.HeaderHeight -
-            PdfStyles.SectionGap -
-            PdfStyles.LoggingTitleHeight -
-            PdfStyles.LoggingEntriesHeight -
-            PdfStyles.ColoursTitleHeight;
-        var coloursAreaBottom =
-            coloursAreaTop - PdfStyles.ColoursAreaHeight;
-
-        foreach (var denseValue in denseColourValues)
-        {
-            var valueLetters = GetTextLetters(page, denseValue);
-
-            Assert.All(
-                valueLetters,
-                letter =>
-                {
-                    Assert.InRange(
-                        letter.PointSize,
-                        0.1,
-                        PdfStyles.ColourEntryFontSize - 0.1);
-                    Assert.InRange(
-                        (letter.BoundingBox.Bottom + letter.BoundingBox.Top) / 2d,
-                        coloursAreaBottom,
-                        coloursAreaTop);
-                });
-        }
-
         AssertTextPointSize(
             page,
             description,
             PdfStyles.DrawingDescriptionFontSize);
+    }
+
+    [Fact]
+    public void Pdf_LongHernikColourEntriesWrapAtTenPoints()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("hernik-long-colours.pdf");
+        var card = new ProductionCard
+        {
+            OrderNumber = "262454",
+            OrderName = "HERNIK- HAFT"
+        };
+        var colourValues = new[]
+        {
+            "Czarny + czerwony z pliku - na białe polo",
+            "Biały + czerwony z pliku - na granat, czarny, ciemno szary"
+        };
+        card.ProductionEntries[0].LogoName = "HERNIK";
+        card.ProductionEntries[0].ColoursNotes = string.Join('\n', colourValues);
+        var pages = OrderPageLayoutEngine.BuildPages(
+            [CreateGarment(1, "Polo")]);
+
+        OrderPdfGenerator.Generate(outputPath, card, pages);
+
+        Assert.True(new FileInfo(outputPath).Length > 0);
+        using var pdf = PdfPigDocument.Open(outputPath);
+        var page = pdf.GetPage(1);
+
+        foreach (var expectedWord in new[]
+                 {
+                     "Czarny",
+                     "polo",
+                     "Biały",
+                     "granat,",
+                     "szary"
+                 })
+        {
+            var word = Assert.Single(
+                page.GetWords(),
+                candidate =>
+                    string.Equals(
+                        candidate.Text,
+                        expectedWord,
+                        StringComparison.Ordinal));
+            Assert.All(
+                word.Letters,
+                letter => Assert.Equal(
+                    PdfStyles.ColourEntryFontSize,
+                    letter.PointSize,
+                    precision: 1));
+        }
     }
 
     [Fact]
@@ -1825,6 +1884,37 @@ public sealed class OrderPdfGeneratorTests
                 0,
                 0.75);
         }
+    }
+
+    private static void AssertPairedDrawingCellsHaveEqualGeometry(
+        UglyToad.PdfPig.Content.Page page,
+        IReadOnlyList<UglyToad.PdfPig.Core.PdfRectangle> images,
+        string leftDescription,
+        string rightDescription)
+    {
+        Assert.Equal(2, images.Count);
+        Assert.Equal(images[0].Width, images[1].Width, precision: 2);
+        Assert.Equal(images[0].Height, images[1].Height, precision: 2);
+        Assert.Equal(images[0].Top, images[1].Top, precision: 2);
+        Assert.Equal(images[0].Bottom, images[1].Bottom, precision: 2);
+
+        var leftImageCenter =
+            (images[0].Left + images[0].Right) / 2d;
+        var rightImageCenter =
+            (images[1].Left + images[1].Right) / 2d;
+        Assert.Equal(
+            page.Width / 2d,
+            (leftImageCenter + rightImageCenter) / 2d,
+            precision: 2);
+
+        var leftTextLeft = GetTextLetters(page, leftDescription)
+            .Min(letter => letter.BoundingBox.Left);
+        var rightTextLeft = GetTextLetters(page, rightDescription)
+            .Min(letter => letter.BoundingBox.Left);
+        Assert.Equal(
+            rightImageCenter - leftImageCenter,
+            rightTextLeft - leftTextLeft,
+            precision: 2);
     }
 
     private static void AssertDescriptionIsLeftAligned(

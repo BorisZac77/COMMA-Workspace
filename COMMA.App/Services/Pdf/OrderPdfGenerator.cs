@@ -19,6 +19,9 @@ public static class OrderPdfGenerator
     private const float GarmentTitleHeight =
         21f;
 
+    private const float FourGarmentTitleHeight =
+        36f;
+
     private const float GarmentGap =
         4f;
 
@@ -765,7 +768,8 @@ public static class OrderPdfGenerator
                                     cell,
                                     first,
                                     rowHeight,
-                                    page));
+                                    page,
+                                    FourGarmentTitleHeight));
 
                         row.ConstantItem(
                             GarmentGap);
@@ -776,7 +780,8 @@ public static class OrderPdfGenerator
                                     cell,
                                     second,
                                     rowHeight,
-                                    page));
+                                    page,
+                                    FourGarmentTitleHeight));
                     });
 
                 column.Item()
@@ -794,7 +799,8 @@ public static class OrderPdfGenerator
                                     cell,
                                     third,
                                     rowHeight,
-                                    page));
+                                    page,
+                                    FourGarmentTitleHeight));
 
                         row.ConstantItem(
                             GarmentGap);
@@ -805,7 +811,8 @@ public static class OrderPdfGenerator
                                     cell,
                                     fourth,
                                     rowHeight,
-                                    page));
+                                    page,
+                                    FourGarmentTitleHeight));
                     });
             });
     }
@@ -819,20 +826,21 @@ public static class OrderPdfGenerator
         IContainer container,
         OrderPageGarmentPlacement placement,
         float totalHeight,
-        OrderPageLayout page)
+        OrderPageLayout page,
+        float titleHeight = GarmentTitleHeight)
     {
         var drawingHeight =
             Math.Max(
                 1f,
                 totalHeight -
-                GarmentTitleHeight);
+                titleHeight);
 
         container
             .Column(column =>
             {
                 column.Item()
                     .Height(
-                        GarmentTitleHeight)
+                        titleHeight)
                     .Border(
                         PdfStyles.StandardBorderWidth)
                     .AlignCenter()
