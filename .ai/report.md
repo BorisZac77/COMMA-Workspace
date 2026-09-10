@@ -1,31 +1,29 @@
 # Raport Codexa
 
-- TASK_ID: PDF-PERFORMANCE-026
+- TASK_ID: PACKAGE-WORKSPACE-5.0-027
 - STATUS: COMPLETED
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: d250e976f4b0e5e90f1766ae1c3d83924420723a
+- HEAD_BEFORE: e48a59017237ec78af3c3d3876accc31cd8bcc66
 - HEAD_AFTER: pending commit
 
 ## Wynik
 
-- Dodano deterministyczny test rozbudowanej karty: 16 pozycji, 64 rysunki, opisy wszystkich widoków i 17 stron. Test mierzy osobno przygotowanie `OrderPageLayoutEngine.BuildPages` oraz rzeczywisty zapis `OrderPdfGenerator.Generate`, bez limitu czasu.
-- Regresja potwierdza niepusty PDF, oczekiwane 17 stron oraz właściwą kolejność pozycji na każdej stronie.
-- Pomiar bazowy: przygotowanie 2,128 ms; zapis 3358,701 ms; PDF 938098 bajtów.
-- Ustalona gorąca operacja: identyczny plik rysunku był dla każdego wystąpienia ponownie dekodowany, czyszczony/kadrowany, kodowany do PNG, dekodowany przez QuestPDF i osadzany jako osobny zasób.
-- Sam cache `byte[]` nie dał potwierdzonej poprawy: przygotowanie 2,703 ms; zapis 3386,603 ms; rozmiar 938098 bajtów. Ta niepełna optymalizacja nie została pozostawiona jako rozwiązanie końcowe.
-- Finalnie generator współdzieli `QuestPDF.Infrastructure.Image` dla tej samej pary `(ścieżka pliku, wariant kadrowania)` wyłącznie w obrębie pojedynczego wywołania `Generate`.
-- Pomiar po optymalizacji: przygotowanie 2,153 ms; zapis 1309,904 ms; PDF 145053 bajty. Zapis skrócił się o około 61%.
-- Cache jest nowy dla każdego wywołania i zawsze usuwany w `finally`, więc kolejne generowanie ponownie odczytuje aktualny obraz. Nie zmieniono rozdzielczości, jakości ani ustawień kompresji.
-- Nie zmieniono układów 1–4 pozycji, limitu 70 mm, czteropozycyjnej poprawki tytułów, KOLORYSTYKI HERNIK, diagnostyki, UI, załączników ani formatu danych.
+- Utworzono aplikację macOS ARM64: `/Users/Boris/Desktop/COMMA Workspace 5.0.app` przez istniejący `./build_app.sh` bez modyfikacji skryptu ani źródeł.
+- Utworzono samodzielny pakiet Windows x64: `/Users/Boris/Desktop/COMMA Workspace 5.0 Windows x64.zip` przez `dotnet publish COMMA.App -c Release -r win-x64 --self-contained true` w unikalnym katalogu tymczasowym.
+- ZIP ma rozmiar 98689566 bajtów i SHA-256 `21c195b9984eb4dbc627336baa2c8536e9d17052f9d4cd83a7f3aaf4f15596e9`.
+- Katalog tymczasowy `/tmp/comma-workspace-windows-027-e48a5901` został usunięty po spakowaniu.
+- Nie uruchamiano pliku Windows na macOS.
+- Nie zmieniono kodu, plików projektu, wersji ani `build_app.sh`.
 
 ## Walidacja
 
-- Preflight: PASS — właściwy worktree, gałąź `workspace-4.0`, czyste drzewo, HEAD `d250e976f4b0e5e90f1766ae1c3d83924420723a`, `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
-- Obowiązkowe regresje PDF: PASS, 4/4 — para na pierwszej stronie, cztery pozycje z długimi tytułami, długa KOLORYSTYKA HERNIK i rozbudowana karta.
-- Pełne `dotnet test "COMMA Workspace 4.0.sln"`: PASS, exit code 0 — 185 zaliczonych, 0 niezaliczonych, 0 pominiętych. Uruchomione dokładnie raz. Log: `/tmp/comma-pdf-performance-026-d250e976-full-test.log`; kod: `/tmp/comma-pdf-performance-026-d250e976-full-test.exit`.
-- `dotnet build "COMMA Workspace 4.0.sln" -c Release`: PASS — 0 ostrzeżeń, 0 błędów.
-- `git diff --check`: PASS.
-- Allowlista: PASS — `.ai/report.md`, `.ai/handoff.md`, `COMMA.App/Services/Pdf/OrderPdfGenerator.cs`, `COMMA.App.Tests/OrderPdfGeneratorTests.cs`.
+- Preflight: PASS — właściwy worktree, gałąź `workspace-4.0`, czyste drzewo, HEAD `e48a59017237ec78af3c3d3876accc31cd8bcc66` będący potomkiem bazy `351572f936b772c9e17b96c63696340173f72f9b`; `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+- macOS: PASS — dokładna ścieżka istnieje; `CFBundleName` i `CFBundleDisplayName` = `COMMA Workspace 5.0`; `CFBundleVersion` i `CFBundleShortVersionString` = `5.0.0`; `Contents/MacOS/COMMA.App` istnieje i jest wykonywalny; `codesign --verify --deep --strict` przechodzi.
+- Uruchomienie macOS: PASS — aplikacja działała po 3 sekundach bez natychmiastowego błędu; następnie proces zakończono przed końcową kontrolą podpisu.
+- Windows: PASS — `unzip -t` przechodzi; pierwszy wpis ZIP-a to `COMMA Workspace 5.0 Windows x64/`; obecny jest `COMMA Workspace 5.0 Windows x64/COMMA.App.exe`.
+- Sprzątanie `/tmp`: PASS — usunięto wyłącznie katalog tymczasowy utworzony dla publikacji Windows.
+- Artefakt 4.x: PASS — `/Users/Boris/Desktop/TEST COMMA WORKSPACE 4.0` pozostał niezmieniony przed i po pakowaniu: rozmiar 640 bajtów, mtime 1788342995.
 - `main`: bez zmian.
-- Nie utworzono ZIP-a Windows ani aplikacji macOS.
+- `git diff --check`: PASS.
+- Allowlista: PASS — zmieniono wyłącznie `.ai/report.md` i `.ai/handoff.md`.
