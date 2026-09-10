@@ -1,47 +1,40 @@
 # Aktualne zadanie
 
-- TASK_ID: PACKAGE-WINDOWS-WORKSPACE-5.0-022
+- TASK_ID: PDF-FOUR-GARMENT-WINDOWS-023
 - STATUS: READY
 - PROJECT: COMMA Workspace 5.0
 - BRANCH: workspace-4.0
-- BASE_HEAD_BEFORE_QUEUE: fd681c2549269353d85ccdca7bc7497bcd591bf2
-- SOURCE_CODE_COMMIT: a7b513d9bc2636a8bfd8b43dd47fbe6fcd9e44ed
+- BASE_HEAD_BEFORE_QUEUE: a7b513d9bc2636a8bfd8b43dd47fbe6fcd9e44ed
 - AUTO_COMMIT_PUSH: YES
-- COMMIT_MESSAGE: Package COMMA Workspace 5.0 for Windows
-- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md"]
+- COMMIT_MESSAGE: Fix four-garment PDF generation diagnostics
+- ALLOWED_PATHS_JSON: [".ai/report.md", ".ai/handoff.md", "COMMA.App/ViewModels/MainViewModel.cs", "COMMA.App/Services/Pdf/OrderPdfGenerator.cs", "COMMA.App.Tests/OrderPdfGeneratorTests.cs"]
+
+## Zgłoszenie
+
+Na Windows COMMA Workspace 5.0 nie generuje PDF dla zlecenia 262454 HERNIK- HAFT, gdy na jednej stronie są dokładnie cztery różne pozycje odzieży, każda z pojedynczym rysunkiem i opisem pod nim. Podgląd strony jest widoczny, ale po GENERUJ PDF aplikacja wyświetla ogólny komunikat o błędzie. Obiecany plik `Test-error.txt` nie jest dostępny użytkownikowi, bo obecny kod ignoruje błąd jego zapisu.
 
 ## Cel
 
-Przygotować samodzielny pakiet Windows x64 z zatwierdzonego kodu COMMA Workspace 5.0 i umieścić go na Pulpicie jako:
+Usunąć przyczynę błędu wyłącznie dla układu czterech różnych pozycji na stronie oraz zapewnić, że w razie nieoczekiwanego błędu dokładna diagnostyka jest zapisana niezawodnie w lokalnym katalogu danych aplikacji Windows i wskazana użytkownikowi.
 
-`/Users/Boris/Desktop/COMMA Workspace 5.0 Windows x64.zip`
+## Wymagania
 
-Pakiet ma zawierać jeden katalog główny:
+1. Przed pracą przeczytaj AGENTS.md i wszystkie pliki .ai. Potwierdź worktree, branch `workspace-4.0`, czysty status oraz `main` dokładnie `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+2. Najpierw dodaj regresję odtwarzającą stronę późniejszą PDF z czterema różnymi `OrderGarmentItem`, po jednym rysunku na pozycję i niepustych opisach pod każdym rysunkiem. Test ma uruchamiać rzeczywiste `OrderPdfGenerator.Generate` i potwierdzać niepusty PDF. Nie używaj GUI, dysku sieciowego ani plików klienta.
+3. Jeżeli regresja ujawni błąd układu QuestPDF, popraw wyłącznie obliczenie/kompozycję wysokości dla czterech pól, tak aby suma: tytuł pozycji, tytuł rysunku, obraz, odstępy i opis zawsze mieściła się w przydzielonej komórce. Zachowaj istniejącą wielkość rysunku 70 mm jako maksimum i nie zmieniaj innych układów 1–3 pozycji.
+4. Jeśli test przechodzi przed zmianą, nie wprowadzaj hipotetycznej zmiany geometrii. Zamiast tego ogranicz implementację do niezawodnej diagnostyki opisanej w pkt 5 i opisz w raporcie, że błąd wymaga ponownego testu na PC z widocznym wyjątkiem.
+5. Nie zapisuj już `Test-error.txt` w folderze zapisu PDF. Przy błędzie zapisz raport UTF-8 z typem, komunikatem i stack trace w dedykowanym katalogu `Environment.SpecialFolder.LocalApplicationData/COMMA Workspace/Logs`, z unikalną nazwą i bez kasowania poprzednich raportów. Status UI ma wskazać pełną lokalną ścieżkę raportu albo — gdy nawet to się nie powiedzie — wyświetlić krótki typ i komunikat wyjątku. Nie wyświetlaj stack trace w UI.
+6. Nie zmieniaj interfejsu, kolejności stron, danych PDF, załączników, formatu v4, brandingu, COMMA WMS, KOMI ani `main`.
+7. Uruchom pełne `dotnet test "COMMA Workspace 4.0.sln"` dokładnie raz i Release build. Jeżeli sandbox zablokuje VSTest, nie ponawiaj go; zapisz dokładny wynik. Zawsze uruchom `git diff --check` i kontrolę allowlisty.
+8. Ustaw COMPLETED tylko po pomyślnym buildzie i dostępnej walidacji. Commit/push tylko po spełnieniu warunków.
 
-`COMMA Workspace 5.0 Windows x64/`
+## Kryterium odbioru
 
-## Wymagania wstępne
+Po instalacji nowej paczki Windows użytkownik ponownie generuje PDF dla 262454 HERNIK- HAFT z czterema różnymi pozycjami i opisami pod rysunkami. PDF ma powstać. Jeżeli środowisko Windows ujawni inny błąd, aplikacja ma podać realną ścieżkę do raportu, który faktycznie istnieje.
 
-1. Przeczytaj w całości `AGENTS.md` i wszystkie pliki w `.ai`.
-2. Potwierdź właściwy worktree, gałąź `workspace-4.0`, czysty status, relację historii i niezmieniony `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
-3. Potwierdź, że commit kodu 5.0 `a7b513d9bc2636a8bfd8b43dd47fbe6fcd9e44ed` jest przodkiem HEAD.
-4. Nie zmieniaj kodu, testów, skryptów ani konfiguracji. Zmiany w repozytorium mogą dotyczyć wyłącznie raportu i handoffu.
-5. Nie zmieniaj COMMA WMS, KOMI, `main`, gałęzi ani formatu danych PDF v4.
+## Zakazy
 
-## Pakiet
-
-1. Wykonaj Release publish `win-x64`, self-contained dla `COMMA.App/COMMA.App.csproj`.
-2. Utwórz ZIP z jednym katalogiem głównym `COMMA Workspace 5.0 Windows x64/`.
-3. W katalogu głównym musi znajdować się dokładnie jeden `COMMA.App.exe`.
-4. Pakiet musi zawierać markery self-contained, w tym `COMMA.App.dll`, `COMMA.App.deps.json`, `COMMA.App.runtimeconfig.json`, `hostfxr.dll` i `coreclr.dll`.
-5. Jeżeli docelowy ZIP już istnieje, nie nadpisuj go. Zweryfikuj jego integralność i strukturę; jeśli spełnia wszystkie wymagania, przyjmij go jako wynik zadania. Jeśli jest nieprawidłowy, ustaw `BLOCKED` i podaj dokładną przyczynę.
-6. Nie twórz kolejnych kopii ani alternatywnych ZIP-ów.
-
-## Walidacja i raport
-
-1. Wykonaj `unzip -t`.
-2. Zapisz pełną ścieżkę, rozmiar, SHA-256, liczbę wpisów, nazwę jedynego katalogu głównego i potwierdzenie dokładnie jednego `COMMA.App.exe`.
-3. Nie uruchamiaj ponownie pełnych testów; kod wersji 5.0 został już zbudowany w zadaniu 020.
-4. Sprawdź `git diff --check` i allowlistę.
-5. Zaktualizuj `.ai/report.md` i `.ai/handoff.md`, odnotowując również potwierdzony przez użytkownika test aplikacji macOS 5.0.
-6. Przy poprawnym ZIP ustaw `COMPLETED`, wykonaj commit i push. Nie uruchamiaj aplikacji Windows na MacBooku.
+- Nie twórz ZIP-a ani paczki macOS w tym zadaniu.
+- Nie zmieniaj folderu wyjściowego PDF jako obejścia.
+- Nie dodawaj retry ani ukrywania błędów.
+- Nie wykonuj resetu, rebase ani force-push.
