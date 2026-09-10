@@ -13,6 +13,10 @@ namespace COMMA.App.Services.Pdf;
 
 public static class OrderPdfGenerator
 {
+    [ThreadStatic]
+    private static Dictionary<PreparedImageKey, QuestPDF.Infrastructure.Image?>?
+        preparedImageCache;
+
     private const byte WhiteThreshold =
         248;
 
@@ -51,52 +55,65 @@ public static class OrderPdfGenerator
         QuestPDF.Settings.EnableDebugging =
             true;
 
-        Document.Create(document =>
+        var previousPreparedImageCache =
+            preparedImageCache;
+        preparedImageCache =
+            new Dictionary<PreparedImageKey, QuestPDF.Infrastructure.Image?>();
+
+        try
         {
-            foreach (var orderPage in pages)
+            Document.Create(document =>
             {
-                document.Page(page =>
+                foreach (var orderPage in pages)
                 {
-                    page.Size(
-                        PageSizes.A4);
+                    document.Page(page =>
+                    {
+                        page.Size(
+                            PageSizes.A4);
 
-                    page.Margin(
-                        PdfStyles.PageMargin);
+                        page.Margin(
+                            PdfStyles.PageMargin);
 
-                    page.DefaultTextStyle(style =>
-                        style.FontSize(
-                            PdfStyles.DefaultFontSize));
+                        page.DefaultTextStyle(style =>
+                            style.FontSize(
+                                PdfStyles.DefaultFontSize));
 
-                    page.Content()
-                        .Border(
-                            PdfStyles.OuterBorderWidth)
-                        .Padding(
-                            PdfStyles.PagePadding)
-                        .Height(
-                            PdfStyles.AvailableContentHeight)
-                        .ShowEntire()
-                        .Column(column =>
-                        {
-                            if (orderPage.IsFirstPage)
+                        page.Content()
+                            .Border(
+                                PdfStyles.OuterBorderWidth)
+                            .Padding(
+                                PdfStyles.PagePadding)
+                            .Height(
+                                PdfStyles.AvailableContentHeight)
+                            .ShowEntire()
+                            .Column(column =>
                             {
-                                BuildFirstPage(
-                                    column,
-                                    card,
-                                    orderPage);
-                            }
-                            else
-                            {
-                                BuildLaterPage(
-                                    column,
-                                    card,
-                                    orderPage);
-                            }
-                        });
-                });
-            }
-        })
-        .GeneratePdf(
-            outputPath);
+                                if (orderPage.IsFirstPage)
+                                {
+                                    BuildFirstPage(
+                                        column,
+                                        card,
+                                        orderPage);
+                                }
+                                else
+                                {
+                                    BuildLaterPage(
+                                        column,
+                                        card,
+                                        orderPage);
+                                }
+                            });
+                    });
+                }
+            })
+            .GeneratePdf(
+                outputPath);
+        }
+        finally
+        {
+            preparedImageCache =
+                previousPreparedImageCache;
+        }
     }
 
 
@@ -1147,14 +1164,35 @@ public static class OrderPdfGenerator
             return;
         }
 
-        var cleanedImage =
-            cropDrawingImage
-                ? DrawingImageCropper.TryCreateCroppedPng(
-                    drawing.FullPath)
-                : PrepareImageForPdf(
-                    drawing.FullPath);
+        var cacheKey =
+            new PreparedImageKey(
+                drawing.FullPath,
+                cropDrawingImage);
+        var cache =
+            preparedImageCache;
 
-        if (cleanedImage.Length == 0)
+        if (cache == null ||
+            !cache.TryGetValue(cacheKey, out var preparedImage))
+        {
+            var cleanedImage =
+                cropDrawingImage
+                    ? DrawingImageCropper.TryCreateCroppedPng(
+                        drawing.FullPath)
+                    : PrepareImageForPdf(
+                        drawing.FullPath);
+
+            preparedImage =
+                cleanedImage.Length == 0
+                    ? null
+                    : QuestPDF.Infrastructure.Image.FromBinaryData(
+                        cleanedImage);
+
+            cache?.Add(
+                cacheKey,
+                preparedImage);
+        }
+
+        if (preparedImage == null)
         {
             DrawOriginalImage(
                 container,
@@ -1168,7 +1206,7 @@ public static class OrderPdfGenerator
             container
                 .FlipHorizontal()
                 .Image(
-                    cleanedImage)
+                    preparedImage)
                 .FitArea();
 
             return;
@@ -1176,7 +1214,7 @@ public static class OrderPdfGenerator
 
         container
             .Image(
-                cleanedImage)
+                preparedImage)
             .FitArea();
     }
 
@@ -1333,4 +1371,8 @@ public static class OrderPdfGenerator
 
         return "RYSUNEK TECHNICZNY";
     }
+
+    private readonly record struct PreparedImageKey(
+        string FilePath,
+        bool CropDrawingImage);
 }

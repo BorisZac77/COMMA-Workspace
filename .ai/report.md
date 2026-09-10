@@ -1,28 +1,31 @@
 # Raport Codexa
 
-- TASK_ID: PDF-PAIRED-FIRST-PAGE-VALIDATION-025
+- TASK_ID: PDF-PERFORMANCE-026
 - STATUS: COMPLETED
 - REPOSITORY_ROOT: /Users/Boris/RiderProjects/COMMA Workspace 4.0
 - BRANCH: workspace-4.0
-- HEAD_BEFORE: edff323924507622efe68ef31c939f8c0c02584b
+- HEAD_BEFORE: d250e976f4b0e5e90f1766ae1c3d83924420723a
 - HEAD_AFTER: pending commit
 
 ## Wynik
 
-- Zachowano cały dozwolony diff z zadań 023 i 024: KOLORYSTYKĘ 10 pt bez `ScaleToFit`, diagnostykę PDF w `LocalApplicationData/COMMA Workspace/Logs`, regresje oraz poprawkę zawijanych tytułów wyłącznie dla czterech pozycji.
-- Test `Pdf_PairedFirstPageSingleViewGarmentsUseEqualSideBySideColumns` przed zmianą ponownie nie przeszedł z odchyleniem 2,915 pt.
-- Pomiary PDF wykazały równe komórki: granice obrazów to odpowiednio `(54,537; 427,787; 252,963; 527,000)` i `(342,037; 427,787; 540,463; 527,000)`. Oba obrazy mają identyczne wymiary, a przesunięcie między nimi wynosi 287,500 pt. Początki opisów to 22,915 pt i 310,415 pt, również z przesunięciem 287,500 pt.
-- Generator pary był poprawny. Przyczyną porażki był helper testu, który obliczał prawą komórkę jako połowę całej szerokości i pomijał połowę stałej szczeliny 4 pt.
-- Nie zmieniono generatora układu dwóch pozycji ani progu liczbowego. Kruchą asercję zastąpiono semantyczną walidacją rzeczywistych granic: identycznych wymiarów i pionowego położenia obrazów, symetrii względem środka strony oraz identycznej translacji obrazu i opisu między kolumnami.
+- Dodano deterministyczny test rozbudowanej karty: 16 pozycji, 64 rysunki, opisy wszystkich widoków i 17 stron. Test mierzy osobno przygotowanie `OrderPageLayoutEngine.BuildPages` oraz rzeczywisty zapis `OrderPdfGenerator.Generate`, bez limitu czasu.
+- Regresja potwierdza niepusty PDF, oczekiwane 17 stron oraz właściwą kolejność pozycji na każdej stronie.
+- Pomiar bazowy: przygotowanie 2,128 ms; zapis 3358,701 ms; PDF 938098 bajtów.
+- Ustalona gorąca operacja: identyczny plik rysunku był dla każdego wystąpienia ponownie dekodowany, czyszczony/kadrowany, kodowany do PNG, dekodowany przez QuestPDF i osadzany jako osobny zasób.
+- Sam cache `byte[]` nie dał potwierdzonej poprawy: przygotowanie 2,703 ms; zapis 3386,603 ms; rozmiar 938098 bajtów. Ta niepełna optymalizacja nie została pozostawiona jako rozwiązanie końcowe.
+- Finalnie generator współdzieli `QuestPDF.Infrastructure.Image` dla tej samej pary `(ścieżka pliku, wariant kadrowania)` wyłącznie w obrębie pojedynczego wywołania `Generate`.
+- Pomiar po optymalizacji: przygotowanie 2,153 ms; zapis 1309,904 ms; PDF 145053 bajty. Zapis skrócił się o około 61%.
+- Cache jest nowy dla każdego wywołania i zawsze usuwany w `finally`, więc kolejne generowanie ponownie odczytuje aktualny obraz. Nie zmieniono rozdzielczości, jakości ani ustawień kompresji.
+- Nie zmieniono układów 1–4 pozycji, limitu 70 mm, czteropozycyjnej poprawki tytułów, KOLORYSTYKI HERNIK, diagnostyki, UI, załączników ani formatu danych.
 
 ## Walidacja
 
-- Aktualny task pobrano przez fetch i fast-forward z `origin/workspace-4.0`; upstream zmieniał wyłącznie `.ai/task.md`, a lokalny diff zachowano.
-- Preflight: PASS — właściwy katalog, worktree i gałąź `workspace-4.0`; HEAD `edff323924507622efe68ef31c939f8c0c02584b`; `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`; lokalne zmiany ograniczone do allowlisty.
-- Obowiązkowe regresje ukierunkowane: PASS — 3/3 (para na pierwszej stronie, cztery pozycje z długimi tytułami, długie wpisy HERNIK KOLORYSTYKI).
-- Pełne `dotnet test "COMMA Workspace 4.0.sln"`: PASS, exit code 0 — 184 zaliczone, 0 niezaliczonych, 0 pominiętych. Uruchomione dokładnie raz. Pełny log: `/tmp/comma-pdf-paired-first-page-validation-025-edff3239-test.log`; kod: `/tmp/comma-pdf-paired-first-page-validation-025-edff3239-test.exit`.
+- Preflight: PASS — właściwy worktree, gałąź `workspace-4.0`, czyste drzewo, HEAD `d250e976f4b0e5e90f1766ae1c3d83924420723a`, `main` = `4efdb3036a4f0e0e77ea7d4f3cbf2878c122a85a`.
+- Obowiązkowe regresje PDF: PASS, 4/4 — para na pierwszej stronie, cztery pozycje z długimi tytułami, długa KOLORYSTYKA HERNIK i rozbudowana karta.
+- Pełne `dotnet test "COMMA Workspace 4.0.sln"`: PASS, exit code 0 — 185 zaliczonych, 0 niezaliczonych, 0 pominiętych. Uruchomione dokładnie raz. Log: `/tmp/comma-pdf-performance-026-d250e976-full-test.log`; kod: `/tmp/comma-pdf-performance-026-d250e976-full-test.exit`.
 - `dotnet build "COMMA Workspace 4.0.sln" -c Release`: PASS — 0 ostrzeżeń, 0 błędów.
 - `git diff --check`: PASS.
-- Allowlista: PASS — `.ai/report.md`, `.ai/handoff.md`, `COMMA.App/ViewModels/MainViewModel.cs`, `COMMA.App/Services/Pdf/OrderPdfGenerator.cs`, `COMMA.App/Services/Pdf/HandwrittenSection.cs`, `COMMA.App.Tests/OrderPdfGeneratorTests.cs`.
+- Allowlista: PASS — `.ai/report.md`, `.ai/handoff.md`, `COMMA.App/Services/Pdf/OrderPdfGenerator.cs`, `COMMA.App.Tests/OrderPdfGeneratorTests.cs`.
 - `main`: bez zmian.
 - Nie utworzono ZIP-a Windows ani aplikacji macOS.

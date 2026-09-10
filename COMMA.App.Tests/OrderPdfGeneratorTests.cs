@@ -2,6 +2,7 @@ using COMMA.App.Layout;
 using COMMA.App.Models;
 using COMMA.App.Services.Pdf;
 using COMMA.App.Tests.TestSupport;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -14,6 +15,79 @@ namespace COMMA.App.Tests;
 
 public sealed class OrderPdfGeneratorTests
 {
+    [Fact]
+    public void Pdf_LargeCardKeepsPageCountAndGarmentOrder()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputPath = directory.GetPath("large-card.pdf");
+        var imagePath = CreateDrawingFixture(directory, 1200, 800);
+        const int garmentCount = 16;
+        var garments = Enumerable.Range(1, garmentCount)
+            .Select(index => CreateGarment(4, $"PERFORMANCE GARMENT {index:00}"))
+            .ToList();
+
+        foreach (var garment in garments)
+        {
+            foreach (var drawing in garment.Drawings)
+                drawing.FullPath = imagePath;
+
+            garment.ViewDescriptions.Front = "Haft z przodu na lewej piersi.";
+            garment.ViewDescriptions.Back = "Haft z tyłu pod kołnierzem.";
+            garment.ViewDescriptions.Right = "Oznaczenie na prawym rękawie.";
+            garment.ViewDescriptions.Left = "Oznaczenie na lewym rękawie.";
+        }
+
+        var preparationTimer = Stopwatch.StartNew();
+        var pages = OrderPageLayoutEngine.BuildPages(garments);
+        preparationTimer.Stop();
+
+        var writeTimer = Stopwatch.StartNew();
+        OrderPdfGenerator.Generate(
+            outputPath,
+            new ProductionCard
+            {
+                OrderNumber = "PERF-026",
+                OrderName = "ROZBUDOWANA KARTA PRODUKCYJNA"
+            },
+            pages);
+        writeTimer.Stop();
+
+        Assert.True(new FileInfo(outputPath).Length > 0);
+        Assert.Equal(garmentCount + 1, pages.Count);
+
+        using var pdf = PdfPigDocument.Open(outputPath);
+        Assert.Equal(pages.Count, pdf.NumberOfPages);
+
+        for (var pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+        {
+            var pageText = WithoutSpaces(pdf.GetPage(pageIndex + 1).Text);
+
+            foreach (var placement in pages[pageIndex].Placements)
+            {
+                Assert.Contains(
+                    WithoutSpaces(placement.Garment.DisplayName),
+                    pageText);
+            }
+        }
+
+        var measurementPath = Environment.GetEnvironmentVariable(
+            "COMMA_PDF_PERFORMANCE_OUTPUT");
+
+        if (!string.IsNullOrWhiteSpace(measurementPath))
+        {
+            File.WriteAllLines(
+                measurementPath,
+                new[]
+                {
+                    $"pages={pages.Count}",
+                    $"drawings={garments.Sum(garment => garment.SelectedDrawingCount)}",
+                    $"preparation_ms={preparationTimer.Elapsed.TotalMilliseconds:F3}",
+                    $"write_ms={writeTimer.Elapsed.TotalMilliseconds:F3}",
+                    $"bytes={new FileInfo(outputPath).Length}"
+                });
+        }
+    }
+
     [Fact]
     public void Pdf_LaterPageWithFourSingleViewGarmentsAndDescriptionsGenerates()
     {

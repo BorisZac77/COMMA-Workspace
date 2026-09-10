@@ -1,6 +1,6 @@
 # Stan przekazania
 
-- TASK_ID: PDF-PAIRED-FIRST-PAGE-VALIDATION-025
+- TASK_ID: PDF-PERFORMANCE-026
 - STATUS: COMPLETED
 - LAST_ACTOR: Codex
 - NEXT_ACTOR: operator
@@ -9,15 +9,15 @@
 
 ## Stan
 
-Zestaw poprawek PDF z zadań 023–025 jest kompletny. Cztery pozycje z długimi tytułami generują PDF dzięki większej wysokości tytułu wyłącznie w tym układzie. KOLORYSTYKA używa 10 pt, zawijania i nie używa `ScaleToFit`. Raporty błędów PDF trafiają jako unikalne pliki UTF-8 do `LocalApplicationData/COMMA Workspace/Logs`.
+Generator PDF współdzieli teraz przygotowany obiekt obrazu dla identycznej ścieżki i wariantu kadrowania w obrębie jednego generowania. Cache nie przechodzi między wywołaniami, więc nie może zwrócić nieaktualnego rysunku.
 
-Porażka testu pary na pierwszej stronie była błędem walidacji, nie generatora. Rzeczywiste obrazy i opisy obu kolumn mają identyczną translację 287,500 pt. Test sprawdza teraz semantycznie równość wymiarów, położenia, symetrię i translację rzeczywistych granic zamiast porównywać prawą kolumnę z błędnym teoretycznym początkiem nieuwzględniającym szczeliny.
+Benchmark 17-stronicowej karty z 64 wystąpieniami tego samego rysunku wykazał skrócenie zapisu z 3358,701 ms do 1309,904 ms, około 61%. Nie zmieniono jakości, rozdzielczości ani kompresji. Test regresyjny sprawdza liczbę stron, niepusty plik i kolejność pozycji.
 
 ## Walidacja
 
-- Regresje ukierunkowane: PASS, 3/3.
-- Pełne testy: PASS, 184/184, exit code 0.
+- Regresje PDF: PASS, 4/4.
+- Pełne testy: PASS, 185/185, exit code 0.
 - Release build: PASS, 0 ostrzeżeń i 0 błędów.
 - `git diff --check`, allowlista i niezmieniony `main`: PASS.
 
-Zadanie zezwala na commit `Validate paired page layout with four-garment PDF fix` i push na `workspace-4.0` po końcowej kontroli.
+Zadanie zezwala na commit `Improve PDF generation performance` i zwykły push na `workspace-4.0` po końcowej kontroli.
